@@ -593,8 +593,8 @@ is not included in analytics; provider output uses the application's secret reda
   keyring, the Vault saves nothing. The file never leaves this computer, and joined servers and team
   members cannot read it. An agent gets the login sites and usernames, the card names with their last
   four digits and expiry, and the contact info; it never gets a password, a card number, a security
-  code or login notes. An agent can add and change contact info, change the site and username of a
-  login and the name, expiry and billing address of a card, and delete items, with no approval: the
+  code or login notes. An agent can add and change contact info, change the username of a login (not
+  its site) and the name, expiry and billing address of a card, and delete items, with no approval: the
   chat shows each change, and an item that an agent adds keeps the agent's name. A password that the
   user types into the secure sign-in card goes to the Vault only while Save to Vault is checked. The
   browser types those values into the page, where the page's own scripts can read them, as they read

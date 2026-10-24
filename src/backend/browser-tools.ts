@@ -193,13 +193,12 @@ const BROWSER_TOOL_DEFINITIONS = [
   browserTool({
     name: "save_vault_item",
     description:
-      "Add contact info to the OpenBot Vault, or change a saved item. A contact without id is new; with id, it changes. A login or a card needs its id from list_vault_items (not from list_logins) and changes only fields that are not secret. You cannot set a password, a card number or a security code. An omitted field keeps its value. Returns the id, kind and name, never a secret.",
+      "Add contact info to the OpenBot Vault, or change a saved item. A contact without id is new; with id, it changes. A login or a card needs its id from list_vault_items (not from list_logins). A login changes only its username; a card changes only fields that are not secret. You cannot set a password, a website, a card number or a security code. An omitted field keeps its value. Returns the id, kind and name, never a secret.",
     shape: {
       kind: z.enum(["contact", "login", "card"]),
       id: identifier.optional().describe("The item to change. Omit it to add a contact."),
       label: vaultText.describe("Contact or card: a short name, such as Home or Work card."),
       ...vaultContactShape,
-      website: vaultText.describe("Login: the HTTPS address or host name."),
       username: vaultText.describe("Login: the username or email."),
       nameOnCard: vaultText.describe("Card: the name on the card."),
       expMonth: z.number().int().min(1).max(12).optional().describe("Card: the expiry month."),

@@ -134,7 +134,7 @@ function agentSaveInput(record: VaultRecord, change: VaultAgentChange): VaultSav
       return decodeVaultSaveInput({
         kind: "login",
         id: existing.id,
-        website: change.website ?? existing.website,
+        website: existing.website,
         username: change.username ?? existing.username,
         notes: existing.notes,
         password: null,

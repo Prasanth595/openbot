@@ -44,16 +44,12 @@ export interface VaultCardSecret {
 
 /**
  * A change that an agent asks for. A contact without `id` is new. A field that is not given keeps its
- * value; in a new contact it is empty. A login or a card changes only its fields that are not secret.
+ * value; in a new contact it is empty. A login changes only its username, so that its password stays
+ * bound to its website. A card changes only its fields that are not secret.
  */
 export type VaultAgentChange =
   | { kind: "contact"; id?: string | undefined; fields: { [Key in keyof VaultContactFields]?: string | undefined } }
-  | {
-      kind: "login";
-      id: string;
-      website?: string | undefined;
-      username?: string | undefined;
-    }
+  | { kind: "login"; id: string; username?: string | undefined }
   | {
       kind: "card";
       id: string;

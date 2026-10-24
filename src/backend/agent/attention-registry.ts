@@ -161,7 +161,7 @@ const VAULT_CARD_ADD_REFUSED =
   "You cannot add a card: its number comes only from the user. Ask the user to add it in Server settings > Vault.";
 const VAULT_FIELDS: Record<BrowserToolArguments<"save_vault_item">["kind"], readonly string[]> = {
   contact: ["label", "fullName", "address", "address2", "city", "region", "postalCode", "country", "phone", "email"],
-  login: ["website", "username"],
+  login: ["username"],
   card: ["label", "nameOnCard", "expMonth", "expYear", "billingContactId"],
 };
 
@@ -173,9 +173,7 @@ function vaultChange(args: BrowserToolArguments<"save_vault_item">): VaultAgentC
   );
   if (misplaced) return `${misplaced[0]} is not a field of a ${args.kind}. Its fields are: ${allowed.join(", ")}.`;
   if (args.kind === "login")
-    return args.id
-      ? { kind: "login", id: args.id, website: args.website, username: args.username }
-      : VAULT_LOGIN_ADD_REFUSED;
+    return args.id ? { kind: "login", id: args.id, username: args.username } : VAULT_LOGIN_ADD_REFUSED;
   if (args.kind === "card")
     return args.id
       ? {
