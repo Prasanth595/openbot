@@ -397,8 +397,10 @@ joined server. App Settings does not show it, so that one name does not have two
 
 `prompt-cache-ttl-v1` reads and sets how long Claude keeps the prompt cache of the host's agents
 (`openbot-prompt-cache-ttl-v1.json`; `1h` or `5m`, default `1h`). With `1h` the host starts each
-Claude process with `ENABLE_PROMPT_CACHING_1H=1`. With `5m` it sets nothing, so Claude Code uses its
-own choice: 5 minutes with an API key, 1 hour on a subscription within its limits. A `promptCacheTtl`
+Claude process with `ENABLE_PROMPT_CACHING_1H=1`. Claude Code reads this flag before its subscription
+rules, so subagents and a subscription that uses extra usage also get 1 hour. With `5m` it sets
+nothing, so Claude Code uses its own choice: 5 minutes with an API key, 1 hour for the main thread of a
+subscription within its limits. A `promptCacheTtl`
 in the Claude settings or `CLAUDE_CODE_PROMPT_CACHE_TTL` on the host still wins. A change applies to
 the next Claude process, not to a running one; an idle thread starts a new process when it resumes.
 The Cache section of the Claude page in Server settings → Providers sets it for this computer and

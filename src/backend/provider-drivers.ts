@@ -390,7 +390,9 @@ function withAccountEnvironment(
  * Claude's agent environment with the prompt cache time of this server. With an API key the CLI
  * caches the prompt for 5 minutes, and agent turns are often further apart, so each turn paid for
  * the full context again. The CLI reads `ENABLE_PROMPT_CACHING_1H` last: a `promptCacheTtl` in the
- * Claude settings or `CLAUDE_CODE_PROMPT_CACHE_TTL` still wins. `5m` leaves the CLI's own choice.
+ * Claude settings or `CLAUDE_CODE_PROMPT_CACHE_TTL` still wins. The CLI reads the flag before its
+ * subscription rules, so subagents and a subscription on extra usage also get 1 hour. `5m` leaves the
+ * CLI's own choice.
  */
 function claudeAgentEnvironment(
   context: ProviderClientContext,

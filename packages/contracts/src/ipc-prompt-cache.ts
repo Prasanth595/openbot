@@ -7,8 +7,9 @@
 import { isDynamicRecord, isOneOf } from "./runtime-values";
 
 /**
- * `1h` asks Claude Code for a one-hour cache. `5m` leaves Claude Code's own choice: five minutes with
- * an API key, one hour on a Claude subscription within its limits.
+ * `1h` asks Claude Code for a one-hour cache, also for subagents and for a subscription on extra
+ * usage. `5m` leaves Claude Code's own choice: five minutes with an API key, one hour for the main
+ * thread of a Claude subscription within its limits.
  */
 export const PROMPT_CACHE_TTLS = ["1h", "5m"] as const;
 export type PromptCacheTtl = (typeof PROMPT_CACHE_TTLS)[number];
