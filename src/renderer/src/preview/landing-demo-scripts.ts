@@ -13,7 +13,7 @@ export const LANDING_DIRECT_SCRIPT_MESSAGE_PREFIX = "landing-direct-script:";
 /** The answers to a question prompt, by question id. */
 export type LandingPromptAnswers = Record<string, string[]>;
 
-export type LandingSubagent = Omit<ConversationSubagent, "startedAt" | "endedAt" | "error">;
+type LandingSubagent = Omit<ConversationSubagent, "startedAt" | "endedAt" | "error">;
 
 /**
  * One step of a scene. `at` is the time in milliseconds from the start of the scene. A `prompt`
