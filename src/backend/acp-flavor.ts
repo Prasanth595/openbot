@@ -8,6 +8,8 @@ import { isRecord } from "./protocol";
  * only for an observed agent version, and name that version where the hook is set.
  */
 export interface AcpFlavor {
+  /** The `clientInfo` that `initialize` sends. Absent: `OPENBOT_ACP_CLIENT_INFO`. */
+  clientInfo?: { name: string; title: string; version: string };
   /**
    * Whether an error names this missing session. `null` gives the decision to the protocol's
    * `-32002` rule. Another error code or another session must never replace a provider session.

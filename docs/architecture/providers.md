@@ -365,6 +365,11 @@ The server has no `--version`, so staging writes `antigravity-package.json` and
 `verifyInstalledRuntime` reads the version from that file (`versionFile`). OpenBot never searches
 `PATH`, because the Antigravity editor installs an `antigravity` command that is not this server.
 
+The server offers its Claude and GPT models only to a client whose `initialize` `clientInfo.name` is
+`zed`, `xcode`, `jetbrains.*` or `android studio*` (`supports_third_party_models` in 1.4.3). Other
+clients get only the Gemini models. So `ANTIGRAVITY_ACP_FLAVOR.clientInfo` sends the name `zed` and
+the title `OpenBot`. The server reads only the name, and only for this decision.
+
 Sign in is an ACP `authenticate` call with `oauth-personal`, in a separate process
 (`src/backend/acp-sign-in.ts`). On Linux, OpenBot reads the Google sign-in link from the
 server and opens it with the desktop browser. The server browser launch is disabled for this
