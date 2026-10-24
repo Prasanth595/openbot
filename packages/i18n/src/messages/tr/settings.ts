@@ -37,7 +37,9 @@ export const messages = {
   "settings.keepRunning.description": "Pencereyi kapattıktan sonra etkin görevleri çalıştırmaya devam edin.",
   "settings.keepAwake.title": "Bilgisayarı uyanık tut",
   "settings.keepAwake.description":
-    "Bilgisayar prize takılıyken rutinler zamanında çalışır. Pildeyken her zamanki gibi uyku moduna geçer. Ekran yine de kapanabilir.",
+    "Bilgisayar prize takılıyken rutinler zamanında çalışır. Ekran yine de kapanabilir.",
+  "settings.keepAwakeOnBattery.title": "Pildeyken de",
+  "settings.keepAwakeOnBattery.description": "Bilgisayarı pildeyken de uyanık tut. Pil daha hızlı biter.",
   "settings.restoreWorkspace.title": "Başlangıçta son çalışma alanını geri yükle",
   "settings.restoreWorkspace.description": "Önceki oturumunuzdaki çalışma alanını ve görevleri açın.",
   "settings.externalLinks.title": "Harici bağlantıları şurada aç",

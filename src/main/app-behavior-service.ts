@@ -12,7 +12,7 @@ const logger = createOpenBotLogger("app-behavior");
  * How OpenBot starts and stops on this computer, and if it keeps the computer awake.
  *
  * The keep-running choice is stored here, because main reads it each time the main window closes.
- * The keep-awake choice is stored in the same file, and each write keeps both. The launch-at-login
+ * The keep-awake choices are stored in the same file, and each write keeps all of them. The launch-at-login
  * choice is not stored: the operating system holds it, and the user can change it there.
  *
  * A file that is missing or unreadable as JSON reads as off, and so does a switch that it does not
@@ -30,6 +30,7 @@ export class AppBehaviorService {
   readonly #offersKeepAwake: boolean;
   #keepRunningInBackground = false;
   #keepAwake = false;
+  #keepAwakeOnBattery = false;
   #writes = Semaphore.makeUnsafe(1);
   readonly #listeners = new Set<() => void>();
 
@@ -53,6 +54,7 @@ export class AppBehaviorService {
             ? {
                 keepRunningInBackground: parsed.keepRunningInBackground === true,
                 keepAwake: parsed.keepAwake === true,
+                keepAwakeOnBattery: parsed.keepAwakeOnBattery === true,
               }
             : null,
         ),
@@ -61,6 +63,7 @@ export class AppBehaviorService {
         if (loaded.success !== null) {
           this.#keepRunningInBackground = loaded.success.keepRunningInBackground;
           this.#keepAwake = loaded.success.keepAwake;
+          this.#keepAwakeOnBattery = loaded.success.keepAwakeOnBattery;
         }
       } else if (!isMissingFileError(loaded.failure.cause) && !(loaded.failure.cause instanceof SyntaxError))
         return yield* loaded.failure;
@@ -77,11 +80,17 @@ export class AppBehaviorService {
     return this.#offersKeepAwake && this.#keepAwake;
   }
 
+  /** The user chose to keep this computer awake on battery power too. */
+  get keepAwakeOnBattery(): boolean {
+    return this.#offersKeepAwake && this.#keepAwakeOnBattery;
+  }
+
   readonly get = Effect.fn("AppBehavior.get")(function* (this: AppBehaviorService) {
     const preference: AppBehaviorPreference = {
       launchAtLogin: yield* this.#readLoginItem(),
       keepRunningInBackground: this.#offersBackground ? this.#keepRunningInBackground : null,
       keepAwake: this.#offersKeepAwake ? this.#keepAwake : null,
+      keepAwakeOnBattery: this.#offersKeepAwake ? this.#keepAwakeOnBattery : null,
     };
     return preference;
   });
@@ -112,19 +121,22 @@ export class AppBehaviorService {
       yield* this.#writes.withPermit(Effect.uninterruptible(loginItem.write(launchAtLogin)));
     const keepRunningInBackground = this.#offersBackground ? change.keepRunningInBackground : undefined;
     const keepAwake = this.#offersKeepAwake ? change.keepAwake : undefined;
-    if (keepRunningInBackground !== undefined || keepAwake !== undefined) {
+    const keepAwakeOnBattery = this.#offersKeepAwake ? change.keepAwakeOnBattery : undefined;
+    if (keepRunningInBackground !== undefined || keepAwake !== undefined || keepAwakeOnBattery !== undefined) {
       yield* this.#writes.withPermit(
         Effect.uninterruptible(
           Effect.suspend(() => {
             const next = {
               keepRunningInBackground: keepRunningInBackground ?? this.#keepRunningInBackground,
               keepAwake: keepAwake ?? this.#keepAwake,
+              keepAwakeOnBattery: keepAwakeOnBattery ?? this.#keepAwakeOnBattery,
             };
             return writePreferenceFile(this.#path, { version: 1, ...next }).pipe(
               Effect.tap(() =>
                 Effect.sync(() => {
                   this.#keepRunningInBackground = next.keepRunningInBackground;
                   this.#keepAwake = next.keepAwake;
+                  this.#keepAwakeOnBattery = next.keepAwakeOnBattery;
                 }),
               ),
             );
@@ -141,7 +153,7 @@ export class AppBehaviorService {
     return this.#loginItem ? this.#writes.withPermit(Effect.uninterruptible(this.#loginItem.refresh())) : Effect.void;
   }
 
-  /** Called when the keep-running or the keep-awake choice is saved. */
+  /** Called when the keep-running or a keep-awake choice is saved. */
   subscribe(listener: () => void): () => void {
     this.#listeners.add(listener);
     return () => {

@@ -315,7 +315,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
   // The preview computer has Tailscale, so the private route shows what it finds.
   let remoteNetworkRoute: RemoteNetworkRouteState = { route: DEFAULT_REMOTE_NETWORK_ROUTE, tailscaleConnected: true };
-  let appBehavior: AppBehaviorPreference = { launchAtLogin: false, keepRunningInBackground: false, keepAwake: false };
+  let appBehavior: AppBehaviorPreference = {
+    launchAtLogin: false,
+    keepRunningInBackground: false,
+    keepAwake: false,
+    keepAwakeOnBattery: false,
+  };
   let languagePreference = clone<AppLanguagePreference>(options.languagePreference ?? { language: "system" });
   const languageListeners = new Set<(preference: AppLanguagePreference) => void>();
   let logoColorPreference: AppLogoColorPreference = { color: DEFAULT_APP_LOGO_COLOR };

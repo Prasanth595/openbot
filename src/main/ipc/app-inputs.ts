@@ -148,7 +148,7 @@ export function parseIdleRestartTarget(input: unknown): IdleRestartTarget {
 export function parseAppBehaviorPreferenceChange(input: unknown): AppBehaviorPreferenceChange {
   return parseSwitches(
     input,
-    ["launchAtLogin", "keepRunningInBackground", "keepAwake"],
+    ["launchAtLogin", "keepRunningInBackground", "keepAwake", "keepAwakeOnBattery"],
     "The app behavior setting is required.",
   );
 }

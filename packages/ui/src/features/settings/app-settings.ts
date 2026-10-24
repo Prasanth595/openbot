@@ -19,6 +19,8 @@ export interface GeneralSettingsValue {
   keepRunningInBackground: boolean | null;
   /** Null hides the switch: Linux does not report a change of the power source, and a server never sleeps. */
   keepAwake: boolean | null;
+  /** Null where `keepAwake` is null. */
+  keepAwakeOnBattery: boolean | null;
   restoreLastWorkspace: boolean;
   externalLinkTarget: ExternalLinkTarget;
   desktopNotifications: boolean;
@@ -61,6 +63,7 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettingsValue = {
   launchAtLogin: null,
   keepRunningInBackground: null,
   keepAwake: null,
+  keepAwakeOnBattery: null,
   restoreLastWorkspace: true,
   externalLinkTarget: "Default browser",
   desktopNotifications: true,

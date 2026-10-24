@@ -1270,6 +1270,7 @@ if (!hasSingleInstanceLock) {
       teardown.push(0, "routine wake", () => routineWake.dispose());
       const keepAwake = new KeepAwake({
         enabled: () => appBehavior.keepAwake,
+        onBatteryToo: () => appBehavior.keepAwakeOnBattery,
         onBattery: () => powerMonitor.isOnBatteryPower(),
         start: () => powerSaveBlocker.start("prevent-app-suspension"),
         stop: (id) => powerSaveBlocker.stop(id),

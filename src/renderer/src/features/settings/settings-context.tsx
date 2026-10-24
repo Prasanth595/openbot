@@ -136,6 +136,7 @@ const Settings = createSimpleContext({
     let launchAtLoginChanged = false;
     let keepRunningInBackgroundChanged = false;
     let keepAwakeChanged = false;
+    let keepAwakeOnBatteryChanged = false;
 
     createEffect(
       () => ({
@@ -293,6 +294,14 @@ const Settings = createSimpleContext({
           "keepAwake",
           settingsPort().setAppBehaviorPreference({ keepAwake: value.keepAwake }),
           (preference) => preference.keepAwake,
+        );
+      }
+      if (value.keepAwakeOnBattery !== null && previous.keepAwakeOnBattery !== value.keepAwakeOnBattery) {
+        keepAwakeOnBatteryChanged = true;
+        persistField(
+          "keepAwakeOnBattery",
+          settingsPort().setAppBehaviorPreference({ keepAwakeOnBattery: value.keepAwakeOnBattery }),
+          (preference) => preference.keepAwakeOnBattery,
         );
       }
       if (previous.keepRemoteSessions !== value.keepRemoteSessions) {
@@ -475,6 +484,9 @@ const Settings = createSimpleContext({
                 ? current.keepRunningInBackground
                 : preference.keepRunningInBackground,
               keepAwake: keepAwakeChanged ? current.keepAwake : preference.keepAwake,
+              keepAwakeOnBattery: keepAwakeOnBatteryChanged
+                ? current.keepAwakeOnBattery
+                : preference.keepAwakeOnBattery,
             }));
           }),
         settingsPort()

@@ -15,6 +15,8 @@ export interface AppBehaviorPreference {
    * Null on Linux, where Electron does not report a change of the power source, and on a server.
    */
   keepAwake: boolean | null;
+  /** Keep the computer awake on battery power too. Null where `keepAwake` is null. */
+  keepAwakeOnBattery: boolean | null;
 }
 
 /** The choices to change. A choice that is not given keeps its value. */
@@ -22,4 +24,5 @@ export interface AppBehaviorPreferenceChange {
   launchAtLogin?: boolean;
   keepRunningInBackground?: boolean;
   keepAwake?: boolean;
+  keepAwakeOnBattery?: boolean;
 }

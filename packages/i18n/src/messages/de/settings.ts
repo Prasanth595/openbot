@@ -38,7 +38,10 @@ export const messages = {
   "settings.keepRunning.description": "Aktive Aufgaben nach dem Schließen des Fensters weiter ausführen.",
   "settings.keepAwake.title": "Computer wach halten",
   "settings.keepAwake.description":
-    "Routinen laufen pünktlich, solange der Computer am Strom hängt. Im Akkubetrieb geht er wie gewohnt in den Ruhezustand. Der Bildschirm kann sich trotzdem ausschalten.",
+    "Routinen laufen pünktlich, solange der Computer am Strom hängt. Der Bildschirm kann sich trotzdem ausschalten.",
+  "settings.keepAwakeOnBattery.title": "Auch im Akkubetrieb",
+  "settings.keepAwakeOnBattery.description":
+    "Den Computer auch im Akkubetrieb wach halten. Der Akku entlädt sich schneller.",
   "settings.restoreWorkspace.title": "Letzten Arbeitsbereich beim Start wiederherstellen",
   "settings.restoreWorkspace.description": "Den Arbeitsbereich und die Aufgaben der letzten Sitzung öffnen.",
   "settings.externalLinks.title": "Externe Links öffnen in",

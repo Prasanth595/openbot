@@ -191,7 +191,8 @@ A routine runs only while the computer is awake and OpenBot is open.
 On macOS and Windows, turn on Settings → General → **Keep this computer awake**. While the computer
 is connected to power, it then does not sleep when idle. The display can still turn off. A closed
 laptop lid, or a sleep that you select, still sleeps the computer, unless macOS uses an external
-display (closed-display mode). On battery power, the computer sleeps as usual.
+display (closed-display mode). On battery power, the computer sleeps as usual, unless you also turn
+on **Also on battery**.
 
 `pmset -g assertions` can show an OpenBot entry named `WebRTC has active PeerConnections`. It
 exists only while another device is connected to this computer, so the computer can sleep after that

@@ -65,6 +65,7 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
       { titleKey: "settings.keepRemoteSessions.title", descriptionKey: "settings.keepRemoteSessions.description" },
       { titleKey: "settings.keepRunning.title", descriptionKey: "settings.keepRunning.description" },
       { titleKey: "settings.keepAwake.title", descriptionKey: "settings.keepAwake.description" },
+      { titleKey: "settings.keepAwakeOnBattery.title", descriptionKey: "settings.keepAwakeOnBattery.description" },
       { titleKey: "settings.restoreWorkspace.title", descriptionKey: "settings.restoreWorkspace.description" },
       { titleKey: "settings.analytics.title", descriptionKey: "settings.analytics.description" },
     ],
