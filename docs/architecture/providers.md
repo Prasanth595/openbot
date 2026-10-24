@@ -443,12 +443,14 @@ version saved in the Keychain is not read, so the user signs in again once. Migr
 From 1.4.0 the server keeps the token, `settings.json` (which names the sign-in method) and its
 conversations in `$GEMINI_HOME/antigravity-acp`, with `~/.gemini` when the variable is not set. So
 Gemini can hold more than one account: each account after the first gets `GEMINI_HOME` set to its
-own folder (`antigravityReadsGeminiHome` gates it), and `antigravityStatePaths` confines its process
-to that folder. The sandbox cannot create folders in a new account's home, so OpenBot makes them.
+own folder (`antigravityReadsGeminiHome` gates the rows, the sign-in, the checks, the usage reads and
+the agent start), and `antigravityStatePaths` confines its process to that folder. Each new session
+leaves a conversation database in that folder, so a usage read of an account with no agent process
+starts no process: the account shows its reading from the sign-in check. The sandbox cannot create folders in a new account's home, so OpenBot makes them.
 The account sign-in is the same ACP `authenticate` call as the first account's; a Reconnect calls
 `logout` first. So a Reconnect refuses while an agent on the account runs a turn, and it stops the
-account's idle agent processes, which keep the old token. A saved Gemini API key belongs to the first account: an account process never gets
-`GEMINI_API_KEY`. The server reports no email and the token file holds none, so OpenBot cannot see
+account's idle agent processes, which keep the old token. A saved Gemini API key belongs to the
+first account: an account process never gets `GEMINI_API_KEY`. The server reports no email and the token file holds none, so OpenBot cannot see
 that two accounts are the same Google account. A joined server signs the account in through the
 live view, because `provider-account-relay-v1` names Codex and Claude only.
 

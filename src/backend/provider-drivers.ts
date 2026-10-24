@@ -93,6 +93,11 @@ export interface ProviderAccountSupport {
   readonly signOut?: ProviderCliCommand;
   /** False for a CLI version that ignores `homeVariable`. Absent when every version reads it. */
   supports?(cli: AgentCliInfo): boolean;
+  /**
+   * A usage read in a process of its own leaves a session on disk. An account with no agent process
+   * then shows its last reading, from its sign-in check, and starts no process to read usage.
+   */
+  readonly usageLeavesSession?: boolean;
 }
 
 const CLAUDE_COMMAND_ENV = (cli: AgentCliInfo): Record<string, string> =>
@@ -725,6 +730,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       homeVariable: "GEMINI_HOME",
       signIn: ANTIGRAVITY_SIGN_IN,
       supports: (cli) => antigravityReadsGeminiHome(cli.version),
+      // Each new Antigravity session keeps a conversation database in the account's folder.
+      usageLeavesSession: true,
     },
     resolveCli: resolveAntigravityCli,
     createClient: (cli, timeout, context, confinement) =>

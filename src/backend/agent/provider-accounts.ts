@@ -120,6 +120,11 @@ export class ProviderAccounts {
     return { [support.homeVariable]: this.#store.home(account) };
   }
 
+  /** Whether the provider's connected CLI can hold accounts after the first. */
+  supported(provider: AgentProviderId): boolean {
+    return this.#support(provider) !== undefined;
+  }
+
   /** The support of a provider whose connected CLI reads the home folder variable. */
   #support(provider: AgentProviderId): ProviderAccountSupport | undefined {
     const support = ProviderAccounts.support(provider);
@@ -338,7 +343,7 @@ export class ProviderAccounts {
 
   /** Checks each account of a provider whose own sign-in just connected, unless a check is recent. */
   checkAll(provider: AgentProviderId): Effect.Effect<void> {
-    if (!ProviderAccounts.support(provider)) return Effect.void;
+    if (!this.#support(provider)) return Effect.void;
     const now = Date.now();
     return Effect.forEach(
       this.#store
@@ -384,6 +389,7 @@ export class ProviderAccounts {
   ) {
     const now = Date.now();
     const limits: AccountUsageLimit[] = [];
+    if (!this.#support(provider)) return limits;
     for (const account of this.#store.list(provider)) {
       if (this.#states.get(account.id)?.state !== "connected") continue;
       const kept = this.#usage.get(account.id);
@@ -512,6 +518,8 @@ export class ProviderAccounts {
   ) {
     const running = this.#host.agentClient(account.provider, account.id);
     if (running) return yield* this.#storeUsage(account, running, yield* this.#host.readUsage(running, model));
+    if (ProviderAccounts.support(account.provider)?.usageLeavesSession)
+      return this.#usage.get(account.id)?.limit ?? null;
     const cli = this.#host.cli(account.provider);
     if (!cli) return null;
     return yield* Effect.acquireUseRelease(

@@ -109,6 +109,7 @@ interface Report {
   oldRuntime?: { accounts: boolean; connectError: string };
   signIn?: { pageOpened: string[]; accountState: string | undefined; tokenInAccount: boolean };
   processes?: { firstAccountHasKey: boolean; accountProcesses: number; accountProcessesWithKey: number };
+  idleUsage?: { processesStarted: number };
   busyReconnect?: { error: string; loggedOut: boolean; agentProcessKept: boolean };
   reconnect?: { logoutFirst: boolean; agentProcessStopped: boolean; accountState: string | undefined };
   remove?: { folderLeft: boolean; rows: number };
@@ -304,6 +305,14 @@ try {
   assert.ok(report.reconnect.agentProcessStopped);
   assert.equal(report.reconnect.accountState, "connected");
   assert.equal(pageOpened.length, 2);
+
+  // A usage read of an idle account starts no process: each new session leaves a file on disk.
+  const startsBeforeUsage = (await entries()).filter((entry) => entry.event === "start").length;
+  await runCauseEffect(runtime.accountUsage());
+  report.idleUsage = {
+    processesStarted: (await entries()).filter((entry) => entry.event === "start").length - startsBeforeUsage,
+  };
+  assert.equal(report.idleUsage.processesStarted, 0);
 
   // 5. Remove deletes the account's folder with its token.
   await runCauseEffect(runtime.removeProviderAccount("antigravity", account.id));

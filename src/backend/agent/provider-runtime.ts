@@ -2079,6 +2079,11 @@ export class ProviderRuntime implements ProviderPort {
       return yield* new ProviderOperationFailed({
         cause: new Error(sourceText("error.provider.cliNotReady", { provider: providerLabel(provider) })),
       });
+    // A CLI that ignores the account's folder would run the agent on the provider's own sign-in.
+    if (own.account && !this.#providerAccounts?.supported(provider))
+      return yield* new ProviderOperationFailed({
+        cause: new Error(sourceText("error.provider.accountsUnsupported", { provider: providerLabel(provider) })),
+      });
     const disposals = this.#disposals;
     const accountEnvironment = own.account ? this.#providerAccounts?.environment(own.account) : undefined;
     const { client } = yield* this.#authenticateClient(provider, cli, {
