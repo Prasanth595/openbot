@@ -54,7 +54,7 @@ function canonicalBrowserUrl(url: string): string {
 
 interface BrowserPanels {
   activeRightPanel: () => RightPanelMode;
-  setActiveRightPanel: (mode: RightPanelMode) => void;
+  setActiveRightPanel: (mode: RightPanelMode, agentId?: string) => void;
 }
 
 export interface BrowserStoreDeps {
@@ -133,12 +133,14 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
       return shown;
     }
     const lastShown = agentId ? lastShownTabs.get(agentId) : undefined;
-    if (!lastShown) return tabs[0];
+    if (!lastShown) return tabs.find((tab) => tab.id === deps.props.browserTakeover?.tabId) ?? tabs[0];
     return tabs.find((tab) => tab.id === lastShown.id) ?? tabs[lastShown.index] ?? tabs[lastShown.index - 1] ?? tabs[0];
   });
   const browserTakeoverTab = createMemo(() => {
     const tabId = deps.props.browserTakeover?.tabId;
-    return tabId ? browserTabs().find((tab) => tab.id === tabId) : undefined;
+    // A channel has no agent of its own, so it finds the tab among all tabs. Main already checked that the
+    // agent of the request owns it.
+    return tabId ? allBrowserTabs().find((tab) => tab.id === tabId) : undefined;
   });
   const [browserTakeoverPreview, setBrowserTakeoverPreview] = createSignal<BrowserTakeoverPreviewState>({
     status: "idle",
@@ -238,8 +240,18 @@ export function createBrowserStore(deps: BrowserStoreDeps) {
   function openBrowserTakeoverTab() {
     const tab = browserTakeoverTab();
     if (!tab) return;
-    if (deps.props.activeBrowserTabId !== tab.id) activateBrowserTab(tab.id);
-    deps.panels.setActiveRightPanel("browser-expanded");
+    if (browserTabs().some((entry) => entry.id === tab.id)) {
+      if (deps.props.activeBrowserTabId !== tab.id) activateBrowserTab(tab.id);
+      deps.panels.setActiveRightPanel("browser-expanded");
+      return;
+    }
+    // In a channel, the page opens in the chat of the agent that owns the tab. That chat mounts a new store,
+    // so main shows the tab first.
+    const owner = browserTabOwner(tab);
+    if (!owner || !browserInteractionAvailable() || closingBrowserTabIds.has(tab.id)) return;
+    deps.props.onActivateBrowserTab(tab.id);
+    deps.panels.setActiveRightPanel("browser-expanded", owner.id);
+    deps.props.onSelectAgent(owner.id);
   }
 
   const [localSignIn, setLocalSignIn] = createSignal<LocalSignIn | null>(null);
