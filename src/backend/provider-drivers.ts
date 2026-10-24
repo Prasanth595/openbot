@@ -145,7 +145,7 @@ type ProviderSignIn =
  * OpenBot starts the ACP server and calls `authenticate` with this method, which opens a browser
  * from the server. Only the sign-in process calls it: in a status probe it would open a browser.
  */
-export interface AcpAuthenticateSignIn {
+interface AcpAuthenticateSignIn {
   readonly kind: "acp-authenticate";
   readonly methodId: string;
   readonly argv: readonly string[];
