@@ -732,6 +732,28 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     );
   });
 
+  /**
+   * The answer to a usage prompt that the user saved on a custom agent, such as `/usage`, read in the
+   * private session, so no thread or transcript sees it. Null while the agent is not signed in or
+   * gives no text. The values the agent was started with, and known secret shapes, are redacted.
+   */
+  readonly readUsageText = Effect.fn("AcpAgentClient.readUsageText")(function* (
+    this: AcpAgentClient,
+    _model: string,
+    prompt: string,
+  ): Effect.fn.Return<string | null, ProviderClientOperationError> {
+    if (!this.running) return yield* providerFailure(new Error("ACP client is not running."));
+    yield* this.#ensureInitializedEffect();
+    if (!this.#signedIn) return null;
+    const answer = yield* this.#privatePrompt(prompt).pipe(
+      Effect.timeoutOrElse({
+        duration: this.#requestTimeoutMs,
+        orElse: () => Effect.fail(providerFailure(new TimeoutError(`${this.#label} request timed out: usage prompt`))),
+      }),
+    );
+    return this.#redact(answer).trim() || null;
+  });
+
   #privatePrompt(text: string): Effect.Effect<string, ProviderClientOperationError> {
     return this.#privatePromptLock.withPermit(this.#privatePromptOnce(text));
   }

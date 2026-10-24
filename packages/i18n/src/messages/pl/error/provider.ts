@@ -271,6 +271,8 @@ export const messages = {
     "ID agenta może zawierać tylko małe litery, cyfry lub `-` i nie może być ID wbudowanego dostawcy.",
   "error.provider.customAgentEnvInvalid":
     "Nazwa zmiennej może zawierać litery, cyfry lub `_` i nie może zaczynać się od cyfry. Użyj każdej nazwy raz, maksymalnie 16 nazw.",
+  "error.provider.customAgentUsagePromptInvalid":
+    "Polecenie użycia musi być jednym wierszem o długości maksymalnie 256 znaków.",
   "error.provider.customAgentCommandInvalid":
     "Polecenie musi być pełną ścieżką, ścieżką zaczynającą się od ~/ albo nazwą polecenia bez spacji.",
   "error.provider.customAgentArgsInvalid":

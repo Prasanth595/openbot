@@ -20,6 +20,7 @@ import {
   decodeCentralAuthState,
   decodeChatWindowTargets,
   decodeCustomAgents,
+  decodeCustomAgentUsage,
   decodeDetectedModelServers,
   decodeDiscoverModelsResult,
   decodeMobileConnectedDevices,
@@ -54,6 +55,7 @@ const customAgent = {
   command: "goose",
   args: ["acp"],
   envNames: ["OPENAI_API_KEY"],
+  usagePrompt: null,
   resolvedCommand: "/opt/homebrew/bin/goose",
 };
 
@@ -144,6 +146,8 @@ const valid: [string, (value: unknown) => unknown, unknown][] = [
   ["chat windows", decodeChatWindowTargets, [{ serverId: "local", agentId: "agent-1" }]],
   ["detected model servers", decodeDetectedModelServers, [detectedServer]],
   ["custom agents", decodeCustomAgents, [customAgent, { ...customAgent, id: "qwen", resolvedCommand: null }]],
+  ["a custom agent with a usage prompt", decodeCustomAgents, [{ ...customAgent, usagePrompt: "/usage" }]],
+  ["custom agent usage", decodeCustomAgentUsage, [{ id: "devin", text: "Plan: Pro\n42% left" }]],
   ["a model list", decodeDiscoverModelsResult, { models: [{ id: "qwen3" }] }],
   [
     "detection settings",
@@ -197,6 +201,9 @@ const malformed: [string, (value: unknown) => unknown, unknown][] = [
   ["a custom agent with its environment", decodeCustomAgents, [{ ...customAgent, env: [] }]],
   ["a custom agent with its ciphertext", decodeCustomAgents, [{ ...customAgent, secret: "c2VhbGVk" }]],
   ["a custom agent with a value", decodeCustomAgents, [{ ...customAgent, value: "sk-x" }]],
+  ["a custom agent with a two-line usage prompt", decodeCustomAgents, [{ ...customAgent, usagePrompt: "/usage\nrm" }]],
+  ["custom agent usage of an invalid id", decodeCustomAgentUsage, [{ id: "Not An Id", text: "42%" }]],
+  ["custom agent usage with no text", decodeCustomAgentUsage, [{ id: "devin", text: null }]],
   ["a model list with an empty id", decodeDiscoverModelsResult, { models: [{ id: "" }] }],
   [
     "detection settings without a switch",

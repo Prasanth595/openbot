@@ -271,6 +271,7 @@ export const messages = {
     "Bir ajan kimliği küçük harfler, rakamlar veya `-` olmalıdır ve yerleşik bir sağlayıcının kimliği olamaz.",
   "error.provider.customAgentEnvInvalid":
     "Bir değişken adı harfler, rakamlar veya `_` olmalı ve bir rakamla başlamamalıdır. Her adı bir kez, en fazla 16 ad kullanın.",
+  "error.provider.customAgentUsagePromptInvalid": "Kullanım komutu en fazla 256 karakterlik tek bir satır olmalıdır.",
   "error.provider.customAgentCommandInvalid":
     "Komut tam bir yol, ~/ ile başlayan bir yol veya boşluk içermeyen bir komut adı olmalıdır.",
   "error.provider.customAgentArgsInvalid":

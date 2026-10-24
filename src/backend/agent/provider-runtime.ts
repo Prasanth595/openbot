@@ -11,6 +11,7 @@ import type {
   AgentStatus,
   AgentSummary,
   CapabilityState,
+  CustomAgentUsage,
   CustomProviderRestart,
   ProviderCodeLoginStart,
   ProviderUsageResetOutcome,
@@ -19,6 +20,8 @@ import type {
 import {
   accountUsageCoversModel,
   agentProviderDescriptor,
+  CUSTOM_AGENT_DEFAULT_MODEL,
+  CUSTOM_AGENT_LIMITS,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   isAgentProvider,
   workspaceAccessEnforced,
@@ -430,6 +433,8 @@ export class ProviderRuntime implements ProviderPort {
    * every five minutes, so starting a released one to ask again would keep its process running.
    */
   readonly #usageUnreported = new Set<AgentProvider>();
+  /** The last answer of each custom agent's usage prompt, shown while the provider `acp` is released. */
+  readonly #customAgentUsage = new Map<string, string>();
   #idleCheck: NodeJS.Timeout | null = null;
   /** Each provider's sign-in file, and the version of it that the last account check saw. */
   readonly #signInFiles = new Map<AgentProvider, { path: string; seen: string }>();
@@ -1086,6 +1091,64 @@ export class ProviderRuntime implements ProviderPort {
       )
       .pipe(toProviderOperationFailed);
   }
+
+  /**
+   * The answers of the custom agents to their usage prompts, for the rail. The answer is text, not
+   * windows, so the provider `acp` keeps `reportsUsage: false` and its limit errors stay turn errors.
+   * The rail polls every five minutes, so a released `acp` shows the last answers and is not started.
+   * An agent whose read fails is left out.
+   */
+  readonly customAgentUsage = Effect.fn("ProviderRuntime.customAgentUsage")(function* (
+    this: ProviderRuntime,
+  ): Effect.fn.Return<CustomAgentUsage[]> {
+    const agents = savedCustomAgents(this.#credentials).flatMap((agent) =>
+      agent.usagePrompt === null ? [] : [{ id: agent.id, prompt: agent.usagePrompt }],
+    );
+    for (const id of this.#customAgentUsage.keys())
+      if (!agents.some((agent) => agent.id === id)) this.#customAgentUsage.delete(id);
+    if (agents.length === 0) return [];
+    if (this.#released.has("acp"))
+      return agents.flatMap(({ id }) => {
+        const text = this.#customAgentUsage.get(id);
+        return text === undefined ? [] : [{ id, text }];
+      });
+    if (!this.#clients.has("acp")) yield* this.ensureProvider("acp").pipe(this.#logUsageFailure("acp"));
+    const client = this.#clients.get("acp");
+    const readUsageText = client?.readUsageText?.bind(client);
+    if (!readUsageText) return [];
+    const answers = yield* Effect.forEach(
+      agents,
+      ({ id, prompt }) =>
+        readUsageText(`${id}/${CUSTOM_AGENT_DEFAULT_MODEL}`, prompt).pipe(
+          toProviderOperationFailed,
+          Effect.timeoutOrElse({
+            duration: ACCOUNT_USAGE_READ_TIMEOUT_MS,
+            orElse: () => Effect.fail(new ProviderOperationFailed({ cause: new Error("Usage read timed out.") })),
+          }),
+          Effect.map((answer): CustomAgentUsage[] => {
+            if (answer === null) {
+              this.#customAgentUsage.delete(id);
+              return [];
+            }
+            const text = answer.slice(0, CUSTOM_AGENT_LIMITS.usageAnswer);
+            this.#customAgentUsage.set(id, text);
+            return [{ id, text }];
+          }),
+          Effect.catch((error: ProviderOperationFailed) =>
+            Effect.sync((): CustomAgentUsage[] => {
+              this.#customAgentUsage.delete(id);
+              logger.warn("Could not read custom agent usage.", {
+                provider: "acp",
+                message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
+              });
+              return [];
+            }),
+          ),
+        ),
+      { concurrency: "unbounded" },
+    );
+    return answers.flat();
+  }).bind(this);
 
   #logUsageFailure(provider: AgentProvider) {
     return Effect.catch((error: ProviderOperationFailed | ProviderAccountFailed) =>

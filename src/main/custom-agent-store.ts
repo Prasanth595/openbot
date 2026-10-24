@@ -37,6 +37,8 @@ const entrySchema = z.object({
   command: z.string(),
   args: z.array(z.string()),
   envNames: z.array(z.string()),
+  /** Added in version 1 with no bump: a build that does not know it reads the file and drops it. */
+  usagePrompt: z.string().nullish(),
   /** One ciphertext for every environment value, or absent for an agent with no variables. */
   secret: z.string().nullish(),
 });
@@ -117,6 +119,7 @@ export class CustomAgentStore {
               command: stored.command,
               args: [...stored.args],
               envNames: [...stored.envNames],
+              usagePrompt: stored.usagePrompt ?? null,
               resolvedCommand,
             })),
           ),
@@ -132,6 +135,7 @@ export class CustomAgentStore {
       name: stored.name,
       command: stored.command,
       args: stored.args,
+      usagePrompt: stored.usagePrompt ?? null,
       // A value this computer cannot open is left out, and the agent starts without it.
       env: stored.envNames.flatMap((name) => {
         const value = values?.[name];
@@ -183,6 +187,7 @@ export class CustomAgentStore {
           command: input.command,
           args: [...input.args],
           envNames,
+          usagePrompt: input.usagePrompt,
           secret: sealed,
         },
         values,

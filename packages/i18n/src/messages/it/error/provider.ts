@@ -274,6 +274,8 @@ export const messages = {
     "L'ID di un agente deve contenere lettere minuscole, cifre o `-`, e non può essere l'ID di un provider integrato.",
   "error.provider.customAgentEnvInvalid":
     "Il nome di una variabile deve contenere lettere, cifre o `_` e non può iniziare con una cifra. Usa ogni nome una sola volta, al massimo 16 nomi.",
+  "error.provider.customAgentUsagePromptInvalid":
+    "Un comando di utilizzo deve essere una sola riga di massimo 256 caratteri.",
   "error.provider.customAgentCommandInvalid":
     "Il comando deve essere un percorso completo, un percorso che inizia con ~/, oppure il nome di un comando senza spazi.",
   "error.provider.customAgentArgsInvalid": "Un argomento non può contenere un a capo. Usa al massimo 32 argomenti.",

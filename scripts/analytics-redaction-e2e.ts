@@ -273,6 +273,7 @@ try {
         command,
         args: [`--token=${marker}arg`],
         env: [{ name: "FAKE_TOKEN", value: `${marker}token` }],
+        usagePrompt: null,
       }),
     { id: customAgentId, command: fakeAgentPath, marker: MARKER },
   );

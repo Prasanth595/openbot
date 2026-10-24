@@ -261,6 +261,7 @@ export const messages = defineMessages("error.provider", {
     "An agent ID must be lowercase letters, digits or `-`, and cannot be the ID of a built-in provider.",
   "error.provider.customAgentEnvInvalid":
     "A variable name must be letters, digits or `_`, and not start with a digit. Use each name once, at most 16 names.",
+  "error.provider.customAgentUsagePromptInvalid": "A usage command must be one line of at most 256 characters.",
   "error.provider.customAgentCommandInvalid":
     "The command must be a full path, a path that starts with ~/, or a command name with no spaces.",
   "error.provider.customAgentArgsInvalid": "An argument cannot contain a line break. Use at most 32 arguments.",

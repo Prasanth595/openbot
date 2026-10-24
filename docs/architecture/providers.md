@@ -645,6 +645,18 @@ wins. The agents run confined with no state paths. Migration 23 adds `acp` to
 `projection_provider_sessions`. The host hides `acp` agents, models, status, and sign-in state from
 peers before protocol 5, and the `customAgents` IPC group is local only.
 
+A custom agent can have a usage prompt (`usagePrompt`, "Usage command" in the form), one line such
+as `/usage`. `customAgents.usage` asks each agent that has one: `ProviderRuntime.customAgentUsage`
+sends it through `readUsageText` on the agent's model list process, in the session that no thread
+owns (`privatePrompt`). The answer is redacted and kept to `CUSTOM_AGENT_LIMITS.usageAnswer`
+characters. OpenBot does not read a percent from it, so `acp` keeps `reportsUsage: false`: the rail
+shows the agent's logo with no ring, and its hover card shows the text. The renderer polls with the
+plan usage interval, only while the local server is active. While `acp` is released, the read
+returns the last answers and does not start the router. A prompt that the agent does not answer
+itself is a model turn on each poll. An older build drops `usagePrompt` from `custom-agents.json`
+the next time it saves the file. An instance transfer does not carry it, because the import never
+saves a custom agent.
+
 ### Local detection and endpoint edit
 
 The `providerDetection` IPC group scans local model servers and custom agents, loads the models of

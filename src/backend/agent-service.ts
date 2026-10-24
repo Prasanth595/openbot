@@ -3279,6 +3279,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
+  /** See `ProviderRuntime.customAgentUsage`. */
+  customAgentUsage() {
+    return this.#providers.customAgentUsage();
+  }
+
   /** See `CustomEndpoints.saveCustomAgent`. */
   saveCustomAgent<T>(persist: () => Effect.Effect<T, AgentLifecycleFailed>): Effect.Effect<T, AgentLifecycleFailed> {
     return this.#endpoints

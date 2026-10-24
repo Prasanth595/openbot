@@ -7,6 +7,7 @@ import { appPort } from "../../app-port";
 import { useLayout } from "../../layout";
 import { usePlatform } from "../../platform";
 import { useChannels } from "../channels/channels-context";
+import { useCustomAgents } from "../custom-agents/custom-agents-context";
 import { serverSupportsCapability } from "../servers/server-capabilities";
 import { useServers } from "../servers/servers-context";
 import { useSettings } from "../settings/settings-context";
@@ -43,6 +44,9 @@ export function WorkspacePageRail(props: { hidden: boolean }) {
     layout.setSidebarView(view);
   }
   const usageRows = usePlanLimitRows();
+  const { customAgentUsage } = useCustomAgents();
+  /** The custom agents run on this computer, so a joined server does not show their usage. */
+  const localAgentUsage = () => (activeServer()?.kind === "local" ? customAgentUsage() : []);
   /** The compact sidebar has no footer, so the update island does not show. The Settings button then marks the update. */
   const updateNotice = () => {
     const phase = updates.status().phase;
@@ -64,6 +68,7 @@ export function WorkspacePageRail(props: { hidden: boolean }) {
       hidden={props.hidden}
       current={current()}
       usageRows={usageRows()}
+      customAgentUsage={localAgentUsage()}
       onAgents={() => showSidebarView("agents")}
       onRoutines={() => showSidebarView("routines")}
       onSchedule={windowPage.openSchedule}
