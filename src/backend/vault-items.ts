@@ -81,6 +81,8 @@ export interface VaultTypedLogin {
 }
 
 export interface VaultItems {
+  /** Whether the Vault can be read and changed now. It cannot without OS encryption or with a damaged file. */
+  ready(): boolean;
   /** Whether a card is saved now. Agents are told about card fill only while one is. */
   hasCards(): boolean;
   /** Whether contact info is saved now. */

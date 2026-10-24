@@ -5,7 +5,6 @@ import {
   VAULT_NOTES_LIMIT,
   VAULT_PASSWORD_LIMIT,
   VAULT_TEXT_LIMIT,
-  type VaultCardBrand,
   type VaultContactFields,
   type VaultSaveInput,
   type VaultSecretField,
@@ -13,6 +12,7 @@ import {
 } from "@openbot/contracts/ipc";
 import type { DynamicRecord } from "@openbot/contracts/runtime-values";
 import { type SourceMessages, sourceText } from "@openbot/i18n/source";
+import { websiteUrl } from "../backend/password-vault";
 import { isObject } from "./ipc/validation";
 
 const SECRET_FIELDS: readonly VaultSecretField[] = ["password", "number", "securityCode"];
@@ -52,15 +52,9 @@ function id(value: unknown): string | null {
 /** An `https:` address or a bare host name. Any other scheme is refused, so a login never fills on `http:`. */
 export function vaultWebsite(value: string): string | null {
   const trimmed = value.trim();
-  if (!trimmed) return null;
-  const hasScheme = /^[a-z][a-z0-9+.-]*:/iu.test(trimmed);
-  try {
-    const url = new URL(hasScheme ? trimmed : `https://${trimmed}`);
-    if (url.protocol !== "https:" || !url.hostname || url.username || url.password) return null;
-    return trimmed;
-  } catch {
-    return null;
-  }
+  const url = websiteUrl(trimmed);
+  if (url?.protocol !== "https:" || !url.hostname || url.username || url.password) return null;
+  return trimmed;
 }
 
 /** Digits only, with spaces and dashes removed, or null when the number fails the Luhn check. */
@@ -77,14 +71,6 @@ export function cardNumber(value: string): string | null {
     sum += digit;
   }
   return sum % 10 === 0 ? digits : null;
-}
-
-export function cardBrand(number: string): VaultCardBrand | null {
-  if (/^4/u.test(number)) return "visa";
-  if (/^(5[1-5]|2(2[2-9]|[3-6]\d|7[01]|720))/u.test(number)) return "mastercard";
-  if (/^3[47]/u.test(number)) return "amex";
-  if (/^(6011|65|64[4-9])/u.test(number)) return "discover";
-  return null;
 }
 
 function expiry(month: unknown, year: unknown): { expMonth: number; expYear: number } {

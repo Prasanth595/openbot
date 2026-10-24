@@ -394,20 +394,23 @@ export class OpenBotToolRouter {
             const operation = Effect.gen({ self: this }, function* () {
               const heldTabId = this.#browser.userControlTabFor(params);
               if (heldTabId) return yield* userControl(heldTabId);
-              return yield* params.tool === "upload_files"
-                ? this.#browserUploads.uploadFiles(agentId, params)
-                : params.tool === "list_logins"
-                  ? this.#attention.listVaultLogins(params)
-                  : params.tool === "list_vault_items"
-                    ? this.#attention.listVaultItems(params)
-                    : params.tool === "save_vault_item"
-                      ? this.#attention.saveVaultItem(params)
-                      : params.tool === "delete_vault_item"
-                        ? this.#attention.deleteVaultItem(params)
-                        : this.#browser.handleDynamicTool(params, {
-                            onUserControl: userControl,
-                            cardSecret: (cardId) => this.#attention.vaultCardSecret(cardId),
-                          });
+              switch (params.tool) {
+                case "upload_files":
+                  return yield* this.#browserUploads.uploadFiles(agentId, params);
+                case "list_logins":
+                  return yield* this.#attention.listVaultLogins(params);
+                case "list_vault_items":
+                  return yield* this.#attention.listVaultItems(params);
+                case "save_vault_item":
+                  return yield* this.#attention.saveVaultItem(params);
+                case "delete_vault_item":
+                  return yield* this.#attention.deleteVaultItem(params);
+                default:
+                  return yield* this.#browser.handleDynamicTool(params, {
+                    onUserControl: userControl,
+                    cardSecret: (cardId) => this.#attention.vaultCardSecret(cardId),
+                  });
+              }
             });
             const signal = toolRequest.signal;
             const cancelled = Effect.callback<never>((resume) => {

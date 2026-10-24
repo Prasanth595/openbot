@@ -11,6 +11,15 @@ export interface VaultItemOrigin {
 
 export type VaultCardBrand = "visa" | "mastercard" | "amex" | "discover";
 
+/** The brand of a card number, from its first digits. */
+export function cardBrand(number: string): VaultCardBrand | null {
+  if (/^4/u.test(number)) return "visa";
+  if (/^(5[1-5]|2(2[2-9]|[3-6]\d|7[01]|720))/u.test(number)) return "mastercard";
+  if (/^3[47]/u.test(number)) return "amex";
+  if (/^(6011|65|64[4-9])/u.test(number)) return "discover";
+  return null;
+}
+
 /** A value that the list never returns. */
 export type VaultSecretField = "password" | "number" | "securityCode";
 

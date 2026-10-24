@@ -11,7 +11,7 @@ import type {
   VaultSecretRequest,
   VaultState,
 } from "@openbot/contracts/ipc";
-import { VAULT_NOTES_LIMIT, VAULT_PASSWORD_LIMIT, VAULT_TEXT_LIMIT } from "@openbot/contracts/ipc";
+import { cardBrand, VAULT_NOTES_LIMIT, VAULT_PASSWORD_LIMIT, VAULT_TEXT_LIMIT } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Alert,
@@ -144,16 +144,6 @@ const COUNTRY_CODES = [
 
 const digitsOf = (value: string) => value.replace(/\D/gu, "");
 
-/** The brand of a number that the user types, before the card is saved. */
-function brandOfNumber(number: string): VaultCardBrand | null {
-  const digits = digitsOf(number);
-  if (digits.startsWith("4")) return "visa";
-  if (/^5[1-5]/u.test(digits) || /^2[2-7]/u.test(digits)) return "mastercard";
-  if (/^3[47]/u.test(digits)) return "amex";
-  if (/^6(?:011|5)/u.test(digits)) return "discover";
-  return null;
-}
-
 const twoDigits = (value: number) => String(value).padStart(2, "0");
 const expiryText = (month: number, year: number) => `${twoDigits(month)}/${twoDigits(year % 100)}`;
 
@@ -227,7 +217,8 @@ function draftReady(draft: Draft, saved: VaultItemSummary | null): boolean {
     const codeReady = draft.securityCode === "" || /^\d{3,4}$/u.test(draft.securityCode.trim());
     return numberReady && codeReady && parseExpiry(draft.expiry) !== null;
   }
-  return Boolean(draft.fullName.trim() || draft.label.trim());
+  // The same rule as main: a label alone is not contact info.
+  return [draft.fullName, draft.address, draft.phone, draft.email].some((field) => field.trim() !== "");
 }
 
 /** An empty secret field keeps the saved value. */
@@ -722,15 +713,15 @@ function ItemLogo(props: { item: VaultItemSummary }) {
 }
 
 function DraftLogo(props: { draft: Draft; saved: VaultItemSummary | null }) {
-  const cardBrand = (draft: CardDraft) =>
-    draft.number ? brandOfNumber(draft.number) : props.saved?.kind === "card" ? props.saved.brand : null;
+  const draftBrand = (draft: CardDraft) =>
+    draft.number ? cardBrand(digitsOf(draft.number)) : props.saved?.kind === "card" ? props.saved.brand : null;
   return (
     <Switch>
       <Match when={props.draft.kind === "login" ? props.draft : undefined}>
         {(login) => <SiteLogo website={login().website} />}
       </Match>
       <Match when={props.draft.kind === "card" ? props.draft : undefined}>
-        {(card) => <CardLogo brand={cardBrand(card())} />}
+        {(card) => <CardLogo brand={draftBrand(card())} />}
       </Match>
       <Match when={props.draft.kind === "contact" ? props.draft : undefined}>
         {(contact) => <ContactLogo name={contact().fullName || contact().label} />}

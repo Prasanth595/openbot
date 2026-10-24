@@ -881,7 +881,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       ...(credentials.agentEnvironment ? { agentEnvironment: credentials.agentEnvironment } : {}),
       passwordVaultConnected: () => options.passwordVault?.connected() ?? false,
       vaultItems: () => ({
-        available: options.vaultItems !== undefined,
+        available: options.vaultItems?.ready() ?? false,
         cards: options.vaultItems?.hasCards() ?? false,
         contacts: options.vaultItems?.hasContacts() ?? false,
       }),

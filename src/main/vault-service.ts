@@ -5,6 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 import {
+  cardBrand,
   VAULT_NOTES_LIMIT,
   VAULT_PASSWORD_LIMIT,
   VAULT_TEXT_LIMIT,
@@ -17,9 +18,9 @@ import {
   type VaultStatus,
 } from "@openbot/contracts/ipc";
 import { type SourceMessages, sourceText } from "@openbot/i18n/source";
-import { registerSecretValue } from "@openbot/logging";
+import { registerSecretValues } from "@openbot/logging";
 import { Effect } from "effect";
-import { type PasswordVault, PasswordVaultError, websiteMatchesOrigin } from "../backend/password-vault";
+import { type PasswordVault, PasswordVaultError, websiteMatchesOrigin, websiteUrl } from "../backend/password-vault";
 import type {
   VaultAgentChange,
   VaultAgentResult,
@@ -28,7 +29,7 @@ import type {
   VaultTypedLogin,
 } from "../backend/vault-items";
 import { parseLoginCsv } from "./vault-csv";
-import { cardBrand, decodeVaultSaveInput, vaultWebsite } from "./vault-inputs";
+import { decodeVaultSaveInput, vaultWebsite } from "./vault-inputs";
 import type { StoredCard, StoredContact, StoredLogin, VaultRecord, VaultStore } from "./vault-store";
 
 type VaultErrorKey = Extract<keyof SourceMessages, `error.vault.${string}`>;
@@ -42,28 +43,27 @@ function refuse(key: VaultErrorKey): never {
   throw new Error(sourceText(key));
 }
 
-/** The card number as the page may show it, in groups of four, is redacted too. */
-function registerCardNumber(number: string): void {
-  registerSecretValue(number);
-  registerSecretValue(number.replace(/(\d{4})(?=\d)/gu, "$1 "));
-  registerSecretValue(number.replace(/(\d{4})(?=\d)/gu, "$1-"));
-}
-
 /**
- * Registers every secret of `record` for log redaction. The security code is not registered: a
- * three-digit pattern would remove numbers from every log line. It reaches only the page.
+ * Registers every secret of `record` for log redaction, in one pattern rebuild. A card number is
+ * also redacted as the page may show it, in groups of four. The security code is not registered:
+ * a three-digit pattern would remove numbers from every log line. It reaches only the page.
  */
 function registerSecrets(record: VaultRecord): void {
-  for (const login of record.logins) registerSecretValue(login.password, { allowShort: true });
-  for (const card of record.cards) registerCardNumber(card.number);
+  registerSecretValues(
+    record.logins.map((login) => login.password),
+    { allowShort: true },
+  );
+  registerSecretValues(
+    record.cards.flatMap(({ number }) => [
+      number,
+      number.replace(/(\d{4})(?=\d)/gu, "$1 "),
+      number.replace(/(\d{4})(?=\d)/gu, "$1-"),
+    ]),
+  );
 }
 
 function loginTitle(website: string): string {
-  try {
-    return new URL(/^[a-z][a-z0-9+.-]*:\/\//iu.test(website) ? website : `https://${website}`).hostname;
-  } catch {
-    return website;
-  }
+  return websiteUrl(website)?.hostname ?? website;
 }
 
 /** The agent that added an item, kept when the user or another agent changes it. */
@@ -239,7 +239,9 @@ export class VaultService {
   });
 
   readonly delete = Effect.fn("VaultService.delete")(function* (this: VaultService, id: string) {
-    yield* this.#change((record) => this.#without(record, id));
+    yield* this.#change((record) =>
+      itemName(record, id) ? this.#without(record, id) : refuse("error.vault.itemMissing"),
+    );
     return this.state();
   });
 
@@ -398,7 +400,7 @@ export class VaultService {
         return record;
       }
       // The host alone, as the user types a website in the Vault page.
-      const host = new URL(/^[a-z][a-z0-9+.-]*:/iu.test(website) ? website : `https://${website}`).host;
+      const host = websiteUrl(website)?.host ?? website;
       const stored: StoredLogin = existing
         ? { ...existing, password: login.password }
         : {
@@ -423,6 +425,7 @@ export class VaultService {
 
   /** The cards and contact info, for the browser tools. */
   readonly items: VaultItems = {
+    ready: () => this.#status === "ready",
     hasCards: () => this.#status === "ready" && this.#store.read().cards.length > 0,
     hasContacts: () => this.#status === "ready" && this.#store.read().contacts.length > 0,
     listForAgent: () => {
