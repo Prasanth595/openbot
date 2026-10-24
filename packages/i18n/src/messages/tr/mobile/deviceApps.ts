@@ -5,7 +5,7 @@ export const messages = {
   "mobile.deviceApps.title": "Bağlı uygulamalar",
   "mobile.deviceApps.apps": "Uygulamalar",
   "mobile.deviceApps.appsFooter":
-    "Ajanlarının bu iPhone’daki uygulamaları kullanmasına izin ver. Bir uygulama kapalıyken OpenBot, bir ajan onu ilk kez kullandığında sorar.",
+    "Ajanlarının bu iPhone’daki uygulamaları kullanmasına izin ver. Bir uygulamayı açtığında iPhone onun iznini ister. Bir uygulama kapalıyken OpenBot, bir ajan onu ilk kez kullandığında sorar.",
   "mobile.deviceApps.writes": "Öğe ekleme",
   "mobile.deviceApps.writesFooter":
     "Her zaman’ı seçene kadar OpenBot, bir ajan etkinlik veya hatırlatıcı eklemeden önce sorar.",

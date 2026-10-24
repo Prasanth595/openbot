@@ -42,8 +42,8 @@ export async function readOsPermission(app: DeviceToolApp): Promise<OsPermission
 }
 
 /**
- * The iPhone permission prompt, shown only here and only after the user allowed the request in
- * OpenBot. A permission the user refused earlier cannot be asked again; it is `os_permission_denied`.
+ * The iPhone permission prompt, shown only here: when the user turns an app on in Settings, and at
+ * the first agent use, after the user allowed the request in OpenBot. A permission the user refused earlier cannot be asked again; it is `os_permission_denied`.
  */
 export async function ensureOsPermission(app: DeviceToolApp): Promise<void> {
   const { read, request } = PERMISSIONS[app];

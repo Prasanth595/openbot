@@ -5,7 +5,11 @@ import { useEffect, useState } from "react";
 import { Linking } from "react-native";
 import { useUniwind } from "uniwind";
 import { DEVICE_APP_NAME } from "@/features/device-apps/model/app-text";
-import { type OsPermissionState, readOsPermission } from "@/features/device-apps/model/os-permissions";
+import {
+  ensureOsPermission,
+  type OsPermissionState,
+  readOsPermission,
+} from "@/features/device-apps/model/os-permissions";
 import { SettingsContent, SettingsRow, SettingsSection } from "@/features/settings/components/settings-content";
 import { SettingsSwitch } from "@/features/settings/components/settings-controls";
 import {
@@ -27,7 +31,8 @@ const WRITE_LABEL = {
 
 /**
  * Which iPhone apps an agent may use through this phone. The choice is on the phone only: the host
- * stores no consent. An app that is off asks at the first use. The iPhone keeps its own permission, which
+ * stores no consent. Turning an app on asks the iPhone for its permission at once; if the user refuses,
+ * the app stays off. An app that is off asks at the first use. The iPhone keeps its own permission, which
  * only iPhone Settings can change after the user refused it, so the screen links there.
  */
 export function DeviceAppsSettingsScreen() {
@@ -37,6 +42,7 @@ export function DeviceAppsSettingsScreen() {
   const foreground = useAppForeground();
   const [error, setError] = useState<string | null>(null);
   const [systemState, setSystemState] = useState<Partial<Record<DeviceToolApp, OsPermissionState>>>({});
+  const [pending, setPending] = useState<ReadonlySet<DeviceToolApp>>(new Set());
   const dark = theme === "dark";
 
   useEffect(() => {
@@ -64,6 +70,32 @@ export function DeviceAppsSettingsScreen() {
     });
   }
 
+  function setAppPending(app: DeviceToolApp, on: boolean) {
+    setPending((current) => {
+      const next = new Set(current);
+      if (on) next.add(app);
+      else next.delete(app);
+      return next;
+    });
+  }
+
+  // The iPhone prompt shows an inactive state, which the foreground effect ignores, so the state is set here.
+  async function enable(app: DeviceToolApp) {
+    if (pending.has(app)) return;
+    setAppPending(app, true);
+    try {
+      await ensureOsPermission(app);
+      setSystemState((current) => ({ ...current, [app]: "granted" }));
+      report(saveDeviceAppAccess(app, "allow"));
+    } catch {
+      const state = await readOsPermission(app);
+      setSystemState((current) => ({ ...current, [app]: state }));
+      void haptics.notification("error");
+    } finally {
+      setAppPending(app, false);
+    }
+  }
+
   const blocked = DEVICE_TOOL_APPS.filter((app) => systemState[app] === "denied" && preference.access[app] !== "deny");
   return (
     <SettingsContent>
@@ -72,14 +104,14 @@ export function DeviceAppsSettingsScreen() {
           <SettingsRow key={app}>
             <SettingsSwitch
               value={preference.access[app] === "allow"}
-              disabled={!preference.ready}
+              disabled={!preference.ready || pending.has(app)}
               label={
                 preference.access[app] === "deny"
                   ? t("mobile.deviceApps.app.denied", { app: t(DEVICE_APP_NAME[app]) })
                   : t(DEVICE_APP_NAME[app])
               }
               dark={dark}
-              onValueChange={(on) => report(saveDeviceAppAccess(app, on ? "allow" : "ask"))}
+              onValueChange={(on) => (on ? void enable(app) : report(saveDeviceAppAccess(app, "ask")))}
             />
           </SettingsRow>
         ))}

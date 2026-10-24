@@ -5,7 +5,7 @@ export const messages = {
   "mobile.deviceApps.title": "連携アプリ",
   "mobile.deviceApps.apps": "アプリ",
   "mobile.deviceApps.appsFooter":
-    "このiPhoneのこれらのアプリをエージェントが使えるようにします。オフの間は、エージェントが初めて使うときにOpenBotが確認します。",
+    "このiPhoneのこれらのアプリをエージェントが使えるようにします。アプリをオンにすると、iPhoneがその許可を求めます。オフの間は、エージェントが初めて使うときにOpenBotが確認します。",
   "mobile.deviceApps.writes": "項目の追加",
   "mobile.deviceApps.writesFooter":
     "「常に許可」を選ぶまで、エージェントが予定やリマインダーを追加する前にOpenBotが確認します。",

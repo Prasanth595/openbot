@@ -5,7 +5,7 @@ export const messages = {
   "mobile.deviceApps.title": "Apps conectados",
   "mobile.deviceApps.apps": "Apps",
   "mobile.deviceApps.appsFooter":
-    "Deixe seus agentes usarem estes apps neste iPhone. Enquanto um app estiver desativado, o OpenBot pergunta na primeira vez que um agente o usa.",
+    "Deixe seus agentes usarem estes apps neste iPhone. Ao ativar um app, o iPhone pede a permissão dele. Enquanto um app estiver desativado, o OpenBot pergunta na primeira vez que um agente o usa.",
   "mobile.deviceApps.writes": "Adicionar itens",
   "mobile.deviceApps.writesFooter":
     "Até você escolher Sempre, o OpenBot pergunta antes de um agente adicionar um evento ou um lembrete.",

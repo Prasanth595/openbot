@@ -4,7 +4,7 @@ export const messages = defineMessages("mobile.deviceApps", {
   "mobile.deviceApps.title": "Connected apps",
   "mobile.deviceApps.apps": "Apps",
   "mobile.deviceApps.appsFooter":
-    "Let your agents use these apps on this iPhone. While an app is off, OpenBot asks the first time an agent uses it.",
+    "Let your agents use these apps on this iPhone. When you turn on an app, the iPhone asks for its permission. While an app is off, OpenBot asks the first time an agent uses it.",
   "mobile.deviceApps.writes": "Adding items",
   "mobile.deviceApps.writesFooter":
     "Until you choose Always, OpenBot asks before an agent adds an event or a reminder.",
