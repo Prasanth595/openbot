@@ -1832,6 +1832,10 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
 
 function claudeEnvironment(cli: ClaudeCliInfo): NodeJS.ProcessEnv {
   return {
+    // With an API key the CLI caches the prompt for 5 minutes, and agent turns are often further
+    // apart, so each turn paid for the full context again. The CLI reads this flag last: an
+    // inherited value, `promptCacheTtl` or `CLAUDE_CODE_PROMPT_CACHE_TTL` still wins.
+    ENABLE_PROMPT_CACHING_1H: "1",
     ...process.env,
     ...cliPathEnvironment(cli),
     ...(cli.source === "managed" ? { DISABLE_AUTOUPDATER: "1" } : {}),
