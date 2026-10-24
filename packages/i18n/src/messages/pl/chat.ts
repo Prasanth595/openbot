@@ -101,6 +101,8 @@ export const messages = {
   "chat.awaiting.state.failed": "Niepowodzenie",
   "chat.awaiting.readsNext": "{name} przeczyta to jako następny",
   "chat.awaiting.working": "{name} pracuje",
+  "chat.awaiting.needsYou": "{name} czeka na ciebie",
+  "chat.awaiting.limited": "{name} czeka na limit użycia",
   "chat.awaiting.dismiss": "Ukryj tę listę",
   "chat.waits.label": "Otwarte oczekiwania",
   "chat.waits.title": {

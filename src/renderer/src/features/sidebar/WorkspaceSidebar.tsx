@@ -15,6 +15,7 @@ import { useNavigation } from "../../navigation";
 import { usePlatform } from "../../platform";
 import { useTurns } from "../../turns";
 import { useAgentActions } from "../agents/agent-actions";
+import { agentThreadAttention } from "../agents/agent-thread-attention";
 import { useAgents } from "../agents/agents-context";
 import { useChannels } from "../channels/channels-context";
 import { useConversation } from "../conversation/conversation-context";
@@ -123,30 +124,18 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
 
   /* The agent conversation shows only the waits of the agent's own thread. A wait in a channel
    * thread stays out of "Needs you", because selecting the row cannot answer it. */
-  const sidebarAgentStates = createMemo(() => {
-    const agentThreads = new Map(agentList().map((agent) => [agent.id, agent.threadId]));
-    const inAgentThread = (agentId: string, threadId: string | undefined) =>
-      threadId !== undefined && agentThreads.get(agentId) === threadId;
-    return computeSidebarAgentStates({
+  const sidebarAgentStates = createMemo(() =>
+    computeSidebarAgentStates({
       agentIds: agentList().map((agent) => agent.id),
       activeTurns: activeTurns(),
       queues: queues(),
       unreadReplies: unreadReplies(),
       recentReplies: recentReplies(),
-      pendingPrompts: Object.fromEntries(
-        Object.entries(pendingPrompts()).filter(([agentId, event]) =>
-          inAgentThread(agentId, event?.type === "prompt" ? event.threadId : event?.request.threadId),
-        ),
-      ),
-      pendingApprovals: Object.fromEntries(
-        approvals()
-          .filter((approval) => inAgentThread(approval.agentId, approval.threadId))
-          .map((approval) => [approval.agentId, approval]),
-      ),
+      ...agentThreadAttention({ agents: agentList(), pendingPrompts: pendingPrompts(), approvals: approvals() }),
       failedTurns: failedTurns(),
       usageLimits: usageLimits(),
-    });
-  });
+    }),
+  );
 
   /* The badge says what an agent is doing; the face says how it is going. `isAgentWorking` is
    * shared, and a routine mark only replaces the badge for that same agent. */

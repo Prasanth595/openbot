@@ -86,7 +86,7 @@ import type { SettingsPagePlacement } from "@openbot/ui/features/settings/Settin
 import { createSettingsHostedServersStore } from "@openbot/ui/features/settings/stores/hosted-servers-store";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { SidebarCommunityCard } from "@openbot/ui/features/sidebar/SidebarCommunityCard";
-import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-agent-states";
+import { computeSidebarAgentStates, sidebarAgentWaits } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
 import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRail";
 import { useText } from "@openbot/ui/text";
@@ -1260,6 +1260,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     };
   });
   const sidebarAgentStates = createMemo(() => computeSidebarAgentStates(sidebarActivity()));
+  const agentWaits = createMemo(() => sidebarAgentWaits(sidebarActivity()));
   const sidebarAgentMoods = createMemo(() => computeAgentAvatarMoods(sidebarActivity()));
   const browserEnabled = createMemo(
     () =>
@@ -2339,6 +2340,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   setMobilePane("conversation");
                   void select(id);
                 }}
+                agentWaits={agentWaits()}
                 onUpdateAgent={async (agentId, updates) => {
                   await updateRemoteAgent(remoteAgentAdmin, { agentId, ...updates }, workspace.runtime.updateAgent);
                   await workspace.refresh();

@@ -96,6 +96,8 @@ export const messages = {
   "chat.awaiting.state.failed": "Ошибка",
   "chat.awaiting.readsNext": "{name} прочитает следующим",
   "chat.awaiting.working": "{name} работает",
+  "chat.awaiting.needsYou": "{name} ждёт вас",
+  "chat.awaiting.limited": "{name} ждёт сброса лимита",
   "chat.awaiting.dismiss": "Скрыть этот список",
   "chat.waits.label": "Открытые ожидания",
   "chat.waits.title": {

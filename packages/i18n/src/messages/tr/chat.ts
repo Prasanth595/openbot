@@ -61,6 +61,8 @@ export const messages = {
   "chat.awaiting.state.failed": "Başarısız",
   "chat.awaiting.readsNext": "Sıradaki okuyan: {name}",
   "chat.awaiting.working": "{name} çalışıyor",
+  "chat.awaiting.needsYou": "{name} sizi bekliyor",
+  "chat.awaiting.limited": "{name} kullanım sınırını bekliyor",
   "chat.awaiting.dismiss": "Bu listeyi gizle",
   "chat.waits.label": "Açık beklemeler",
   "chat.waits.title": { one: "{count} açık bekleme", other: "{count} açık bekleme" },

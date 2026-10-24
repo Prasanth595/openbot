@@ -60,6 +60,8 @@ export const messages = defineMessages("chat", {
   "chat.awaiting.state.failed": "Failed",
   "chat.awaiting.readsNext": "{name} reads it next",
   "chat.awaiting.working": "{name} is working",
+  "chat.awaiting.needsYou": "{name} needs you",
+  "chat.awaiting.limited": "{name} waits for a usage limit",
   "chat.awaiting.dismiss": "Hide this list",
   "chat.waits.label": "Open waits",
   "chat.waits.title": { one: "{count} open wait", other: "{count} open waits" },

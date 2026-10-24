@@ -93,6 +93,15 @@
   color: var(--openbot-danger-text);
 }
 
+/* An agent that was asked waits for the user or for its plan, so its work does not go on. */
+.awaiting-replies-item[data-wait] .awaiting-replies-state-label {
+  color: var(--openbot-warning-text);
+}
+
+.awaiting-replies-open {
+  flex: 0 0 auto;
+}
+
 .awaiting-replies-item[data-state="active"] .awaiting-replies-state-label {
   animation: task-list-pulse 1.6s ease-in-out infinite;
   animation-play-state: var(--task-list-play-state, running);

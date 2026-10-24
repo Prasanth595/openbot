@@ -61,6 +61,8 @@ export const messages = {
   "chat.awaiting.state.failed": "失敗",
   "chat.awaiting.readsNext": "次に {name} が読みます",
   "chat.awaiting.working": "{name} が作業中",
+  "chat.awaiting.needsYou": "{name} があなたを待っています",
+  "chat.awaiting.limited": "{name} は使用上限の解除を待っています",
   "chat.awaiting.dismiss": "この一覧を非表示",
   "chat.waits.label": "未完了の待機",
   "chat.waits.title": { other: "未完了の待機 {count} 件" },

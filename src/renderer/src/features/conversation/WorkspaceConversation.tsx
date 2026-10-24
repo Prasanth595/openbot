@@ -19,6 +19,7 @@ import {
   usageLimitAskOptions,
 } from "@openbot/ui/features/conversation/BackupModels";
 import { unloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
+import { sidebarAgentWaits } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import { createEffect, createMemo } from "solid-js";
 import { desktopAnalytics } from "../../analytics";
 import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
@@ -30,6 +31,7 @@ import { useTurns } from "../../turns";
 import { turnsPort } from "../../turns-port";
 import { useAuth } from "../account/account-context";
 import { useAgentTasks } from "../agent-tasks/agent-tasks-context";
+import { agentThreadAttention } from "../agents/agent-thread-attention";
 import { useAgents } from "../agents/agents-context";
 import { agentsPort } from "../agents/agents-port";
 import { withHostAccountUsage } from "../agents/host-provider-accounts";
@@ -191,6 +193,15 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
       (message) => messagePromptRequestKey(message) === requestKey,
     )?.uiBlock;
   });
+
+  // The waits of the agents that this agent asked, by the same rules as the sidebar's "Needs you".
+  const agentWaits = createMemo(() =>
+    sidebarAgentWaits({
+      agentIds: agentList().map((agent) => agent.id),
+      ...agentThreadAttention({ agents: agentList(), pendingPrompts: pendingPrompts(), approvals: approvals() }),
+      usageLimits: usageLimits(),
+    }),
+  );
 
   const activeApproval = createMemo(() => {
     const agent = activeAgent();
@@ -548,6 +559,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         settingsRequest={settingsRequest()}
         messageFocusRequest={messageFocusRequest()}
         onSelectAgent={selectAgent}
+        agentWaits={agentWaits()}
         onUpdateAgent={updateConversationAgent}
         onSetAgentAvatar={setAgentAvatar}
         onSendMessage={sendMessage}

@@ -37,6 +37,7 @@ import type { AwaitingReplyItem } from "@openbot/ui/features/conversation/Awaiti
 import type { UsageLimitAskCardProps } from "@openbot/ui/features/conversation/BackupModels";
 import type { ChatMessageAuthor } from "@openbot/ui/features/conversation/ChatMessageRow";
 import type { UnloadedHistory } from "@openbot/ui/features/conversation/ChatScrollRail";
+import type { SidebarAgentWait } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import type { JSX } from "@solidjs/web";
 import type { ConnectorRegistry } from "../connectors/connector-registry";
 import type { ConversationRuntime } from "./conversation-runtime";
@@ -262,6 +263,11 @@ export interface ConversationProps {
   usageLimited?: ((choice: AgentModelChoice) => boolean) | undefined;
   browserTakeover: Extract<AgentEvent, { type: "browser-takeover-requested" }>["request"] | undefined;
   onSelectAgent: (agentId: string) => void;
+  /**
+   * What stops each agent in its own chat: a question, an approval, a browser takeover or a usage
+   * limit. The waiting block names it for each agent that this agent asked.
+   */
+  agentWaits?: Record<string, SidebarAgentWait> | undefined;
   onUpdateAgent: (agentId: string, updates: Omit<UpdateAgentInput, "agentId">) => Promise<void>;
   onSetAgentAvatar: (agentId: string, image: AvatarImageInput | null) => Promise<void>;
   /**
