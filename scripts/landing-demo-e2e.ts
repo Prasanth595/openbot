@@ -346,7 +346,6 @@ try {
         "desktop-pulse.png",
         "desktop-typed-reply.png",
         "desktop-channel.png",
-        "desktop-person.png",
         "desktop-left-mid-scene.png",
         "mobile-autoplay-end.png",
         "mobile-page.png",
