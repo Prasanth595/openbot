@@ -50,7 +50,11 @@ export function MarketplaceSuggestionChatCard(props: MarketplaceSuggestionChatCa
     const found = plugin();
     return found ? localizedPlugin(found, t).tagline : "";
   };
-  /** As in Marketplace: connected when the host holds every app, and attention when it holds some. */
+  /**
+   * Connected when the host holds every app, and attention when it holds some, as Marketplace does
+   * for apps. Marketplace also counts the plugin's skills, which belong to an agent; no catalog
+   * plugin has one yet.
+   */
   const pluginState = (): MarketplaceSuggestionState => {
     const apps = plugin()?.apps ?? [];
     const held = apps.map((app) => (props.mcpServers ?? []).some((config) => isPluginAppConfig(config, app)));

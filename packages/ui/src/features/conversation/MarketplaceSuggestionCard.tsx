@@ -162,19 +162,24 @@ function SuggestionAction(props: MarketplaceSuggestionCardProps & { onStart: () 
   };
   const doneText = () => (app() ? t("marketplace.app.connected") : t("chat.suggestion.installed"));
   const [widths, setWidths] = createStore({ start: 0, done: 0 });
-  const observers: ResizeObserver[] = [];
+  // `Show` builds the button again when it comes back, so a layer drops the observer of its old element.
+  const observers: Partial<Record<"start" | "done", ResizeObserver>> = {};
   onCleanup(() => {
-    for (const observer of observers) observer.disconnect();
+    observers.start?.disconnect();
+    observers.done?.disconnect();
   });
   const measure = (layer: "start" | "done") => (element: HTMLElement) => {
+    observers[layer]?.disconnect();
     const observer = new ResizeObserver(() =>
       setWidths((draft) => {
         draft[layer] = element.offsetWidth;
       }),
     );
     observer.observe(element);
-    observers.push(observer);
+    observers[layer] = observer;
   };
+  // A busy or connected button does nothing, so it makes no tap sound, as a loading button does not.
+  const tapCue = () => (startable() ? "" : undefined);
   const stageStyle = () => {
     const width = widths[done() ? "done" : "start"];
     return width > 0 ? { width: `${width}px` } : undefined;
@@ -187,6 +192,7 @@ function SuggestionAction(props: MarketplaceSuggestionCardProps & { onStart: () 
         size="sm"
         class="marketplace-suggestion-button"
         data-state={props.state}
+        data-cuelume-tap={tapCue()}
         data-disabled={busy() ? "" : undefined}
         aria-busy={busy() ? "true" : undefined}
         aria-disabled={busy() || done() ? "true" : undefined}
