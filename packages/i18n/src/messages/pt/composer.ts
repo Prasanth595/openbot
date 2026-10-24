@@ -5,6 +5,9 @@ export const messages = {
   "composer.queueEdit.body":
     "Você está editando uma mensagem na fila. Salve ou cancele a edição para permitir a execução.",
   "composer.queueEdit.cancel": "Cancelar edição",
+  "composer.providerWait.offlineTitle": "Sem conexão com a internet",
+  "composer.providerWait.offline": "{provider} não pode responder até que este computador volte a ficar online.",
+  "composer.providerWait.silent": "{provider} não envia nada há {duration}.",
   "composer.notice.dismiss": "Dispensar erro",
   "composer.signIn.title": "É necessário entrar",
   "composer.signIn.body": "Entre em {provider} para enviar mensagens.",

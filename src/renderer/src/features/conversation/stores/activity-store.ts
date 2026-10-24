@@ -11,6 +11,9 @@ import { createEffect, createMemo, createSignal, onCleanup, untrack } from "soli
 import { agentConversationKey } from "../conversation-keys";
 import type { ConversationProps } from "../conversation-types";
 
+/** A turn with nothing from its provider for this long shows that it waits, not that it works. */
+const PROVIDER_SILENT_AFTER_MS = 60_000;
+
 export interface RenderedAgentActivity {
   activityId: string;
   agent: AgentProfile | undefined;
@@ -219,10 +222,68 @@ export function createActivityStore(deps: ActivityStoreDeps) {
       );
     },
   );
+  /**
+   * What the running turn of this agent's chat waits for, when it waits for the provider rather than
+   * the user. The renderer does not know whether a tool step is open, so a long silent tool step
+   * also counts as silence: what the user reads is only that nothing came, not why.
+   */
+  const waitsForProvider = createMemo(
+    () =>
+      Boolean(deps.props.agent && deps.props.activeTurnId) &&
+      !deps.props.prompt &&
+      !deps.props.approval &&
+      !deps.props.browserTakeover,
+  );
+  /** Changes when anything of the running turn arrives: text, a thought, a progress line, a step. */
+  const turnUpdate = () => {
+    const turnId = deps.props.activeTurnId;
+    if (!turnId) return null;
+    const streaming = streamingAgentMessage();
+    return [
+      turnId,
+      deps.props.messages.length,
+      streaming?.id,
+      streaming?.body.length,
+      streaming?.items?.length,
+      latestActiveCommentary(),
+      deps.props.activityDetail,
+      deps.props.turnStepLines?.[turnId]?.length,
+    ].join("\u0000");
+  };
+  const [lastTurnUpdateAt, setLastTurnUpdateAt] = createSignal(Date.now());
+  createEffect(turnUpdate, () => {
+    setLastTurnUpdateAt(Date.now());
+  });
+  const [clock, setClock] = createSignal(Date.now());
+  createEffect(waitsForProvider, (waiting) => {
+    if (!waiting) return;
+    // A wait for the user's answer is not silence, so the count starts again after it.
+    setLastTurnUpdateAt(Date.now());
+    setClock(Date.now());
+    const timer = window.setInterval(() => setClock(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  });
+  const [online, setOnline] = createSignal(navigator.onLine);
+  const updateOnline = () => setOnline(navigator.onLine);
+  window.addEventListener("online", updateOnline);
+  window.addEventListener("offline", updateOnline);
+  /** Whole minutes with nothing from the provider, from the first minute; else null. */
+  const providerSilentMinutes = createMemo(() => {
+    if (!waitsForProvider()) return null;
+    const minutes = Math.floor((clock() - lastTurnUpdateAt()) / PROVIDER_SILENT_AFTER_MS);
+    return minutes >= 1 ? minutes : null;
+  });
+  /**
+   * `navigator.onLine` is false only when the computer has no network at all, so an offline reading
+   * is certain and shows at once. A network with no internet still reads online, and shows as silence.
+   */
+  const providerOffline = createMemo(() => waitsForProvider() && !online());
   onCleanup(() => {
     clearAgentActivityShowTimer();
     clearAgentActivityExitDelayTimer();
     clearAgentActivityExitTimer();
+    window.removeEventListener("online", updateOnline);
+    window.removeEventListener("offline", updateOnline);
   });
 
   return {
@@ -236,5 +297,7 @@ export function createActivityStore(deps: ActivityStoreDeps) {
     agentActivity,
     activityLabel,
     runningTurnRuntime,
+    providerSilentMinutes,
+    providerOffline,
   };
 }

@@ -5,6 +5,9 @@ export const messages = {
   "composer.queueEdit.body":
     "Kuyruktaki bir mesajı düzenliyorsunuz. Çalışmasına izin vermek için düzenlemeyi kaydedin veya iptal edin.",
   "composer.queueEdit.cancel": "Düzenlemeyi iptal et",
+  "composer.providerWait.offlineTitle": "İnternet bağlantısı yok",
+  "composer.providerWait.offline": "Bu bilgisayar yeniden çevrimiçi olana kadar {provider} yanıt veremez.",
+  "composer.providerWait.silent": "{provider} {duration} süredir bir şey göndermedi.",
   "composer.notice.dismiss": "Hatayı kapat",
   "composer.signIn.title": "Oturum açmanız gerekiyor",
   "composer.signIn.body": "Mesaj göndermek için {provider} sağlayıcısında oturum açın.",

@@ -1,4 +1,4 @@
-import { isKnownAgentProvider } from "@openbot/contracts/agent-providers";
+import { isKnownAgentProvider, providerDisplayName } from "@openbot/contracts/agent-providers";
 import { supportedAttachmentExtensions } from "@openbot/contracts/attachment-files";
 import {
   type AgentWait,
@@ -117,6 +117,8 @@ export function ConversationComposer() {
     openSidePanelPane,
     activeRightPanel,
     channel,
+    providerSilentMinutes,
+    providerOffline,
   } = useConversationViewScope();
   const { t, format, sourceText: localizeSourceText } = useText();
   const messageLabel = () =>
@@ -186,6 +188,18 @@ export function ConversationComposer() {
     const expired = localizeSourceText(sourceText("error.provider.opencodeKeyExpired"));
     return currentChatError() === expired ? props.onManageProviders : undefined;
   };
+  /** Why the running turn has no reply: the computer is offline, or the provider sends nothing. */
+  const providerWaitNotice = createMemo(() => {
+    const agent = props.agent;
+    if (!agent) return null;
+    const provider = providerDisplayName(agent.provider);
+    if (providerOffline())
+      return { title: t("composer.providerWait.offlineTitle"), body: t("composer.providerWait.offline", { provider }) };
+    const minutes = providerSilentMinutes();
+    if (minutes === null) return null;
+    const duration = format.number(minutes, { style: "unit", unit: "minute", unitDisplay: "long" });
+    return { title: undefined, body: t("composer.providerWait.silent", { provider, duration }) };
+  });
   /** A file the model cannot read is fixed by a model change, not by waiting, so it is not shown as a failure. */
   const unreadableContent = () =>
     props.agent?.provider === "opencode" &&
@@ -400,6 +414,9 @@ export function ConversationComposer() {
             </Show>
           </div>
         </div>
+        <Show when={providerWaitNotice()}>
+          {(notice) => <ComposerNotice title={notice().title} body={notice().body} />}
+        </Show>
         <Show when={editingDeliveryId()}>
           <ComposerNotice
             body={t("composer.queueEdit.body")}

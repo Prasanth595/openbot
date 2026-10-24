@@ -369,6 +369,8 @@ export function createConversationViewScope(props: ConversationProps) {
     setAgentActivitySpaceReserved,
     agentActivity,
     runningTurnRuntime,
+    providerSilentMinutes,
+    providerOffline,
   } = activity;
   const browser = createBrowserStore({
     props,
@@ -1734,6 +1736,8 @@ export function createConversationViewScope(props: ConversationProps) {
     stopBrowserTab,
     removeAttachment,
     renderedAgentActivity,
+    providerSilentMinutes,
+    providerOffline,
     reorderPresentedQueue,
     replyTarget,
     replyToMessage,

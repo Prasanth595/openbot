@@ -13,6 +13,8 @@ export const messages = {
   "chat.activity.innerCouncil": "心の中で相談しています…",
   "chat.activity.cookingUp": "役に立つものを準備しています…",
   "chat.activity.status": "{name} が作業しています: {label}",
+  "chat.activity.waitingFor": "{provider} を待っています…",
+  "chat.activity.waitingStatus": "{name} は {provider} を待っています",
   "chat.activity.agentFallback": "エージェント",
   "chat.activity.current": "現在のアクティビティ",
   "chat.steps.show": "ステップを表示",

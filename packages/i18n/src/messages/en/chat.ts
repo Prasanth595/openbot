@@ -12,6 +12,8 @@ export const messages = defineMessages("chat", {
   "chat.activity.innerCouncil": "Consulting the inner council…",
   "chat.activity.cookingUp": "Cooking up something useful…",
   "chat.activity.status": "{name} is working: {label}",
+  "chat.activity.waitingFor": "Waiting for {provider}…",
+  "chat.activity.waitingStatus": "{name} is waiting for {provider}",
   "chat.activity.agentFallback": "Agent",
   "chat.activity.current": "Current activity",
   "chat.steps.show": "Show steps",

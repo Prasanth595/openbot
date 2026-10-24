@@ -1,3 +1,4 @@
+import { providerDisplayName } from "@openbot/contracts/agent-providers";
 import { chatVisualReply } from "@openbot/contracts/chat-visual";
 import type { ConversationMessageSender, MessageReaction } from "@openbot/contracts/ipc";
 import type { ConversationUiBlock } from "@openbot/contracts/ui-blocks";
@@ -161,6 +162,7 @@ export function ConversationTimeline() {
     sendCardMessage,
     reactToMessage,
     renderedAgentActivity,
+    providerSilentMinutes,
     replyJump,
     respondToBrowserTakeover,
     replyToMessage,
@@ -188,6 +190,12 @@ export function ConversationTimeline() {
     toggleSubagentPanel,
   } = useConversationViewScope();
   const { t, format } = useText();
+  // A named function, not a ternary in the prop: the compiler wraps a ternary prop in a memo, and
+  // the avatar reads it in a tracked effect, where a new memo halts the reactive system.
+  const silentProviderName = () => {
+    const agent = props.agent;
+    return providerSilentMinutes() !== null && agent ? providerDisplayName(agent.provider) : undefined;
+  };
   /** An agent reply can be read aloud by this computer's speech model, in this chat's voice. */
   const readAloudAction = (message: AgentMessage) => {
     const agentId = props.agent?.id;
@@ -1267,6 +1275,7 @@ export function ConversationTimeline() {
                     since={activity().since}
                     steps={turnSteps.activeSteps()}
                     stepsOpenByDefault={showAgentSteps()}
+                    waitingFor={silentProviderName()}
                   />
                 )}
               </Show>

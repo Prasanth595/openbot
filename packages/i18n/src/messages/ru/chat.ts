@@ -13,6 +13,8 @@ export const messages = {
   "chat.activity.innerCouncil": "Советуюсь с внутренним советом…",
   "chat.activity.cookingUp": "Готовлю что-нибудь полезное…",
   "chat.activity.status": "{name} работает: {label}",
+  "chat.activity.waitingFor": "Ожидание {provider}…",
+  "chat.activity.waitingStatus": "{name} ожидает {provider}",
   "chat.activity.agentFallback": "Агент",
   "chat.activity.current": "Текущая активность",
   "chat.steps.show": "Показать шаги",
