@@ -210,8 +210,8 @@ export type TeamApiProviderAccounts = Pick<
 /** Its presence is what `#protocolSupport` advertises `provider-usage-reset-v1` on. The routes are admin-only. */
 export type TeamApiProviderUsageResets = Pick<AgentService, "providerUsageResets" | "resetProviderUsage">;
 
-/** Its presence is what `#protocolSupport` advertises `storage-v1` on. */
-export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
+/** Its presence is what `#protocolSupport` advertises `storage-v1` and `storage-disk-v1` on. */
+export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear" | "disk">;
 /** `hosted-sites-v1`: the openbot.site sites of this server. Members list; only admins delete. */
 export type TeamApiHostedSites = Pick<HostedSiteDesktopService, "listServerSites" | "deleteServerSite">;
 

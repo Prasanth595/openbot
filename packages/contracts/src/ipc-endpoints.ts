@@ -424,6 +424,7 @@ import type {
   OldRuntimeVersions,
   OpenStorageLocationInput,
   OpenStoredFileInput,
+  StorageDisk,
   StorageUsage,
 } from "./ipc-storage";
 import type {
@@ -1515,6 +1516,8 @@ export const IPC_ENDPOINTS = {
   // Bound against the storage service, not `AgentService`, so it is its own group.
   storage: {
     getUsage: scopedRequest<GetStorageUsageInput, StorageUsage | null, "required">()("storage:get-usage"),
+    // Free and total disk space with no scan, for the sidebar storage card. Null before `storage-disk-v1`.
+    getDisk: scopedQuery<StorageDisk | null, "required">()("storage:get-disk"),
     deleteFile: scopedRequest<DeleteStoredFileInput, void, "required">()("storage:delete-file"),
     clear: scopedRequest<ClearStorageInput, void, "required">()("storage:clear"),
     openFile: scopedRequest<OpenStoredFileInput, void, "required">()("storage:open-file"),

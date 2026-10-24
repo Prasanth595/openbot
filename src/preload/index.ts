@@ -38,6 +38,7 @@ import {
   decodeMcpSignInStates,
   decodeMcpTestResult,
   decodeOldRuntimeVersions,
+  decodeOptionalStorageDisk,
   decodeOptionalStorageUsage,
   decodeProviderHostSignInStatus,
   decodeProviderRelaySignInStatus,
@@ -1160,6 +1161,7 @@ const openbotApi: OpenBotDesktopApi = {
   // decoded in main before it reached this point.
   storage: bridgeGroup(IPC_ENDPOINTS.storage, {
     getUsage: decodeOptionalStorageUsage,
+    getDisk: decodeOptionalStorageDisk,
     deleteFile: decodeVoid,
     clear: decodeVoid,
     openFile: decodeVoid,

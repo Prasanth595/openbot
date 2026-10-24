@@ -117,6 +117,15 @@ export const messages = {
   "sidebar.mobileApp.body": "L’app est maintenant disponible sur iPhone et Android.",
   "sidebar.mobileApp.howToInstall": "Comment l’installer",
   "sidebar.mobileApp.dismiss": "Masquer l’annonce de l’app mobile",
+  "sidebar.storage.lowTitle": "Stockage presque plein",
+  "sidebar.storage.fullTitle": "Stockage plein",
+  "sidebar.storage.body": "{used} sur {total} utilisés sur {server}.",
+  "sidebar.storage.fullBody":
+    "{used} sur {total} utilisés sur {server}. Les agents risquent de ne pas pouvoir enregistrer de fichiers.",
+  "sidebar.storage.meterLabel": "Stockage utilisé sur {server}",
+  "sidebar.storage.used": "{percent} utilisés",
+  "sidebar.storage.freeUpSpace": "Libérer de l’espace",
+  "sidebar.storage.dismiss": "Masquer jusqu’à ce que le stockage soit plein",
   "sidebar.community.title": "Installez-vous.",
   "sidebar.community.body":
     "Il y a une place pour vous dans le futur de l’IA. Rejoignez la communauté sur Discord et X.",
