@@ -299,7 +299,7 @@ export function createTurnSteps(deps: {
      * host stores the times of each step and the usage of a turn that ends. A turn from before that
      * has only the start of each thought and progress line, so the next step's start ends a step, and
      * the answer ends the last one. A reply to a message that the turn sent shows as a wait from the
-     * message to the reply.
+     * message to the reply, or to the turn's end when the reply came later.
      */
     traceAbove(messageId: string | undefined, labels: TraceLabels): TraceSpan[] {
       const turnId = messageId === undefined ? undefined : turnOfAnswer().get(messageId);
@@ -370,8 +370,9 @@ export function createTurnSteps(deps: {
             detail: labels.reply,
             kind: "waiting",
             icon: "agent",
-            start: Math.min(asked, answered),
-            end: answered,
+            start: Math.min(asked, answered, turnEnd),
+            // A reply after the turn came in a later turn: the wait shows only up to this turn's end.
+            end: Math.min(answered, turnEnd),
           });
         }
       }
