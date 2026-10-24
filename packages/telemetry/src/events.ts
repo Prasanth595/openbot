@@ -240,28 +240,33 @@ export function classifyFailure(error: unknown): CauseCode {
       message,
     ) ||
     /\bUNAVAILABLE\b/u.test(message) ||
-    /\b(?:API Error|status(?: code)?|code|HTTP(?:\/[\d.]+)?)\W{0,4}5\d\d\b/iu.test(message)
+    /\b(?:API Error|status(?: code)?|HTTP(?:\/[\d.]+)?)\W{0,4}5\d\d\b/iu.test(message)
   )
     return "provider_unavailable";
   return "unknown";
 }
 
 /**
- * Codex names a failed connection, a broken stream or a spent retry budget as an object. A retry
- * budget names the last HTTP status; without one, the provider did not answer.
+ * Codex names a failed connection, a broken stream or a spent retry budget as an object, with the last
+ * HTTP status when the provider answered. No status means that the provider did not answer. Any other
+ * 4xx is a request that each model can refuse, so the message decides.
  */
 function codexFailureCause(info: DynamicRecord): CauseCode | null {
-  if (
-    Object.hasOwn(info, "httpConnectionFailed") ||
-    Object.hasOwn(info, "responseStreamConnectionFailed") ||
-    Object.hasOwn(info, "responseStreamDisconnected")
-  )
-    return "network";
-  const attempts = info.responseTooManyFailedAttempts;
-  if (!isDynamicRecord(attempts)) return null;
-  if (attempts.httpStatusCode === 429) return "rate_limit";
-  if (attempts.httpStatusCode === 401) return "authentication";
-  return "provider_unavailable";
+  const failure = [
+    "httpConnectionFailed",
+    "responseStreamConnectionFailed",
+    "responseStreamDisconnected",
+    "responseTooManyFailedAttempts",
+  ]
+    .map((key) => info[key])
+    .find(isDynamicRecord);
+  if (!failure) return null;
+  const status = failure.httpStatusCode;
+  if (typeof status !== "number") return "network";
+  if (status === 429) return "rate_limit";
+  if (status === 401) return "authentication";
+  if (status === 408) return "timeout";
+  return status >= 500 ? "provider_unavailable" : null;
 }
 
 export function operationForCode(code: string): Operation {
