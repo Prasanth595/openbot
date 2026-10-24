@@ -183,7 +183,10 @@ const Navigation = createSimpleContext({
     const history = createChatHistory((entry) => {
       if (entry.kind === "agent") return agentList().some((agent) => agent.id === entry.id);
       if (entry.kind === "channel") {
-        return channels.supported() && channels.state.channels.some((channel) => channel.id === entry.id);
+        return (
+          channels.supported() &&
+          channels.state.channels.some((channel) => channel.id === entry.id && !channel.archived)
+        );
       }
       return peopleEnabled && directPeople().some((member) => member.id === entry.id);
     });
@@ -226,12 +229,15 @@ const Navigation = createSimpleContext({
     const goBack = () => goInHistory(-1);
     const goForward = () => goInHistory(1);
 
+    /** A dialog or menu over the chat keeps its keys and mouse buttons. */
+    const handledElsewhere = (event: Event): boolean =>
+      event.defaultPrevented ||
+      (event.target instanceof Element &&
+        event.target.closest("[role=dialog], [role=alertdialog], [role=menu]") !== null);
+
     onSettled(() => {
       const onKeyDown = (event: KeyboardEvent) => {
-        if (event.defaultPrevented) return;
-        // A dialog or menu over the chat keeps its keys.
-        if (event.target instanceof Element && event.target.closest("[role=dialog], [role=alertdialog], [role=menu]"))
-          return;
+        if (handledElsewhere(event)) return;
         const command = chatHistoryShortcut(event, platform.appInfo()?.platform === "darwin");
         if (!command) return;
         event.preventDefault();
@@ -240,6 +246,7 @@ const Navigation = createSimpleContext({
       };
       // The side buttons of a mouse.
       const onMouseUp = (event: MouseEvent) => {
+        if (handledElsewhere(event)) return;
         if (event.button === 3) goBack();
         else if (event.button === 4) goForward();
       };

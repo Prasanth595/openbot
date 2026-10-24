@@ -18,11 +18,15 @@ function sameEntry(a: ChatHistoryEntry | undefined, b: ChatHistoryEntry | undefi
 export function createChatHistory(exists: (entry: ChatHistoryEntry) => boolean) {
   const [state, setState] = createStore<{ entries: ChatHistoryEntry[]; index: number }>({ entries: [], index: -1 });
 
-  /** The index of the nearest chat in that direction that can still open, or -1. */
+  /**
+   * The index of the nearest chat in that direction that can still open, or -1. A skipped chat can
+   * leave the open chat on both sides of it, so the open chat is skipped too.
+   */
   function nearest(offset: 1 | -1): number {
+    const open = state.entries[state.index];
     for (let index = state.index + offset; index >= 0 && index < state.entries.length; index += offset) {
       const entry = state.entries[index];
-      if (entry && exists(entry)) return index;
+      if (entry && exists(entry) && !sameEntry(entry, open)) return index;
     }
     return -1;
   }
