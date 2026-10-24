@@ -166,7 +166,7 @@ export const messages = defineMessages("customProvider", {
   "customProvider.acp.argsHint": "Separate arguments with spaces. Put quotes around an argument that has spaces.",
   "customProvider.acp.usagePrompt": "Usage command",
   "customProvider.acp.usagePromptHint":
-    "OpenBot sends it every 5 minutes and shows the answer. Use a command that the agent answers itself, such as /usage.",
+    "OpenBot sends it at most every 5 minutes and shows the last answer. Use a command that the agent answers itself, such as /usage.",
   "customProvider.acp.env": "Environment variables",
   "customProvider.acp.env.name": "Variable {number} name",
   "customProvider.acp.env.value": "Variable {number} value",

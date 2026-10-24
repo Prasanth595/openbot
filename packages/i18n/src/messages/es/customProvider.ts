@@ -158,7 +158,7 @@ export const messages = {
     "Separa los argumentos con espacios. Pon entre comillas los argumentos que contengan espacios.",
   "customProvider.acp.usagePrompt": "Comando de uso",
   "customProvider.acp.usagePromptHint":
-    "OpenBot lo envía cada 5 minutos y muestra la respuesta. Usa un comando que el agente responda por sí mismo, como /usage.",
+    "OpenBot lo envía como máximo cada 5 minutos y muestra la última respuesta. Usa un comando que el agente responda por sí mismo, como /usage.",
   "customProvider.acp.env": "Variables de entorno",
   "customProvider.acp.env.name": "Nombre de la variable {number}",
   "customProvider.acp.env.value": "Valor de la variable {number}",

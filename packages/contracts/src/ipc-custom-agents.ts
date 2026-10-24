@@ -62,7 +62,11 @@ export interface CustomAgentSummary {
   command: string;
   args: string[];
   envNames: string[];
-  usagePrompt: string | null;
+  /**
+   * Absent in the result of a registry install from a server: the released `acp-registry-v1` codec
+   * keeps only the fields it knew, and the next list carries the value.
+   */
+  usagePrompt?: string | null | undefined;
   /** The file that the command starts, or null when it cannot be found now. */
   resolvedCommand: string | null;
 }
@@ -143,7 +147,7 @@ export function isCustomAgentSummary(value: unknown): value is CustomAgentSummar
     Array.isArray(value.envNames) &&
     value.envNames.length <= CUSTOM_AGENT_LIMITS.env &&
     value.envNames.every(isCustomAgentEnvName) &&
-    (value.usagePrompt === null || isCustomAgentUsagePrompt(value.usagePrompt)) &&
+    (value.usagePrompt === undefined || value.usagePrompt === null || isCustomAgentUsagePrompt(value.usagePrompt)) &&
     isNullableBoundedString(value.resolvedCommand, CUSTOM_AGENT_LIMITS.command)
   );
 }

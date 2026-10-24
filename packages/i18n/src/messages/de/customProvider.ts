@@ -160,7 +160,7 @@ export const messages = {
     "Trenne Argumente mit Leerzeichen. Setze Argumente mit Leerzeichen in Anführungszeichen.",
   "customProvider.acp.usagePrompt": "Nutzungsbefehl",
   "customProvider.acp.usagePromptHint":
-    "OpenBot sendet ihn alle 5 Minuten und zeigt die Antwort an. Verwende einen Befehl, den der Agent selbst beantwortet, etwa /usage.",
+    "OpenBot sendet ihn höchstens alle 5 Minuten und zeigt die letzte Antwort an. Verwende einen Befehl, den der Agent selbst beantwortet, etwa /usage.",
   "customProvider.acp.env": "Umgebungsvariablen",
   "customProvider.acp.env.name": "Name von Variable {number}",
   "customProvider.acp.env.value": "Wert von Variable {number}",

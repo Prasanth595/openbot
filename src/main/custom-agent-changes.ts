@@ -109,7 +109,7 @@ export function createCustomAgentChanges({
           return yield* save({
             ...input,
             name: current?.name ?? input.name,
-            usagePrompt: current ? current.usagePrompt : input.usagePrompt,
+            usagePrompt: current ? (current.usagePrompt ?? null) : input.usagePrompt,
             env,
           });
         }).pipe(Effect.uninterruptible),

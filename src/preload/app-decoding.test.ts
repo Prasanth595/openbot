@@ -19,6 +19,7 @@ import {
   decodeAppSetupState,
   decodeCentralAuthState,
   decodeChatWindowTargets,
+  decodeCustomAgentResult,
   decodeCustomAgents,
   decodeCustomAgentUsage,
   decodeDetectedModelServers,
@@ -147,6 +148,15 @@ const valid: [string, (value: unknown) => unknown, unknown][] = [
   ["detected model servers", decodeDetectedModelServers, [detectedServer]],
   ["custom agents", decodeCustomAgents, [customAgent, { ...customAgent, id: "qwen", resolvedCommand: null }]],
   ["a custom agent with a usage prompt", decodeCustomAgents, [{ ...customAgent, usagePrompt: "/usage" }]],
+  [
+    // The released acp-registry-v1 install codec keeps only the fields that it knew.
+    "a registry install result with no usage prompt",
+    decodeCustomAgentResult,
+    {
+      agents: [Object.fromEntries(Object.entries(customAgent).filter(([key]) => key !== "usagePrompt"))],
+      restart: "not-running",
+    },
+  ],
   ["custom agent usage", decodeCustomAgentUsage, [{ id: "devin", text: "Plan: Pro\n42% left" }]],
   ["a model list", decodeDiscoverModelsResult, { models: [{ id: "qwen3" }] }],
   [

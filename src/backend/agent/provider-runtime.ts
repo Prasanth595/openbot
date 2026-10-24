@@ -107,6 +107,10 @@ const logger = createOpenBotLogger("provider-runtime");
 const stderrLogger = createOpenBotLogger("provider-stderr");
 
 const ACCOUNT_USAGE_READ_TIMEOUT_MS = 30_000;
+/** A read this recent answers a second request, such as one that waited for the read before it. */
+const CUSTOM_AGENT_USAGE_REUSE_MS = 60_000;
+/** A released `acp` shows its last answers for this long, then starts again to read new ones. */
+const CUSTOM_AGENT_USAGE_WAKE_MS = 60 * 60_000;
 /** The providers whose app server spends a usage reset credit (`account/rateLimitResetCredit/consume`). */
 const USAGE_RESET_PROVIDERS: ReadonlySet<AgentProvider> = new Set(["codex"]);
 /**
@@ -433,8 +437,13 @@ export class ProviderRuntime implements ProviderPort {
    * every five minutes, so starting a released one to ask again would keep its process running.
    */
   readonly #usageUnreported = new Set<AgentProvider>();
-  /** The last answer of each custom agent's usage prompt, shown while the provider `acp` is released. */
-  readonly #customAgentUsage = new Map<string, string>();
+  /**
+   * The last answer of each custom agent's usage prompt, with the prompt and the time of the read. A
+   * null text is a read that gave no answer, kept so that a released `acp` does not start for it again.
+   */
+  readonly #customAgentUsage = new Map<string, { prompt: string; text: string | null; readAt: number }>();
+  /** One usage read at a time, so that a second request does not send the prompts again. */
+  readonly #customAgentUsageLock = Semaphore.makeUnsafe(1);
   #idleCheck: NodeJS.Timeout | null = null;
   /** Each provider's sign-in file, and the version of it that the last account check saw. */
   readonly #signInFiles = new Map<AgentProvider, { path: string; seen: string }>();
@@ -1095,10 +1104,16 @@ export class ProviderRuntime implements ProviderPort {
   /**
    * The answers of the custom agents to their usage prompts, for the rail. The answer is text, not
    * windows, so the provider `acp` keeps `reportsUsage: false` and its limit errors stay turn errors.
-   * The rail polls every five minutes, so a released `acp` shows the last answers and is not started.
-   * An agent whose read fails is left out.
+   * The rail polls every five minutes. A released `acp` shows the last answers, and starts again only
+   * when an answer is older than an hour or its prompt changed. An agent with no answer is left out.
    */
   readonly customAgentUsage = Effect.fn("ProviderRuntime.customAgentUsage")(function* (
+    this: ProviderRuntime,
+  ): Effect.fn.Return<CustomAgentUsage[]> {
+    return yield* this.#customAgentUsageLock.withPermit(this.#readCustomAgentUsage());
+  }).bind(this);
+
+  readonly #readCustomAgentUsage = Effect.fn("ProviderRuntime.readCustomAgentUsage")(function* (
     this: ProviderRuntime,
   ): Effect.fn.Return<CustomAgentUsage[]> {
     const agents = savedCustomAgents(this.#credentials).flatMap((agent) =>
@@ -1106,17 +1121,24 @@ export class ProviderRuntime implements ProviderPort {
     );
     for (const id of this.#customAgentUsage.keys())
       if (!agents.some((agent) => agent.id === id)) this.#customAgentUsage.delete(id);
-    if (agents.length === 0) return [];
-    if (this.#released.has("acp"))
-      return agents.flatMap(({ id }) => {
-        const text = this.#customAgentUsage.get(id);
-        return text === undefined ? [] : [{ id, text }];
+    if (agents.length === 0 || this.#off.has("acp")) return [];
+    const kept = (): CustomAgentUsage[] =>
+      agents.flatMap(({ id }) => {
+        const text = this.#customAgentUsage.get(id)?.text;
+        return text == null ? [] : [{ id, text }];
       });
+    const readWithin = (ms: number) =>
+      agents.every(({ id, prompt }) => {
+        const entry = this.#customAgentUsage.get(id);
+        return entry !== undefined && entry.prompt === prompt && Date.now() - entry.readAt < ms;
+      });
+    if (readWithin(CUSTOM_AGENT_USAGE_REUSE_MS)) return kept();
+    if (this.#released.has("acp") && readWithin(CUSTOM_AGENT_USAGE_WAKE_MS)) return kept();
     if (!this.#clients.has("acp")) yield* this.ensureProvider("acp").pipe(this.#logUsageFailure("acp"));
     const client = this.#clients.get("acp");
     const readUsageText = client?.readUsageText?.bind(client);
-    if (!readUsageText) return [];
-    const answers = yield* Effect.forEach(
+    if (!readUsageText) return kept();
+    yield* Effect.forEach(
       agents,
       ({ id, prompt }) =>
         readUsageText(`${id}/${CUSTOM_AGENT_DEFAULT_MODEL}`, prompt).pipe(
@@ -1125,30 +1147,26 @@ export class ProviderRuntime implements ProviderPort {
             duration: ACCOUNT_USAGE_READ_TIMEOUT_MS,
             orElse: () => Effect.fail(new ProviderOperationFailed({ cause: new Error("Usage read timed out.") })),
           }),
-          Effect.map((answer): CustomAgentUsage[] => {
-            if (answer === null) {
-              this.#customAgentUsage.delete(id);
-              return [];
-            }
-            const text = answer.slice(0, CUSTOM_AGENT_LIMITS.usageAnswer);
-            this.#customAgentUsage.set(id, text);
-            return [{ id, text }];
-          }),
+          Effect.map((answer) => answer?.slice(0, CUSTOM_AGENT_LIMITS.usageAnswer) ?? null),
           Effect.catch((error: ProviderOperationFailed) =>
-            Effect.sync((): CustomAgentUsage[] => {
-              this.#customAgentUsage.delete(id);
+            Effect.sync(() => {
               logger.warn("Could not read custom agent usage.", {
                 provider: "acp",
                 message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
               });
-              return [];
+              return null;
+            }),
+          ),
+          Effect.tap((text) =>
+            Effect.sync(() => {
+              this.#customAgentUsage.set(id, { prompt, text, readAt: Date.now() });
             }),
           ),
         ),
-      { concurrency: "unbounded" },
+      { concurrency: "unbounded", discard: true },
     );
-    return answers.flat();
-  }).bind(this);
+    return kept();
+  });
 
   #logUsageFailure(provider: AgentProvider) {
     return Effect.catch((error: ProviderOperationFailed | ProviderAccountFailed) =>

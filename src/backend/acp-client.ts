@@ -745,11 +745,15 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     if (!this.running) return yield* providerFailure(new Error("ACP client is not running."));
     yield* this.#ensureInitializedEffect();
     if (!this.#signedIn) return null;
-    const answer = yield* this.#privatePrompt(prompt).pipe(
-      Effect.timeoutOrElse({
-        duration: this.#requestTimeoutMs,
-        orElse: () => Effect.fail(providerFailure(new TimeoutError(`${this.#label} request timed out: usage prompt`))),
-      }),
+    // The time limit starts when the lock is held, so a prompt that waits for another one keeps its time.
+    const answer = yield* this.#privatePromptLock.withPermit(
+      this.#privatePromptOnce(prompt).pipe(
+        Effect.timeoutOrElse({
+          duration: this.#requestTimeoutMs,
+          orElse: () =>
+            Effect.fail(providerFailure(new TimeoutError(`${this.#label} request timed out: usage prompt`))),
+        }),
+      ),
     );
     return this.#redact(answer).trim() || null;
   });
@@ -759,8 +763,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
   }
 
   /**
-   * A prompt that times out drops the session, because the agent may still be answering it. An error
-   * answer keeps it: a new session would leave one more conversation database on disk.
+   * A prompt that times out is cancelled and drops the session, because the agent may still be
+   * answering it. An error answer keeps it: a new session would leave one more conversation database
+   * on disk.
    */
   readonly #privatePromptOnce = Effect.fn("AcpAgentClient.privatePrompt")(function* (
     this: AcpAgentClient,
@@ -779,9 +784,12 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     return yield* providerCall(() => connection.prompt({ sessionId, prompt: [{ type: "text", text }] })).pipe(
       Effect.map(() => answer.join("")),
       Effect.onExit((exit) =>
-        Effect.sync(() => {
+        Effect.gen({ self: this }, function* () {
           this.#privateAnswer = null;
-          if (Exit.hasInterrupts(exit)) this.#privateSession = null;
+          if (!Exit.hasInterrupts(exit)) return;
+          this.#privateSession = null;
+          // `session/cancel` is a notification, so this does not wait for the agent.
+          yield* providerCall(() => connection.cancel({ sessionId })).pipe(Effect.ignore);
         }),
       ),
     );

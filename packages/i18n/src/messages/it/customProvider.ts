@@ -154,7 +154,7 @@ export const messages = {
     "Separa gli argomenti con spazi. Metti tra virgolette un argomento che contiene spazi.",
   "customProvider.acp.usagePrompt": "Comando di utilizzo",
   "customProvider.acp.usagePromptHint":
-    "OpenBot lo invia ogni 5 minuti e mostra la risposta. Usa un comando a cui l'agente risponde da solo, come /usage.",
+    "OpenBot lo invia al massimo ogni 5 minuti e mostra l'ultima risposta. Usa un comando a cui l'agente risponde da solo, come /usage.",
   "customProvider.acp.env": "Variabili d'ambiente",
   "customProvider.acp.env.name": "Nome della variabile {number}",
   "customProvider.acp.env.value": "Valore della variabile {number}",

@@ -162,7 +162,7 @@ export const messages = {
   "customProvider.acp.argsHint": "Oddziel argumenty spacjami. Argument ze spacjami ujmij w cudzysłów.",
   "customProvider.acp.usagePrompt": "Polecenie użycia",
   "customProvider.acp.usagePromptHint":
-    "OpenBot wysyła je co 5 minut i pokazuje odpowiedź. Użyj polecenia, na które agent odpowiada sam, np. /usage.",
+    "OpenBot wysyła je najwyżej co 5 minut i pokazuje ostatnią odpowiedź. Użyj polecenia, na które agent odpowiada sam, np. /usage.",
   "customProvider.acp.env": "Zmienne środowiskowe",
   "customProvider.acp.env.name": "Nazwa zmiennej {number}",
   "customProvider.acp.env.value": "Wartość zmiennej {number}",

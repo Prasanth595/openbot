@@ -167,7 +167,7 @@ export const messages = {
   "customProvider.acp.argsHint": "Разделяйте аргументы пробелами. Аргумент с пробелами возьмите в кавычки.",
   "customProvider.acp.usagePrompt": "Команда использования",
   "customProvider.acp.usagePromptHint":
-    "OpenBot отправляет её каждые 5 минут и показывает ответ. Используйте команду, на которую агент отвечает сам, например /usage.",
+    "OpenBot отправляет её не чаще чем раз в 5 минут и показывает последний ответ. Используйте команду, на которую агент отвечает сам, например /usage.",
   "customProvider.acp.env": "Переменные окружения",
   "customProvider.acp.env.name": "Имя переменной {number}",
   "customProvider.acp.env.value": "Значение переменной {number}",

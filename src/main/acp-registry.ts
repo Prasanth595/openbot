@@ -305,7 +305,7 @@ export class AcpRegistry {
             command: old.command,
             args: old.args,
             env: old.envNames.map((name) => ({ name, value: null })),
-            usagePrompt: old.usagePrompt,
+            usagePrompt: old.usagePrompt ?? null,
           },
           current,
         );

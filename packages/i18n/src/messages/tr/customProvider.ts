@@ -173,7 +173,7 @@ export const messages = {
     "Bağımsız değişkenleri boşluklarla ayırın. Boşluk içeren bir bağımsız değişkenin etrafına tırnak işareti koyun.",
   "customProvider.acp.usagePrompt": "Kullanım komutu",
   "customProvider.acp.usagePromptHint":
-    "OpenBot bunu 5 dakikada bir gönderir ve yanıtı gösterir. Ajanın kendisinin yanıtladığı bir komut kullanın, örneğin /usage.",
+    "OpenBot bunu en fazla 5 dakikada bir gönderir ve son yanıtı gösterir. Ajanın kendisinin yanıtladığı bir komut kullanın, örneğin /usage.",
   "customProvider.acp.env": "Ortam değişkenleri",
   "customProvider.acp.env.name": "{number}. değişken adı",
   "customProvider.acp.env.value": "{number}. değişken değeri",

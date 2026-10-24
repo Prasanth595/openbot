@@ -157,7 +157,7 @@ export const messages = {
   "customProvider.acp.argsHint": "引数はスペースで区切ってください。スペースを含む引数は引用符で囲んでください。",
   "customProvider.acp.usagePrompt": "使用量コマンド",
   "customProvider.acp.usagePromptHint":
-    "OpenBot は 5 分ごとにこれを送信し、回答を表示します。/usage など、エージェント自身が答えるコマンドを使用してください。",
+    "OpenBot は最短 5 分ごとにこれを送信し、最新の回答を表示します。/usage など、エージェント自身が答えるコマンドを使用してください。",
   "customProvider.acp.env": "環境変数",
   "customProvider.acp.env.name": "変数 {number} の名前",
   "customProvider.acp.env.value": "変数 {number} の値",
