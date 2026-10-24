@@ -4,14 +4,19 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "ACP レジストリ",
   "customProvider.registry.description":
-    "このホストにエージェントをインストールします。ランタイムを削除しても、エージェントの設定、認証情報、会話は残ります。",
+    "このサーバーにエージェントをインストールします。ランタイムを削除しても、エージェントの設定、認証情報、会話は残ります。",
   "customProvider.registry.search": "レジストリを検索",
   "customProvider.registry.empty": "この検索に一致するエージェントはありません。",
   "customProvider.registry.agentId": "カスタムエージェント ID",
   "customProvider.registry.install": "インストール",
   "customProvider.registry.update": "アップデート",
   "customProvider.registry.remove": "ランタイムを削除",
-  "customProvider.registry.failed": "レジストリの操作に失敗しました。",
+  "customProvider.registry.searchFailed": "レジストリを検索できませんでした。もう一度お試しください。",
+  "customProvider.registry.statusFailed": "インストールの進行状況を確認できませんでした。OpenBot が再試行します。",
+  "customProvider.registry.installFailed": "エージェントをインストールできませんでした。もう一度お試しください。",
+  "customProvider.registry.updateFailed": "エージェントをアップデートできませんでした。もう一度お試しください。",
+  "customProvider.registry.removeFailed": "ランタイムを削除できませんでした。もう一度お試しください。",
+  "customProvider.registry.cancelFailed": "インストールをキャンセルできませんでした。もう一度お試しください。",
   "customProvider.error.providerIdRequired": "プロバイダー ID を入力してください。",
   "customProvider.error.providerIdPattern":
     "小文字の英字、数字、ハイフン、アンダースコアを使い、英字か数字で始めてください。",
@@ -54,6 +59,7 @@ export const messages = {
   "customProvider.removeUnavailable": "このビルドではエンドポイントを削除できません。",
 
   "customProvider.form.title": "カスタムプロバイダーを追加",
+  "customProvider.form.editTitle": "カスタムプロバイダーを編集",
   "customProvider.form.description": "OpenAI 互換のエンドポイントと、それが提供するモデルを入力してください。",
   "customProvider.form.heading": "カスタムプロバイダー",
   "customProvider.form.subtitle": "OpenAI 互換のエンドポイントなら何でも使えます。",
@@ -149,6 +155,9 @@ export const messages = {
   "customProvider.acp.commandHint": "起動するプログラムです。OpenBot は PATH からこれを探します。",
   "customProvider.acp.args": "引数",
   "customProvider.acp.argsHint": "引数はスペースで区切ってください。スペースを含む引数は引用符で囲んでください。",
+  "customProvider.acp.usagePrompt": "使用量コマンド",
+  "customProvider.acp.usagePromptHint":
+    "OpenBot は最短 5 分ごとにこれを送信し、最新の回答を表示します。/usage など、エージェント自身が答えるコマンドを使用してください。",
   "customProvider.acp.env": "環境変数",
   "customProvider.acp.env.name": "変数 {number} の名前",
   "customProvider.acp.env.value": "変数 {number} の値",
@@ -161,6 +170,9 @@ export const messages = {
   "customProvider.acp.checkOk": "{name} が応答しました",
   "customProvider.acp.checkOkVersion": "{name} {version} が応答しました",
   "customProvider.acp.checkProtocol": "ACP バージョン {version}",
+  "customProvider.acp.checkModels": {
+    other: "モデル {count} 個: {models}",
+  },
   "customProvider.acp.checkFailed": "エージェントが応答しませんでした",
   "customProvider.acp.trustTitle": "このコマンドはこのコンピューターで実行されます",
   "customProvider.acp.trustDescription":
@@ -176,6 +188,7 @@ export const messages = {
   "customProvider.acp.error.envDuplicate": "このエージェントはすでに {name} を設定しています。",
   "customProvider.acp.error.envValueRequired": "この変数の値を入力してください。",
   "customProvider.acp.error.envValueLength": "値は {max} 文字未満にしてください。",
+  "customProvider.acp.error.usagePromptInvalid": "{max} 文字以内の 1 行にしてください。",
   "customProvider.acp.error.agentIdPattern":
     "小文字の英字、数字、ハイフンを使い、英字か数字で始めてください。40 文字以内にしてください。",
 
@@ -208,6 +221,7 @@ export const messages = {
   "customProvider.list.empty": "カスタムエンドポイントはまだありません。",
   "customProvider.list.label": "カスタムエンドポイント",
   "customProvider.list.apiKeySaved": "API キー保存済み",
+  "customProvider.list.editLabel": "{name} を編集",
   "customProvider.list.deleteLabel": "{name} を削除",
   "customProvider.list.confirmTitle": "{name} を削除しますか？",
   "customProvider.list.confirmDescription":

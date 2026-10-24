@@ -1,9 +1,10 @@
 import {
   DISCORD_CUSTOM_ID_PREFIX,
+  type DiscordInboundAttachment,
   type DiscordInboundInteraction,
   type DiscordInboundMessage,
 } from "@openbot/contracts/signal-protocol/discord-api";
-import type { InboundAction, InboundMessage } from "../messaging-types";
+import type { InboundAction, InboundFile, InboundMessage } from "../messaging-types";
 
 /** The actions of the buttons OpenBot posts, as the middle part of their custom id. */
 const DISCORD_BUTTON_ACTIONS = ["accept", "decline", "stop"] as const;
@@ -20,6 +21,7 @@ type DiscordButtonAction = (typeof DISCORD_BUTTON_ACTIONS)[number];
 export function discordInboundMessage(message: DiscordInboundMessage): InboundMessage {
   const reply = message.replyTo;
   const threadKey = reply?.authorIsBot ? (reply.rootId ?? reply.messageId) : message.id;
+  const quote = reply?.quote ?? null;
   return {
     dedupKey: `${message.channelId}:${message.id}`,
     platformChannelId: message.channelId,
@@ -31,13 +33,37 @@ export function discordInboundMessage(message: DiscordInboundMessage): InboundMe
     authorId: message.authorId,
     text: discordPlainText(message.content),
     mentionedUserIds: discordMentionIds(message.content),
-    files: message.attachments.map((attachment) => ({
-      id: attachment.id,
-      name: attachment.filename,
-      mimeType: attachment.contentType ?? "application/octet-stream",
-      size: attachment.size,
-      url: attachment.url,
-    })),
+    // The replied-to message's files are context too, as its text is.
+    files: [...message.attachments, ...(quote?.attachments ?? [])].map(inboundFile),
+    authorRoleIds: message.authorRoleIds,
+    // A reply to a person's message starts a new conversation, so it has no earlier messages: the
+    // replied-to message is its context.
+    replyTo: quote
+      ? {
+          authorName: quote.authorName,
+          // Names its files, so that the agent knows which of the message's files are the replied-to ones.
+          text: [
+            discordPlainText(quote.content),
+            quote.attachments.length
+              ? `(Attached files: ${quote.attachments.map((file) => file.filename).join(", ")})`
+              : "",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          mentionedUserIds: discordMentionIds(quote.content),
+          sentAt: quote.sentAt,
+        }
+      : null,
+  };
+}
+
+export function inboundFile(attachment: DiscordInboundAttachment): InboundFile {
+  return {
+    id: attachment.id,
+    name: attachment.filename,
+    mimeType: attachment.contentType ?? "application/octet-stream",
+    size: attachment.size,
+    url: attachment.url,
   };
 }
 

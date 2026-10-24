@@ -72,11 +72,11 @@ export class SkillMarketplace {
   constructor(private readonly bindings: Pick<WorkerBindings, "DB" | "SKILLS">) {}
 
   list(input: {
-    query?: string;
-    category?: string;
+    query?: string | undefined;
+    category?: string | undefined;
     featured?: boolean;
-    sort?: "installs";
-    cursor?: string;
+    sort?: "installs" | undefined;
+    cursor?: string | undefined;
     limit?: number;
   }) {
     return Effect.fn("SkillMarketplace.list")(() =>

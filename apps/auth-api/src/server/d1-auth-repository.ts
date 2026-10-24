@@ -485,7 +485,7 @@ export class D1AuthRepository implements AuthRepository {
     function* (
       this: D1AuthRepository,
       input: {
-        host?: MobileConnectHostBinding;
+        host?: MobileConnectHostBinding | undefined;
         ticketHash: string;
         userId: string;
         serverId: string;

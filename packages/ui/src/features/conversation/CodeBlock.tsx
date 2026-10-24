@@ -8,7 +8,7 @@ import type { MessageCodeBlock } from "./DataTable";
 
 export interface CodeToken {
   text: string;
-  type?: ShjToken;
+  type?: ShjToken | undefined;
 }
 
 export type CodeLine = CodeToken[];

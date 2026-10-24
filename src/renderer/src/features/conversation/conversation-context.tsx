@@ -1,10 +1,11 @@
-import type {
-  AgentEvent,
-  AgentRuntimeSnapshot,
-  ConversationPage,
-  ConversationPageInfo,
-  ConversationReadState,
-  ConversationSnapshot,
+import {
+  type AgentEvent,
+  type AgentRuntimeSnapshot,
+  CONVERSATION_SNAPSHOT_MESSAGE_LIMIT,
+  type ConversationPage,
+  type ConversationPageInfo,
+  type ConversationReadState,
+  type ConversationSnapshot,
 } from "@openbot/contracts/ipc";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 import type { AgentMessage } from "@openbot/ui/data";
@@ -31,6 +32,7 @@ import { useChannels } from "../channels/channels-context";
 import { useServers } from "../servers/servers-context";
 import { notifyTeamTyping } from "../team/team-typing";
 import { useWindowPage } from "../window/window-page-context";
+import { takeAttachmentKinds } from "./attachment-analytics";
 import {
   agentConversationKey,
   agentMessageKey,
@@ -89,7 +91,7 @@ interface ConversationState {
   missingReferences?: Record<string, true>;
   olderLoading?: boolean;
   olderError?: string | null;
-  read?: ConversationReadState;
+  read?: ConversationReadState | undefined;
   recentReply?: boolean;
 }
 
@@ -109,7 +111,7 @@ const Conversation = createSimpleContext({
   name: "Conversation",
   init: () => {
     const windowPage = useWindowPage();
-    const { appFocused } = usePlatform();
+    const { appFocused, chatWindow } = usePlatform();
     const { activeServerId, activeServer } = useServers();
     const { agentChatsToMarkRead, agentChatsToRetryRead, autoReadAgentMessages } = useAgentReadTracking();
     const scopeIsCurrent = createScopeGuard();
@@ -288,7 +290,11 @@ const Conversation = createSimpleContext({
 
     function applyConversationReads(reads: Record<string, ConversationReadState>): void {
       setConversations((current) => {
-        for (const [agentId, conversation] of Object.entries(current)) conversation.read = reads[agentId];
+        for (const [agentId, conversation] of Object.entries(current)) {
+          const read = reads[agentId];
+          if (read === undefined) delete conversation.read;
+          else conversation.read = read;
+        }
         for (const [agentId, read] of Object.entries(reads)) {
           current[agentId] ??= { messages: [] };
           current[agentId].read = read;
@@ -530,9 +536,9 @@ const Conversation = createSimpleContext({
       const initialLoad = conversations[agentId]?.loaded !== true;
       const inactive = agentId !== activeAgentId();
       const windowMode = conversations[agentId]?.windowMode ?? "latest";
-      // A snapshot carries the whole thread. An agent that is not open shows none of it, and opening
-      // it reads the latest page again, so only the tail is converted and kept. A window around an
-      // older message, from a search, is not in the tail, so it keeps the whole snapshot.
+      // A snapshot carries the latest part of the thread. An agent that is not open shows none of it,
+      // and opening it reads the latest page again, so only the tail is converted and kept. A window
+      // around an older message, from a search, converts the whole snapshot.
       const sourceMessages =
         inactive && windowMode === "latest" && snapshot.messages.length > INACTIVE_SNAPSHOT_TAIL
           ? snapshot.messages.slice(-INACTIVE_SNAPSHOT_TAIL)
@@ -543,12 +549,13 @@ const Conversation = createSimpleContext({
         const previous = conversation.messages;
         const previousById = new Map(previous.map((message) => [message.id, message]));
         const allMappedMessages = toAgentMessages(sourceMessages, snapshot.agentId);
-        const pageInfo = conversations[agentId]?.page;
         const mappedMessages = retainThinkingMessages(
           previous,
           windowedSnapshotMessages(previous, allMappedMessages, {
-            hasOlder: pageInfo?.hasOlder === true,
             mode: windowMode,
+            // Main also cuts a snapshot by size, so a window with older pages takes it as a tail too.
+            capped:
+              snapshot.messages.length >= CONVERSATION_SNAPSHOT_MESSAGE_LIMIT || conversation.page?.hasOlder === true,
           }),
         );
         const next = mappedMessages.map((mapped) => {
@@ -631,7 +638,8 @@ const Conversation = createSimpleContext({
         const pageMessages = mapped.map((message) => {
           const stored = currentById.get(message.id);
           if (!stored) return createStoredMessage({ ...message, animate: false });
-          if (!agentMessagesEqual(stored, message)) updateStored(stored, { ...message, animate: stored.animate });
+          if (!agentMessagesEqual(stored, message))
+            updateStored(stored, stored.animate === undefined ? message : { ...message, animate: stored.animate });
           return stored;
         });
         conversation.messages = mergeConversationPage(currentMessages, pageMessages, merge);
@@ -775,12 +783,21 @@ const Conversation = createSimpleContext({
       replyToMessageId: string | null,
       target?: { agentId: string; serverId: string },
       clientMessageId?: string,
+      voiceRecordingDraftId?: string,
     ): Promise<SendMessageResult> {
       const agentId = target?.agentId ?? activeAgent()?.id;
       const serverId = target?.serverId ?? activeServerId();
       if (!agentId || (!body.trim() && attachmentDraftIds.length === 0))
         return { error: currentText().t("chat.errorStatus.send") };
-      return sendMessageToAgent(agentId, body, attachmentDraftIds, replyToMessageId, serverId, clientMessageId);
+      return sendMessageToAgent(
+        agentId,
+        body,
+        attachmentDraftIds,
+        replyToMessageId,
+        serverId,
+        clientMessageId,
+        voiceRecordingDraftId,
+      );
     }
 
     /** The failure goes back to the pending message, which shows it with Retry. */
@@ -791,9 +808,11 @@ const Conversation = createSimpleContext({
       replyToMessageId: string | null = null,
       serverId = activeServerId(),
       clientMessageId?: string,
+      voiceRecordingDraftId?: string,
     ): Promise<SendMessageResult> {
       const analytics = desktopAnalytics.scope();
       const properties = analyticsAgentProperties(agentId);
+      const attachmentKinds = takeAttachmentKinds(attachmentDraftIds);
       try {
         const input = {
           agentId,
@@ -801,6 +820,7 @@ const Conversation = createSimpleContext({
           attachmentDraftIds,
           ...(replyToMessageId ? { replyToMessageId } : {}),
           ...(clientMessageId ? { clientMessageId } : {}),
+          ...(voiceRecordingDraftId ? { voiceRecordingDraftId } : {}),
         };
         const receipt = await conversationPort().agent.sendMessage(input, serverId);
         const errorKey = agentConversationKey(serverId, agentId);
@@ -809,6 +829,7 @@ const Conversation = createSimpleContext({
           ...(properties ?? {}),
           channel: "agent",
           attachment_count: attachmentDraftIds.length,
+          attachment_kinds: attachmentKinds,
           is_reply: replyToMessageId !== null,
           result: "succeeded",
           delivery_count: receipt.deliveries.length,
@@ -824,6 +845,7 @@ const Conversation = createSimpleContext({
           ...(properties ?? {}),
           channel: "agent",
           attachment_count: attachmentDraftIds.length,
+          attachment_kinds: attachmentKinds,
           is_reply: replyToMessageId !== null,
           result: "failed",
           failure_code: "send_failed",
@@ -985,7 +1007,8 @@ const Conversation = createSimpleContext({
       markAgentMessagesRead,
       markAllAgentMessagesRead,
       presentPromptResolution,
-      setTeamTyping: notifyTeamTyping,
+      // See `AppProviders`: a chat window sends no typing state.
+      setTeamTyping: chatWindow ? () => undefined : notifyTeamTyping,
     };
   },
 });

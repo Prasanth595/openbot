@@ -4,6 +4,7 @@ export const messages = defineMessages("mobile.browser", {
   "mobile.browser.open": "Open browser",
   "mobile.browser.liveView": "Live view of {title}",
   "mobile.browser.help": "How to use the browser",
+  "mobile.browser.switchAgent": "{name}. Switch to the browser of another agent",
   "mobile.browser.options": "Browser options",
   "mobile.browser.trackpadMode": "Trackpad mode",
   "mobile.browser.recenterPointer": "Recenter pointer",

@@ -90,7 +90,9 @@ export function createWebMarketplaceCalls(
     },
     openUrl: async (url) => {
       const protocol = URL.parse(url)?.protocol;
-      if (protocol !== "https:" && protocol !== "http:") throw new Error("This link cannot be opened.");
+      if (protocol !== "https:" && protocol !== "http:") {
+        throw new Error(currentText().t("webClient.error.linkBlocked"));
+      }
       window.open(url, "_blank", "noopener");
     },
   };

@@ -25,6 +25,9 @@ export default defineConfig(({ command }) => {
         "@openbot/renderer-web": rendererWebAlias,
       },
     },
+    // Vite removes license comments by default. The home page beam's license requires its notice
+    // in each copy, so the minifier moves `/*!` and `@license` comments to the end of each file.
+    esbuild: { legalComments: "eof" },
     build: {
       // A caption file has to stay a file. It is small enough for Vite to fold
       // into the bundle as a `data:` URL, and a text track fetched from one is

@@ -18,7 +18,7 @@
     "stripe:bootstrap": "bun ../../scripts/run-development.ts stripe",
     "db:migrate:local": "wrangler d1 migrations apply openbot-auth --local",
     "db:migrate:remote": "wrangler d1 migrations apply openbot-auth --remote",
-    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
+    "typecheck": "bun ../../scripts/type-checker.ts --noEmit -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {

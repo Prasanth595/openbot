@@ -21,6 +21,7 @@ export const messages = {
   "provider.status.updateAvailable": "アップデートあり",
   "provider.status.settingUp": "準備中",
   "provider.status.updateFailed": "アップデート失敗",
+  "provider.status.updateWaiting": "待機中",
   "provider.status.setupFailed": "セットアップ失敗",
   "provider.status.connected": "接続済み",
   "provider.status.notDownloaded": "未ダウンロード",
@@ -66,8 +67,11 @@ export const messages = {
   "provider.aria.codeFallback": "コードで {name} にログイン",
   "provider.aria.moreActions": "{name} のその他の操作",
   "provider.aria.use": "OpenBot で {name} を使用",
+  "provider.use.inUseOne":
+    "{agent} が {name} を使用しています。このエージェントのモデルを変更してから、{name} をオフにしてください。",
   "provider.use.inUse": {
-    other: "{agents} が {name} を使用しています。エージェントのモデルを変更してから、{name} をオフにしてください。",
+    other:
+      "{count} 個のエージェントが {name} を使用しています。これらのエージェントのモデルを変更してから、{name} をオフにしてください。",
   },
 
   "provider.codeLogin.title": "コードで {name} にログイン",
@@ -107,6 +111,7 @@ export const messages = {
   "provider.picker.providers": "モデルプロバイダー",
   "provider.picker.downloading": "ダウンロード中 {percent}",
   "provider.picker.unavailable": "{name} は利用できません。",
+  "provider.picker.updateToUse": "{name} を使うには OpenBot を更新してください",
   "provider.picker.models": "{name} のモデル",
   "provider.picker.addProvider": "プロバイダーを追加",
   "provider.picker.download": "{name} のダウンロード",
@@ -118,6 +123,8 @@ export const messages = {
   "provider.picker.defaultModelLabel": "{name}、デフォルト",
   "provider.picker.effort": "推論の強さ",
   "provider.picker.effortLabel": "エージェントの推論の強さ",
+  "provider.picker.fast": "高速",
+  "provider.picker.fastLabel": "高速モード",
   "provider.picker.selectEffort": "推論の強さを選択",
   "provider.picker.custom": "カスタム",
   "provider.picker.cliReady": "{cli} 準備完了",
@@ -136,6 +143,10 @@ export const messages = {
   "provider.geminiKey.description":
     "このコンピューターに Gemini API キーを保存します。保存したキーは Google アカウントの代わりに使われます。Google でサインインするには、キーを削除してから Gemini の行で「接続」を選択してください。",
   "provider.geminiKey.label": "Gemini API キー",
+  "provider.inceptionKey.title": "Inception API キー",
+  "provider.inceptionKey.description":
+    "Mercury モデルを使うには、このコンピューターに Inception API キーを保存します。OpenBot はダウンロードした Pi CLI でモデルを実行します。",
+  "provider.inceptionKey.label": "Inception API キー",
 
   "provider.openCodeKey.title": "OpenCode Go にサインイン",
   "provider.openCodeKey.description": "無料モデルにアカウントは不要です。キーがあると有料の Go モデルを使えます。",
@@ -159,6 +170,27 @@ export const messages = {
   "provider.account.moreActions": "{name} のその他の操作",
   "provider.account.renameLabel": "{name} の名前",
   "provider.account.signInAgain": "もう一度サインイン",
+  "provider.account.cancelSignIn": "サインインをキャンセル",
+  "provider.account.finishSignIn": "ブラウザーでサインインを完了してください。",
   "provider.account.remove": "アカウントを削除",
   "provider.account.actionFailed": "{name} のアカウントを変更できませんでした。",
+  "provider.account.resetUsage": "使用量をリセット",
+  "provider.account.resetUsageTitle": "{name} の使用量をリセットしますか？",
+  "provider.account.resetUsageDescription": {
+    other:
+      "使用量リセットのクレジット {count} 件のうち 1 件を使います。このアカウントの上限に達した使用量は今すぐリセットされます。この操作は元に戻せません。",
+  },
+  "provider.account.resetUsagePending": "リセット中…",
+  "provider.account.resetUsageDone": "{name} の使用量の上限がリセットされました。",
+  "provider.account.resetUsageNothing": "{name} に上限に達した使用量はありません。クレジットは使われていません。",
+  "provider.account.resetUsageNoCredit": "{name} には使用量リセットのクレジットが残っていません。",
+  "provider.account.resetUsageAlreadyRedeemed": "{name} のこのリセットのクレジットはすでに使われています。",
+  "provider.account.resetUsageFailed": "{name} の使用量をリセットできませんでした。",
+  "provider.settings.cache": "キャッシュ",
+  "provider.settings.promptCache": "プロンプトキャッシュ",
+  "provider.settings.promptCacheDescription":
+    "ターンの間に Claude がエージェントのコンテキストをキャッシュに保持する時間。",
+  "provider.settings.promptCacheHour": "1 時間",
+  "provider.settings.promptCacheMinutes": "5 分",
+  "provider.settings.promptCacheLoadFailed": "このサーバーのプロンプトキャッシュ時間を読み込めませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

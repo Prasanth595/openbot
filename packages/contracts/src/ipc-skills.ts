@@ -58,11 +58,11 @@ export interface MarketplaceSkillPage {
 }
 
 export interface MarketplaceSkillQuery {
-  query?: string;
+  query?: string | undefined;
   category?: SkillCategory;
   featured?: boolean;
-  sort?: "installs";
-  cursor?: string;
+  sort?: "installs" | undefined;
+  cursor?: string | undefined;
   limit?: number;
 }
 
@@ -275,7 +275,7 @@ export interface ReviseLocalSkillInput extends CreateLocalSkillInput {
 }
 export interface LocalSkillRevisionInput {
   skillId: string;
-  revision?: number;
+  revision?: number | undefined;
 }
 /** Installs one exact revision, so the agent gets the copy the user read. */
 export type InstallLocalSkillInput = LocalSkillRevisionInput & { agentId: string; revision: number };

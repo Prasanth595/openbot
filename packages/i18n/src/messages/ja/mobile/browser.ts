@@ -5,6 +5,7 @@ export const messages = {
   "mobile.browser.open": "ブラウザーを開く",
   "mobile.browser.liveView": "{title} のライブビュー",
   "mobile.browser.help": "ブラウザーの使い方",
+  "mobile.browser.switchAgent": "{name}。別のエージェントのブラウザに切り替えます",
   "mobile.browser.options": "ブラウザーのオプション",
   "mobile.browser.trackpadMode": "トラックパッドモード",
   "mobile.browser.recenterPointer": "ポインターを中央に戻す",

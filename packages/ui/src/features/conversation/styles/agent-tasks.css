@@ -177,6 +177,22 @@
   font-size: var(--openbot-text-sm);
 }
 
+/*
+ * The compact composer of the task panel has no attach button, so it drops the empty first column, as
+ * `.side-question-composer` does.
+ */
+.agent-tasks-panel .composer[data-compact] {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.agent-tasks-panel .composer[data-compact] > .composer-input-label {
+  grid-column: 1;
+}
+
+.agent-tasks-panel .composer[data-compact] .composer-primary-actions {
+  grid-column: 2;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .agent-tasks-disclosure .agent-tasks-icon {
     transition: none;

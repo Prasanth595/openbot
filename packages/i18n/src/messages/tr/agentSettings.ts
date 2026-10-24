@@ -24,7 +24,7 @@ export const messages = {
   "agentSettings.backupModels.intro":
     "{model}, {name} yazmaya başlamadan önce kullanım sınırına ulaşırsa {name} hangi modelin kullanılacağını size sorar.",
   "agentSettings.backupModels.introAutomatic":
-    "{model}, {name} yazmaya başlamadan önce kullanım sınırına ulaşırsa {name} sıradaki ilk uygun modele geçer.",
+    "{model}, {name} yazmaya başlamadan önce kullanım sınırına ulaşırsa veya bir sağlayıcı hatasıyla başarısız olursa {name} sıradaki ilk uygun modele geçer.",
   "agentSettings.backupModels.ask": "Değiştirmeden önce sor",
   "agentSettings.backupModels.order": "Sıra",
   "agentSettings.backupModels.listLabel": "Yedek modeller, sırayla",
@@ -37,7 +37,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Şu an uygun değil · atlandı",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "{name} yazmaya başladıktan sonra asla model değiştirmez. Sınır bittiğinde {model} modeline geri döner.",
+    "{name} yazmaya başladıktan sonra asla model değiştirmez. Sınır bittiğinde veya bir sağlayıcı hatasından 10 dakika sonra {model} modeline geri döner.",
   "agentSettings.groups.brain": "Beyin",
   "agentSettings.groups.knows": "Bilgi",
   "agentSettings.groups.does": "Görevler",
@@ -57,7 +57,7 @@ export const messages = {
   "agentSettings.avatar.image": "Görsel",
   "agentSettings.avatar.replaceImage": "Görseli değiştir",
   "agentSettings.avatar.uploadImage": "Görsel yükle",
-  "agentSettings.avatar.imageHint": "PNG, JPEG veya WebP · kare kırpma",
+  "agentSettings.avatar.imageHint": "PNG, JPEG, GIF veya WebP · kare kırpma",
   "agentSettings.avatar.generatedFace": "Oluşturulan yüz",
   "agentSettings.avatar.resetToId": "Kimliğe sıfırla",
   "agentSettings.avatar.newSet": "Yeni küme",
@@ -72,7 +72,8 @@ export const messages = {
   "agentSettings.avatar.saveFailed": "Ajan avatarı kaydedilemedi.",
   "agentSettings.avatar.processFailed": "Ajan avatarı işlenemedi.",
   "agentSettings.runtime.model": "Ajan modeli",
-  "agentSettings.runtime.modelBusy": "Model değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
+  "agentSettings.runtime.providerBusy":
+    "Sağlayıcıyı veya hesabı değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
   "agentSettings.runtime.modelUnavailable": "Modeller bir ajan CLI'sı bağlandıktan sonra kullanılabilir.",
   "agentSettings.runtime.reasoning": "Akıl yürütme",
   "agentSettings.runtime.reasoningLabel": "Ajan akıl yürütme düzeyi",
@@ -142,6 +143,21 @@ export const messages = {
   "agentSettings.automation.title": "Yerel betikler",
   "agentSettings.automation.description":
     "Ana makinedeki betiklerin mesaj göndermesine, rutinleri çalıştırmasına, soruları yanıtlamasına ve onay isteklerini kabul etmesine veya reddetmesine izin verin",
+  "agentSettings.agentNewChat.title": "Ajan yeni sohbetler başlatır",
+  "agentSettings.agentNewChat.description":
+    "Sohbeti uzadığında ajanın yeni bir sohbet başlatmasına izin verir. Önce notlarını kaydeder.",
+  "agentSettings.quickAcknowledgement.title": "Uzun görevlerden önce planı göster",
+  "agentSettings.quickAcknowledgement.description":
+    "Uzun bir görevden önce ajan planını gösterir. 10 sn sonra veya Başlat'a bastığınızda başlar.",
+  "agentSettings.browserProfile.label": "Tarayıcı profili",
+  "agentSettings.browserProfile.shared": "Paylaşılan",
+  "agentSettings.browserProfile.agent": "Yalnızca bu ajan",
+  "agentSettings.browserProfile.missing": "Silinmiş profil",
+  "agentSettings.browserProfile.new": "Yeni profil",
+  "agentSettings.browserProfile.manageTitle": "Tarayıcı profilleri",
+  "agentSettings.browserProfile.manageDescription":
+    "Her profil kendi oturum açma bilgilerini ve çerezlerini tutar. Bir değişiklik ajanın açık sekmelerini kapatır.",
+  "agentSettings.browserProfile.manage": "Yönet",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tüm {provider} süreci bir korumalı alanda (sandbox) çalışır, bu nedenle dışarıya yazma işlemi başarısız olur. Yalnızca macOS'ta kullanılabilir.",
 } as const satisfies PartialTranslation<typeof source>;

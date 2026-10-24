@@ -2,22 +2,24 @@ import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentModelId,
-  AgentModelOption,
   AgentProviderId,
   AgentStatus,
   AvatarHue,
+  ClientAgentModelOption,
   CustomAgentSummary,
   CustomProviderSummary,
   ProviderRuntimeStatus,
 } from "@openbot/contracts/ipc";
+import type { AppTextKey, AppTranslate } from "@openbot/i18n";
 import { Button, Field, Input, Textarea } from "@openbot/ui";
 import { createSignal, For, onSettled, Show } from "solid-js";
 import { AVATAR_HUE_CHOICES, avatarCandidateSeeds, avatarHeadColor, avatarHueSwatch } from "../../bloub-avatar";
 import { ProviderModelPicker } from "../../components/ProviderModelPicker";
-import { useText } from "../../text";
+import { currentText, useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
 import { AgentAvatar } from "./AgentAvatar";
 import { AVATAR_HUE_LABEL } from "./avatar-hue-label";
+import { InstructionsLimit, instructionsTooLong } from "./InstructionsLimit";
 
 export interface FirstAgentDraft {
   name: string;
@@ -29,11 +31,15 @@ export interface FirstAgentDraft {
   model: AgentModelId;
 }
 
+/**
+ * A suggested agent. The name, description and purpose are catalog keys: selecting the suggestion
+ * copies their text in the interface language into the draft, so the created agent gets that text.
+ */
 export interface FirstAgentSuggestion {
   id: string;
-  name: string;
-  description: string;
-  purpose: string;
+  nameKey: AppTextKey;
+  descriptionKey: AppTextKey;
+  purposeKey: AppTextKey;
   avatarSeed: string;
   avatarHue: AvatarHue;
   animationCycleOffset: number;
@@ -47,19 +53,21 @@ export interface FirstAgentSetupProps {
   submitting?: boolean;
   error?: string | null;
   /** The live catalog behind the model picker. Absent, the form keeps no model choice. */
-  modelOptions?: AgentModelOption[];
-  agentStatus?: AgentStatus;
-  runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>>;
-  customProviders?: readonly CustomProviderSummary[];
+  modelOptions?: ClientAgentModelOption[] | undefined;
+  agentStatus?: AgentStatus | undefined;
+  runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
+  customProviders?: readonly CustomProviderSummary[] | undefined;
   /** The user's own ACP agents on this computer, for the model picker's Custom tab. */
-  customAgents?: readonly CustomAgentSummary[];
-  onDownloadProvider?: (provider: AgentProviderId) => void | Promise<void>;
-  onCancelProviderDownload?: (provider: AgentProviderId) => void | Promise<void>;
-  onConnectProvider?: (provider: AgentProviderId) => void | Promise<void>;
-  onAddCustomProvider?: (trigger: HTMLElement) => void;
+  customAgents?: readonly CustomAgentSummary[] | undefined;
+  onDownloadProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
+  onAddCustomProvider?: ((trigger: HTMLElement) => void) | undefined;
+  /** Opens the provider settings from a plus button in the model picker. */
+  onManageProviders?: ((trigger: HTMLElement) => void) | undefined;
   onChange: (value: FirstAgentDraft) => void;
   onSubmit: (value: FirstAgentDraft) => void | Promise<void>;
-  onCancel?: () => void;
+  onCancel?: (() => void) | undefined;
 }
 
 export const FIRST_AGENT_AVATAR_SEEDS = avatarCandidateSeeds("first-bot", "first-bot", 0);
@@ -70,30 +78,29 @@ const SUGGESTION_MOMENTUM_MAXIMUM = 1.75;
 const SUGGESTION_DRAG_THRESHOLD = 8;
 const MOTION_FRAME_DURATION = 1000 / 60;
 
-export const DEFAULT_FIRST_AGENT_DRAFT: FirstAgentDraft = {
-  name: "New agent",
-  purpose: "",
-  avatarSeed: FIRST_AGENT_AVATAR_SEEDS[0] ?? "first-bot",
-  avatarHue: null,
-  suggestionId: null,
-  provider: "codex",
-  model: agentProviderDescriptor("codex").defaultModel,
-};
-
+/**
+ * A new draft. Its name is the default name in the interface language when the draft is made: the
+ * name is the user's value from then on, and becomes the created agent's name.
+ */
 export function createFirstAgentDraft(random: () => number = Math.random): FirstAgentDraft {
   const index = Math.min(FIRST_AGENT_AVATAR_SEEDS.length - 1, Math.floor(random() * FIRST_AGENT_AVATAR_SEEDS.length));
   return {
-    ...DEFAULT_FIRST_AGENT_DRAFT,
-    avatarSeed: FIRST_AGENT_AVATAR_SEEDS[index] ?? DEFAULT_FIRST_AGENT_DRAFT.avatarSeed,
+    name: currentText().t("agent.setup.nameFallback"),
+    purpose: "",
+    avatarSeed: FIRST_AGENT_AVATAR_SEEDS[index] ?? "first-bot",
+    avatarHue: null,
+    suggestionId: null,
+    provider: "codex",
+    model: agentProviderDescriptor("codex").defaultModel,
   };
 }
 
 export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
   {
     id: "inbox-helper",
-    name: "Inbox Helper",
-    description: "Drafts replies and keeps follow-ups from slipping.",
-    purpose: "Draft clear email replies in my voice, summarize long threads, and keep track of follow-ups.",
+    nameKey: "agent.setup.suggestion.inboxHelper.name",
+    descriptionKey: "agent.setup.suggestion.inboxHelper.description",
+    purposeKey: "agent.setup.suggestion.inboxHelper.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[1] ?? "first-bot:inbox",
     avatarHue: 320,
     animationCycleOffset: 0,
@@ -101,9 +108,9 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
   },
   {
     id: "trip-planner",
-    name: "Trip Planner",
-    description: "Compares options and builds practical itineraries.",
-    purpose: "Compare travel options and turn my rough ideas into practical, day-by-day itineraries.",
+    nameKey: "agent.setup.suggestion.tripPlanner.name",
+    descriptionKey: "agent.setup.suggestion.tripPlanner.description",
+    purposeKey: "agent.setup.suggestion.tripPlanner.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[2] ?? "first-bot:travel",
     avatarHue: 215,
     animationCycleOffset: 2,
@@ -111,9 +118,9 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
   },
   {
     id: "personal-organizer",
-    name: "Personal Organizer",
-    description: "Turns notes, errands, and tasks into a simple plan.",
-    purpose: "Organize my notes, errands, and loose tasks into clear priorities and simple next steps.",
+    nameKey: "agent.setup.suggestion.personalOrganizer.name",
+    descriptionKey: "agent.setup.suggestion.personalOrganizer.description",
+    purposeKey: "agent.setup.suggestion.personalOrganizer.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[3] ?? "first-bot:organizer",
     avatarHue: 55,
     animationCycleOffset: 4,
@@ -121,9 +128,9 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
   },
   {
     id: "shopping-scout",
-    name: "Shopping Scout",
-    description: "Compares products, prices, and reviews before I buy.",
-    purpose: "Compare products, prices, and reviews so I can make practical buying decisions with less research.",
+    nameKey: "agent.setup.suggestion.shoppingScout.name",
+    descriptionKey: "agent.setup.suggestion.shoppingScout.description",
+    purposeKey: "agent.setup.suggestion.shoppingScout.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[4] ?? "first-bot:shopping",
     avatarHue: 150,
     animationCycleOffset: 6,
@@ -131,9 +138,9 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
   },
   {
     id: "writing-partner",
-    name: "Writing Partner",
-    description: "Drafts messages and documents in a natural voice.",
-    purpose: "Help me draft and improve messages and documents while keeping the writing clear and natural.",
+    nameKey: "agent.setup.suggestion.writingPartner.name",
+    descriptionKey: "agent.setup.suggestion.writingPartner.description",
+    purposeKey: "agent.setup.suggestion.writingPartner.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[5] ?? "first-bot:writing",
     avatarHue: 30,
     animationCycleOffset: 8,
@@ -141,9 +148,9 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
   },
   {
     id: "learning-coach",
-    name: "Learning Coach",
-    description: "Explains difficult topics and builds study plans.",
-    purpose: "Explain difficult topics clearly and build study plans that match my pace and goals.",
+    nameKey: "agent.setup.suggestion.learningCoach.name",
+    descriptionKey: "agent.setup.suggestion.learningCoach.description",
+    purposeKey: "agent.setup.suggestion.learningCoach.purpose",
     avatarSeed: FIRST_AGENT_AVATAR_SEEDS[6] ?? "first-bot:learning",
     avatarHue: 245,
     animationCycleOffset: 10,
@@ -151,10 +158,10 @@ export const FIRST_AGENT_SUGGESTIONS: FirstAgentSuggestion[] = [
   },
 ];
 
-function matchesSuggestion(draft: FirstAgentDraft, suggestion: FirstAgentSuggestion): boolean {
+function matchesSuggestion(draft: FirstAgentDraft, suggestion: FirstAgentSuggestion, t: AppTranslate): boolean {
   return (
-    draft.name === suggestion.name &&
-    draft.purpose === suggestion.purpose &&
+    draft.name === t(suggestion.nameKey) &&
+    draft.purpose === t(suggestion.purposeKey) &&
     draft.avatarSeed === suggestion.avatarSeed &&
     draft.avatarHue === suggestion.avatarHue
   );
@@ -175,7 +182,8 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
   const [canScrollSuggestionsBack, setCanScrollSuggestionsBack] = createSignal(false);
   const [canScrollSuggestionsForward, setCanScrollSuggestionsForward] = createSignal(false);
   const [draggingSuggestions, setDraggingSuggestions] = createSignal(false);
-  const canSubmit = () => Boolean(props.value.name.trim()) && !props.submitting;
+  const canSubmit = () =>
+    Boolean(props.value.name.trim()) && !instructionsTooLong(props.value.purpose) && !props.submitting;
   const displayName = () => props.value.name.trim() || t("agent.setup.nameFallback");
 
   function updateSuggestionFades(): void {
@@ -288,15 +296,15 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
     const selected = props.suggestions.find((suggestion) => suggestion.id === next.suggestionId);
     props.onChange({
       ...next,
-      suggestionId: selected && matchesSuggestion(next, selected) ? selected.id : null,
+      suggestionId: selected && matchesSuggestion(next, selected, t) ? selected.id : null,
     });
   }
 
   function selectSuggestion(suggestion: FirstAgentSuggestion): void {
     if (props.submitting) return;
     props.onChange({
-      name: suggestion.name,
-      purpose: suggestion.purpose,
+      name: t(suggestion.nameKey),
+      purpose: t(suggestion.purposeKey),
       avatarSeed: suggestion.avatarSeed,
       avatarHue: suggestion.avatarHue,
       suggestionId: suggestion.id,
@@ -433,11 +441,12 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
               <Textarea
                 value={props.value.purpose}
                 rows={2}
-                maxlength={INPUT_LIMITS.agentDescription}
+                invalid={instructionsTooLong(props.value.purpose)}
                 placeholder={t("agent.setup.purposePlaceholder")}
                 disabled={props.submitting}
                 onValueChange={(purpose) => updateDraft({ purpose })}
               />
+              <InstructionsLimit text={props.value.purpose} />
             </Field>
             <Show when={props.modelOptions}>
               {(options) => (
@@ -457,6 +466,7 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
                       onCancelProviderDownload={props.onCancelProviderDownload}
                       onConnectProvider={props.onConnectProvider}
                       onAddCustomProvider={props.onAddCustomProvider}
+                      onManageProviders={props.onManageProviders}
                       disabled={props.submitting}
                       onChange={(model, provider) => updateDraft({ model, provider })}
                     />
@@ -512,7 +522,10 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
                       class="first-agent-suggestion-card"
                       data-animation-cycle-offset={suggestion.animationCycleOffset}
                       data-animation-offset={suggestion.animationOffset}
-                      aria-label={`${suggestion.name}. ${suggestion.description}`}
+                      aria-label={t("agent.setup.suggestion.label", {
+                        name: t(suggestion.nameKey),
+                        description: t(suggestion.descriptionKey),
+                      })}
                       aria-pressed={props.value.suggestionId === suggestion.id ? "true" : "false"}
                       data-cuelume-tap="select"
                       disabled={props.submitting}
@@ -528,8 +541,8 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
                         animationOffset={suggestion.animationOffset}
                       />
                       <span>
-                        <strong>{suggestion.name}</strong>
-                        <small>{suggestion.description}</small>
+                        <strong>{t(suggestion.nameKey)}</strong>
+                        <small>{t(suggestion.descriptionKey)}</small>
                       </span>
                     </Button>
                   </li>

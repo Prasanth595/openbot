@@ -24,12 +24,7 @@ import { nextRoutineOccurrence } from "@openbot/team-client/routine-schedule";
 import { strToU8, zipSync } from "fflate";
 import { z } from "zod";
 import { AgentRoutineStore } from "../src/backend/agent-routine-store";
-import {
-  AgentStore,
-  DEFAULT_AGENT_MODEL,
-  DEFAULT_AGENT_PROVIDER,
-  DEFAULT_REASONING_EFFORT,
-} from "../src/backend/agent-store";
+import { AgentStore, DEFAULT_AGENT_PROVIDER } from "../src/backend/agent-store";
 import { ChannelRoutineStore } from "../src/backend/channel-routine-store";
 import { ChannelStore } from "../src/backend/channel-store";
 import { runCauseEffect } from "../src/backend/effect-boundary";
@@ -41,12 +36,7 @@ import { MANAGED_SKILL_FOLDERS, OWNERSHIP_MARKER } from "../src/main/managed-ski
 import { assertMutationAllowed } from "./dev-automation/cdp-client";
 import { readDevInstanceRecords } from "./dev-automation/instance-registry";
 import { resolveDevelopmentAppDataRoot } from "./development-state-paths";
-import {
-  DEVELOPMENT_SEED_MANIFEST_FILE,
-  isDevelopmentProfileActive,
-  SEED_FALLBACK_AGENT,
-  seedDevelopmentState,
-} from "./seed-dev-state";
+import { DEVELOPMENT_SEED_MANIFEST_FILE, isDevelopmentProfileActive, seedDevelopmentState } from "./seed-dev-state";
 
 export const ROOT = resolve(import.meta.dirname, "..");
 export const BUILTIN_SKILL_SLUGS = ["openbot-site-hosting", "openbot-skill-creator", "openbot-data"] as const;
@@ -335,8 +325,8 @@ function initialAgent(id: string, seed: string): AgentSummary {
     description: MARKER,
     notifications: true,
     provider: DEFAULT_AGENT_PROVIDER,
-    model: DEFAULT_AGENT_MODEL,
-    reasoningEffort: DEFAULT_REASONING_EFFORT,
+    model: "gpt-6-luna",
+    reasoningEffort: "low",
     access: DEFAULT_AGENT_ACCESS,
     computerUse: true,
     threadId: null,
@@ -583,7 +573,15 @@ async function main() {
   await inactive();
   if (!existsSync(profile)) {
     assert.equal(action, "prepare", "No fixture profile exists.");
-    await seedDevelopmentState({ instanceId: INSTANCE, ifMissing: true, agentModel: SEED_FALLBACK_AGENT });
+    await seedDevelopmentState({
+      instanceId: INSTANCE,
+      ifMissing: true,
+      agentModel: {
+        provider: DEFAULT_AGENT_PROVIDER,
+        model: "gpt-6-luna",
+        reasoningEffort: "low",
+      },
+    });
   }
   requireSeedProfile();
   await inactive();

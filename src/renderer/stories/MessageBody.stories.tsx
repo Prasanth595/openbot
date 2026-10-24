@@ -3,7 +3,7 @@ import type { AgentMessage } from "@openbot/ui/data";
 import { MessageBody } from "@openbot/ui/features/conversation/MessageRendering";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { STORY_AGENTS, STORY_ATTACHMENTS } from "./fixtures";
+import { STORY_AGENTS, STORY_ATTACHMENTS, STORY_REPLY_QUOTE_BODY } from "./fixtures";
 
 const message: AgentMessage = {
   id: "message-body-1",
@@ -118,6 +118,34 @@ export const ReplyLoadingOriginal: Story = {
 /** The original was deleted. The chat has no text to quote, so only the note shows. */
 export const ReplyOriginalUnavailable: Story = {
   args: { message: reply, referenceState: "unavailable" },
+  render: (storyArgs) => <MessageBodySurface args={storyArgs} author="user" width="360px" />,
+};
+
+const markdownQuoted: AgentMessage = {
+  id: "message-reference",
+  author: "agent",
+  body: STORY_REPLY_QUOTE_BODY,
+  time: "09:55",
+};
+
+/** The quote renders the original's Markdown, cut to four lines. */
+export const ReplyMarkdownOriginal: Story = {
+  args: { message: reply, referencedMessage: markdownQuoted, onOpenReference: fn() },
+  render: (storyArgs) => <MessageBodySurface args={storyArgs} author="user" width="360px" />,
+};
+
+/** An original that ends in an open code fence. The cut keeps the reply under it intact. */
+export const ReplyMarkdownOpenFence: Story = {
+  args: {
+    message: reply,
+    referencedMessage: {
+      ...markdownQuoted,
+      body: ["Run these before the tag:", "", "```bash", "bun run check", "bun run test:changed", "bun run lint"].join(
+        "\n",
+      ),
+    },
+    onOpenReference: fn(),
+  },
   render: (storyArgs) => <MessageBodySurface args={storyArgs} author="user" width="360px" />,
 };
 

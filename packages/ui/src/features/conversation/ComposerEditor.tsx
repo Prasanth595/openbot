@@ -1,7 +1,8 @@
+import { rankAgentMentions } from "@openbot/contracts/agent-mention-rank";
 import { attachmentReferenceIds } from "@openbot/contracts/attachment-references";
 import { serializeChatTagReference } from "@openbot/contracts/chat-tag-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { DraftAttachment, InstalledSkill, McpServerConfig } from "@openbot/contracts/ipc";
+import type { DraftAttachment } from "@openbot/contracts/ipc";
 import { Badge, Blocks, Listbox, Puzzle } from "@openbot/ui";
 import { usesTouchLayout } from "@openbot/ui/utils";
 import { Dynamic, Portal } from "@solidjs/web";
@@ -17,7 +18,7 @@ import {
   untrack,
 } from "solid-js";
 import { createScrollFades } from "../../components/createScrollFades";
-import type { AgentProfile } from "../../data";
+import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "../../data";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";
 import { AnchoredTooltip } from "./AnchoredTooltip";
@@ -66,16 +67,18 @@ import { isSendShortcutKey, type SendShortcut } from "./send-shortcut";
 
 interface ComposerEditorProps {
   agentId: string | undefined;
-  agents: AgentProfile[];
-  skills?: InstalledSkill[];
+  agents: ComposerAgent[];
+  skills?: ComposerSkill[] | undefined;
   /** The host's MCP servers, offered by the same `$` the skills answer. */
-  mcpServers?: McpServerConfig[];
+  mcpServers?: ComposerMcpServer[] | undefined;
   attachments?: DraftAttachment[];
   value: string;
   placeholder: string;
   ariaLabel: string;
   disabled: boolean;
-  focusRequest?: number;
+  /** `compact` is one short line, as in the floating composer over a browser page. */
+  size?: "default" | "compact";
+  focusRequest?: number | undefined;
   /** Raised by one to open the skill picker at the caret, as a typed `$` does. */
   skillPickerRequest?: number;
   /** A new id puts a quote chip for the text at the caret, or at the end when the caret is unknown. */
@@ -90,7 +93,7 @@ interface ComposerEditorProps {
    * Which chord sends the message. Enter keeps the current behavior; the platform modifier with
    * Enter sends and plain Enter adds a line. The renderer resolves the platform and passes it.
    */
-  sendShortcut?: SendShortcut;
+  sendShortcut?: SendShortcut | undefined;
   onOpenAttachment?: (attachment: DraftAttachment) => void;
   /** Receives pasted files. Without it, a file paste does nothing here; the desktop preload imports it. */
   onPasteFiles?: (files: File[]) => void;
@@ -146,12 +149,8 @@ export function ComposerEditor(props: ComposerEditorProps) {
     { equals: (previous, next) => previous.mount === next.mount && previous.bottom === next.bottom },
   );
   const matchingAgents = createMemo(() => {
-    const query = mention()?.query.trim().toLocaleLowerCase() ?? "";
-    return props.agents.filter(
-      (agent) =>
-        agent.id !== props.agentId &&
-        (!query || `${agent.name} ${agent.title} ${agent.description}`.toLocaleLowerCase().includes(query)),
-    );
+    const others = props.agents.filter((agent) => agent.id !== props.agentId);
+    return rankAgentMentions(others, mention()?.query ?? "");
   });
   const matchingAttachments = createMemo(() => {
     const query = mention()?.query.trim().toLocaleLowerCase() ?? "";
@@ -349,8 +348,10 @@ export function ComposerEditor(props: ComposerEditorProps) {
       lastMcpKey = mcpKey;
       if (focusRequested) {
         lastFocusRequest = focusRequest;
+        // Text that the user selected in the draft stays selected, for example when they click Reply on a message.
+        const draftSelection = contentChanged ? null : readEditorSelection(editor);
         editor.focus({ preventScroll: true });
-        placeCaretAtEnd(editor);
+        if (!draftSelection || draftSelection.anchor === draftSelection.focus) placeCaretAtEnd(editor);
         scheduleCaretScroll();
       }
       if (skillPickerRequest > lastSkillPickerRequest) {
@@ -801,7 +802,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
   }
 
   return (
-    <div class="composer-editor-root" data-dictating={dictating() ? "" : undefined}>
+    <div class="composer-editor-root" data-size={props.size ?? "default"} data-dictating={dictating() ? "" : undefined}>
       <Show when={!props.value && !dictating()}>
         <span class="composer-editor-placeholder" aria-hidden="true">
           {props.placeholder}
@@ -886,7 +887,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
         </div>
       </Show>
       <Show when={pickerOpen()}>
-        <Portal mount={pickerFrame().mount}>
+        <Portal mount={pickerFrame().mount ?? document.body}>
           <div
             class="mention-picker"
             style={{

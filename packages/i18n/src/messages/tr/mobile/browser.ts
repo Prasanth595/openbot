@@ -5,6 +5,7 @@ export const messages = {
   "mobile.browser.open": "Tarayıcıyı aç",
   "mobile.browser.liveView": "{title} canlı görünümü",
   "mobile.browser.help": "Tarayıcı nasıl kullanılır",
+  "mobile.browser.switchAgent": "{name}. Başka bir ajanın tarayıcısına geç",
   "mobile.browser.options": "Tarayıcı seçenekleri",
   "mobile.browser.trackpadMode": "İzleme dörtgeni modu",
   "mobile.browser.recenterPointer": "İşaretçiyi ortala",

@@ -415,9 +415,11 @@ export function parseListChannelRoutineRuns(value: unknown): ListChannelRoutineR
 
 export function parseReadConversationPage(value: unknown): ReadConversationPageInput {
   if (!isObject(value)) throw new Error("Invalid conversation page request.");
+  const agentId = requireString(value.agentId, "agentId", INPUT_LIMITS.identifier);
+  const anchor = parsePageAnchor(value.anchor);
   return {
-    agentId: requireString(value.agentId, "agentId", INPUT_LIMITS.identifier),
-    anchor: parsePageAnchor(value.anchor),
+    agentId,
+    ...(anchor === undefined ? {} : { anchor }),
     limit: parsePageLimit(value.limit),
   };
 }
@@ -518,6 +520,16 @@ export function parseSendMessage(value: unknown): SendMessageInput {
   if (taskId !== undefined && (!isString(taskId) || !taskId || taskId.length > INPUT_LIMITS.identifier)) {
     throw new Error("Invalid task id.");
   }
+  const voiceRecordingDraftId = value.voiceRecordingDraftId;
+  if (
+    voiceRecordingDraftId !== undefined &&
+    (!isString(voiceRecordingDraftId) ||
+      !voiceRecordingDraftId ||
+      voiceRecordingDraftId.length > INPUT_LIMITS.identifier ||
+      attachmentDraftIds.includes(voiceRecordingDraftId))
+  ) {
+    throw new Error("Invalid voice recording draft.");
+  }
   return {
     agentId: requireString(value.agentId, "agentId"),
     text: value.text,
@@ -525,6 +537,7 @@ export function parseSendMessage(value: unknown): SendMessageInput {
     replyToMessageId: replyToMessageId?.trim() || null,
     ...(clientMessageId === undefined ? {} : { clientMessageId }),
     ...(taskId === undefined ? {} : { taskId }),
+    ...(voiceRecordingDraftId === undefined ? {} : { voiceRecordingDraftId }),
   };
 }
 
@@ -624,9 +637,24 @@ export function parseUpdateAgent(value: unknown): UpdateAgentInput {
     if (!isBoolean(value.computerUse)) throw new Error("Invalid Computer Use value.");
     result.computerUse = value.computerUse;
   }
+  // `null` returns the agent to the account default.
   if (value.allowAutomation !== undefined) {
-    if (!isBoolean(value.allowAutomation)) throw new Error("Invalid automation value.");
+    if (value.allowAutomation !== null && !isBoolean(value.allowAutomation))
+      throw new Error("Invalid automation value.");
     result.allowAutomation = value.allowAutomation;
+  }
+  if (value.allowNewChat !== undefined) {
+    if (value.allowNewChat !== null && !isBoolean(value.allowNewChat)) throw new Error("Invalid new chat value.");
+    result.allowNewChat = value.allowNewChat;
+  }
+  if (value.quickAcknowledgement !== undefined) {
+    if (value.quickAcknowledgement !== null && !isBoolean(value.quickAcknowledgement))
+      throw new Error("Invalid quick acknowledgement value.");
+    result.quickAcknowledgement = value.quickAcknowledgement;
+  }
+  if (value.fastMode !== undefined) {
+    if (!isBoolean(value.fastMode)) throw new Error("Invalid fast mode value.");
+    result.fastMode = value.fastMode;
   }
   if (value.providerAccountId !== undefined) {
     if (value.providerAccountId !== null && !isProviderAccountId(value.providerAccountId))

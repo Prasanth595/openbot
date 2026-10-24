@@ -9,7 +9,7 @@ import {
 } from "@openbot/contracts/ipc";
 import type { ProviderPickerOption } from "@openbot/ui/components/ProviderPicker";
 import { providerDiagnosticsText } from "@openbot/ui/features/provider-diagnostics/provider-diagnostics";
-import { createMemo, createSignal } from "solid-js";
+import { createMemo } from "solid-js";
 import { useI18n } from "../../../i18n-context";
 
 interface GeneralStoreProps {
@@ -35,12 +35,11 @@ interface GeneralStoreProps {
 }
 
 /**
- * The General tab's provider list: which row is selected, and the three options merged from the
- * agent status and the runtime download status.
+ * The provider options of the Providers tab, merged from the agent status and the runtime download
+ * status.
  */
 export function createSettingsGeneralStore(props: GeneralStoreProps) {
   const i18n = useI18n();
-  const [selectedProvider, setSelectedProvider] = createSignal<AgentProviderId | null>(null);
 
   const providerOptions = createMemo<ProviderPickerOption[]>(() =>
     // A joined server's host serves only the providers that the Team API carries: a host before
@@ -55,6 +54,13 @@ export function createSettingsGeneralStore(props: GeneralStoreProps) {
     ).map((provider) => {
       const agent = props.agentStatus?.providers?.find((candidate) => candidate.id === provider);
       const runtime = props.providerRuntimeStatuses?.[provider];
+      // The Gemini status says only whether a saved key serves the turns.
+      const keyStatus =
+        provider === "opencode"
+          ? props.openCodeKeyStatus?.()
+          : provider === "antigravity" && agent?.apiKeyInUse
+            ? ("saved" as const)
+            : undefined;
       return {
         id: provider,
         name: agentProviderName(provider),
@@ -70,7 +76,7 @@ export function createSettingsGeneralStore(props: GeneralStoreProps) {
         lastError: agent?.lastError,
         diagnostics: agent ? providerDiagnosticsText(agent) : undefined,
         availableVersion: props.providerAvailableVersions?.[provider] ?? null,
-        keyStatus: provider === "opencode" ? props.openCodeKeyStatus?.() : undefined,
+        ...(keyStatus === undefined ? {} : { keyStatus }),
         off: agent?.off ?? props.offProviders?.includes(provider),
         usedBy: props.providerUsers?.[provider],
         accounts: agent?.accounts?.map((account) => ({
@@ -98,7 +104,7 @@ export function createSettingsGeneralStore(props: GeneralStoreProps) {
     }),
   );
 
-  return { providerOptions, selectedProvider, setSelectedProvider };
+  return { providerOptions };
 }
 
 export type SettingsGeneralStore = ReturnType<typeof createSettingsGeneralStore>;

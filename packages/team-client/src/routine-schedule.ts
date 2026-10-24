@@ -351,7 +351,10 @@ function parseCron(expression: string): CronSpec {
   );
 }
 
-/** Reject tokens the released parser ignores, but keep stored schedules readable. */
+/** Only ASCII digits. `Number` also reads forms such as `0x5`, `1e1`, `+5` and `5.0`. */
+const CRON_DECIMAL = /^[0-9]+$/;
+
+/** Reject tokens the released parser ignores or reads loosely, but keep stored schedules readable. */
 function validateCronSaveSyntax(expression: string): void {
   const values = expression.trim().split(/\s+/);
   if (!hasFiveFields(values)) throw new RoutineInputError(sourceText("error.backend.routineCronFields"));
@@ -364,9 +367,10 @@ function validateCronSaveSyntax(expression: string): void {
   ] as const;
   for (const [source, label] of fields) {
     for (const segment of source.split(",")) {
-      const parts = segment.split("/");
-      const rangeSource = parts[0] ?? "";
-      if (rangeSource.split("-").includes("") || parts.length > 2) {
+      const [rangeSource = "", stepSource, ...extra] = segment.split("/");
+      const bounds = rangeSource === "*" ? [] : rangeSource.split("-");
+      const step = stepSource === undefined ? [] : [stepSource];
+      if (extra.length > 0 || ![...bounds, ...step].every((value) => CRON_DECIMAL.test(value))) {
         throw new RoutineInputError(sourceText("error.backend.routineCronValueInvalid", { field: label }));
       }
     }

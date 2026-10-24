@@ -1,5 +1,5 @@
 import { Deferred, Effect, Exit, Fiber, Result, Scope } from "effect";
-import { McpOperationError, mcpCall, mcpFailure, mcpSync } from "./mcp-effects";
+import { McpOperationError, mcpCall, mcpFailure, mcpSync, toMcpOperationError } from "./mcp-effects";
 /**
  * The OAuth client OpenBot is, for an http MCP server that asks its users to sign in.
  *
@@ -50,7 +50,13 @@ import type { Logger } from "@openbot/logging";
 import { z } from "zod";
 import { runCauseEffect } from "./effect-boundary";
 import { readLimitedBody } from "./limited-body";
-import { type AddressLookup, hostAddresses, isPublicAddress, systemAddressLookup } from "./network-address";
+import {
+  type AddressLookup,
+  type AddressLookupError,
+  hostAddresses,
+  isPublicAddress,
+  systemAddressLookup,
+} from "./network-address";
 import { withTimeout } from "./with-timeout";
 
 /** What one server's sign-in leaves behind, and all of it: nothing else is kept between runs. */
@@ -178,10 +184,12 @@ export interface McpSignIn {
   readonly provider: OAuthClientProvider;
   /**
    * Starts this sign-in for a server that answered without one. Some servers, such as Google's, list
-   * their tools to anyone and ask for a token only when a tool runs, so the SDK never gets the 401
-   * that starts a sign-in, and Sign in would end at once with nothing opened. Answers whether the
+   * their tools to anyone and ask for a token only when a tool runs, so the SDK never gets the 401 that
+   * starts a sign-in, and Sign in would end at once with nothing opened. Answers whether the
    * page opened: `false` when this address already holds a token, or when the server publishes no
-   * protected-resource metadata that names an authorization server.
+   * protected-resource metadata that names an authorization server. A metadata read that gets no
+   * answer or a server error is an error, not such a `false`: the server did not say that it wants
+   * no sign-in.
    */
   begin: () => Effect.Effect<boolean, McpOperationError>;
   /** Waits for the browser to come back, then trades the grant for a token set. */
@@ -447,10 +455,32 @@ export class McpOAuth implements McpOAuthAuthority {
           return yield* withTimeout(
             Effect.gen(function* () {
               // A server that answers without a sign-in and names no authorization server takes none:
-              // the SDK would otherwise guess `/authorize` at the server's own origin.
+              // the SDK would otherwise guess `/authorize` at the server's own origin. Any answer
+              // below 500 is such a server: a 404, a refusal, or a page that is not metadata. No
+              // answer, a server error, or a busy server (408, 429) says nothing about the server. It
+              // must not end the sign-in as if the server asked for none: that left the row showing
+              // the result of the earlier test, with no page and no words.
+              let metadataStatus: number | null = null;
+              const metadataFetch: FetchLike = async (input, init) => {
+                metadataStatus = null;
+                const response = await fetchFn(input, init);
+                metadataStatus = response.status;
+                return response;
+              };
               const metadata = yield* mcpCall(() =>
-                discoverOAuthProtectedResourceMetadata(resource, undefined, fetchFn),
-              ).pipe(Effect.catch(() => Effect.succeed(null)));
+                discoverOAuthProtectedResourceMetadata(resource, undefined, metadataFetch),
+              ).pipe(
+                Effect.catch(() => {
+                  if (
+                    metadataStatus !== null &&
+                    metadataStatus < 500 &&
+                    metadataStatus !== 408 &&
+                    metadataStatus !== 429
+                  )
+                    return Effect.succeed(null);
+                  return Effect.fail(new Error(sourceText("error.backend.mcpSignInMetadataUnreadable")));
+                }),
+              );
               if (!metadata?.authorization_servers?.length) return false;
               return (yield* mcpCall(() => auth(provider, { serverUrl: resource, fetchFn }))) === "REDIRECT";
             }),
@@ -1331,17 +1361,17 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 export function secureOAuthFetch(options: SecureOAuthFetchOptions = {}): FetchLike {
   const resource = options.resource === undefined ? null : new URL(options.resource);
   const resolve = options.lookup ?? systemAddressLookup;
-  // Resolved once for each exchange: every hop compares its addresses with this one answer.
-  let resourcePublic: Promise<boolean> | undefined;
   const guard: OAuthAddressGuard | null = resource
     ? {
         resource,
-        resourcePublic: () => {
-          resourcePublic ??= hostAddresses(resource, resolve).then(
-            (addresses) => addresses.length > 0 && addresses.every(isPublicAddress),
-          );
-          return resourcePublic;
-        },
+        // Resolved once for each exchange: every hop compares its addresses with this one answer.
+        resourcePublic: Effect.runSync(
+          Effect.cached(
+            hostAddresses(resource, resolve).pipe(
+              Effect.map((addresses) => addresses.length > 0 && addresses.every(isPublicAddress)),
+            ),
+          ),
+        ),
         resolve,
       }
     : null;
@@ -1368,7 +1398,7 @@ export interface SecureOAuthFetchOptions {
 
 interface OAuthAddressGuard {
   resource: URL;
-  resourcePublic: () => Promise<boolean>;
+  resourcePublic: Effect.Effect<boolean, AddressLookupError>;
   resolve: AddressLookup;
 }
 
@@ -1450,8 +1480,8 @@ const secureOAuthRequest = Effect.fn("McpOAuth.secureFetch")(function* (
  * stops a document that names a private address, not a resolver that changes its answer.
  */
 const checkEndpointAddress = Effect.fn("McpOAuth.checkEndpointAddress")(function* (url: URL, guard: OAuthAddressGuard) {
-  if (!(yield* mcpCall(guard.resourcePublic))) return;
-  const addresses = yield* mcpCall(() => hostAddresses(url, guard.resolve));
+  if (!(yield* toMcpOperationError(guard.resourcePublic))) return;
+  const addresses = yield* toMcpOperationError(hostAddresses(url, guard.resolve));
   if (addresses.length > 0 && addresses.every(isPublicAddress)) return;
   return yield* mcpFailure(new Error(sourceText("error.backend.mcpOAuthPrivateEndpoint", { origin: url.origin })));
 });

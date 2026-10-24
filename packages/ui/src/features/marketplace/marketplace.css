@@ -3,11 +3,7 @@
 /* ---------------------------------------------------------------- window */
 
 .skills-marketplace-backdrop {
-  position: fixed;
-  inset: 0;
   z-index: var(--openbot-layer-dialog-host);
-  display: grid;
-  place-items: center;
   padding: var(--openbot-space-4);
 }
 

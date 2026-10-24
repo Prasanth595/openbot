@@ -1,7 +1,7 @@
 import type { AgentModelId } from "./ipc-agent-identity";
 import type { AgentAuthState } from "./ipc-agent-status";
 import type { ExternalDestination } from "./ipc-app-auth";
-import { isOneOf } from "./runtime-values";
+import { isOneOf, isString } from "./runtime-values";
 
 /**
  * The coding agents OpenBot can drive, and everything about one that is the same wherever it is
@@ -29,12 +29,52 @@ export const AGENT_PROVIDERS = [
   "cline",
   "pi",
   "muse",
+  "inception",
   "acp",
 ] as const;
 export type AgentProviderId = (typeof AGENT_PROVIDERS)[number];
 
 export function isAgentProvider(value: unknown): value is AgentProviderId {
   return isOneOf(AGENT_PROVIDERS, value);
+}
+
+/** The form of every provider id, including one that a newer host adds. */
+export const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/u;
+
+declare const FOREIGN_PROVIDER: unique symbol;
+/**
+ * A provider that a newer host runs and this OpenBot does not know. Only client data holds one: the
+ * host's own agents, database and drivers use `AgentProviderId`.
+ */
+export type ForeignProviderId = string & { readonly [FOREIGN_PROVIDER]: true };
+/** The provider of an agent or a model that a client reads from a host. */
+export type AgentProviderRef = AgentProviderId | ForeignProviderId;
+
+export function isForeignProviderId(value: unknown): value is ForeignProviderId {
+  return isString(value) && PROVIDER_ID_PATTERN.test(value) && !isAgentProvider(value);
+}
+
+export function isAgentProviderRef(value: unknown): value is AgentProviderRef {
+  return isAgentProvider(value) || isForeignProviderId(value);
+}
+
+/** Whether this OpenBot can set up, sign in and pick models for the provider. */
+export function isKnownAgentProvider(provider: AgentProviderRef): provider is AgentProviderId {
+  return isAgentProvider(provider);
+}
+
+/** The provider when this build does not know it, else undefined. */
+export function foreignProvider(provider: AgentProviderRef): ForeignProviderId | undefined {
+  return isKnownAgentProvider(provider) ? undefined : provider;
+}
+
+/**
+ * The provider name to put in front of a user. A foreign provider shows the name its host sends,
+ * else its id.
+ */
+export function providerDisplayName(provider: AgentProviderRef, hostLabel?: string): string {
+  if (isAgentProvider(provider)) return agentProviderName(provider);
+  return hostLabel?.trim() || provider;
 }
 
 export interface AgentProviderDescriptor {
@@ -93,8 +133,9 @@ export interface AgentProviderDescriptor {
   readonly workspaceEnforcement: "tool-sandbox" | "command-sandbox" | "confined-process";
   /**
    * How the CLI takes a message into a running turn. `native`: it reads the message at its next
-   * step. `deferred`: the protocol has no steer request (ACP), so the message can wait until the
-   * turn ends. Only a `native` provider steers a message sent in `steer` mode; the others queue it.
+   * step (Grok through its `x.ai/interject` ACP extension). `deferred`: the protocol has no steer
+   * request (ACP), so the message can wait until the turn ends. Only a `native` provider steers a
+   * message sent in `steer` mode; the others queue it.
    */
   readonly steer: "native" | "deferred";
   /**
@@ -107,7 +148,7 @@ export interface AgentProviderDescriptor {
    * Whether OpenBot can read the plan's remaining usage. `false`: the CLI exposes no usage reading,
    * so the dock says the provider does not report usage instead of waiting for a reading. Declared
    * here because the renderer cannot see the drivers; set it to `true` with a driver's usage read
-   * (Codex and Claude read it themselves, Grok and OpenCode through `readRateLimits`).
+   * (Codex and Claude read it themselves, Grok, OpenCode, Antigravity and Cursor through `readRateLimits`).
    */
   readonly reportsUsage: boolean;
   /**
@@ -179,7 +220,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     signInPageEnd: "callback",
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
-    steer: "deferred",
+    steer: "native",
     concurrentTurns: true,
     reportsUsage: true,
     approvalsInFullAccess: true,
@@ -225,7 +266,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     workspaceEnforcement: "confined-process",
     steer: "deferred",
     concurrentTurns: true,
-    reportsUsage: false,
+    reportsUsage: true,
     approvalsInFullAccess: true,
   },
   // The Cursor CLI (`cursor-agent acp`) with the user's Cursor plan. Sign-in is the ACP
@@ -247,7 +288,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     workspaceEnforcement: "confined-process",
     steer: "deferred",
     concurrentTurns: true,
-    reportsUsage: false,
+    reportsUsage: true,
     approvalsInFullAccess: true,
   },
   // The Cline CLI (`cline --acp`). Sign-in is the ACP `cline` method, which opens a browser. A Cline
@@ -310,6 +351,28 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     steer: "native",
     concurrentTurns: true,
     reportsUsage: true,
+    approvalsInFullAccess: true,
+  },
+  // Inception's Mercury models run in the Pi CLI that OpenBot downloads for Pi, with a key the user
+  // saves here. Pi's own sign-in and models stay on the Pi row.
+  inception: {
+    id: "inception",
+    displayName: "Inception",
+    cliName: "Pi CLI",
+    onboardingDescription: "Mercury models with an Inception API key",
+    signInMessage: "Add an Inception API key to continue.",
+    installGuideLink: null,
+    defaultModel: "mercury-3",
+    legacyModelPrefix: null,
+    authKind: "inception",
+    pickerOrder: 9,
+    localCodeSignIn: null,
+    signInPageEnd: "callback",
+    skillFolders: [".agents/skills"],
+    workspaceEnforcement: "confined-process",
+    steer: "native",
+    concurrentTurns: true,
+    reportsUsage: false,
     approvalsInFullAccess: true,
   },
   // One provider for every Agent Client Protocol agent the user adds by command. The model id names
@@ -390,8 +453,8 @@ export function isManagedRuntimeProvider(provider: AgentProviderId): provider is
 
 /**
  * The providers that only newer Team API protocols carry: Gemini and custom ACP agents from protocol
- * 5, Cursor and Cline from protocol 6. A joined server's settings list one only when the host's status
- * names it.
+ * 5, Cursor and Cline from protocol 6, Pi and Muse from protocol 7. No protocol carries Inception yet.
+ * A joined server's settings list one only when the host's status names it.
  */
 export const LOCAL_ONLY_PROVIDERS = [
   "antigravity",
@@ -399,6 +462,7 @@ export const LOCAL_ONLY_PROVIDERS = [
   "cline",
   "pi",
   "muse",
+  "inception",
   "acp",
 ] as const satisfies readonly AgentProviderId[];
 
@@ -503,7 +567,11 @@ export function isFreeOpencodeModel(id: string, name: string): boolean {
 /**
  * Whether the provider's account quota limits this model. OpenCode reports only the Go quota, and
  * OpenCode also runs free, custom and own-sign-in models that the Go quota does not limit.
+ * Antigravity reports only the Gemini quota; its Claude and GPT models share another limit. Gemini
+ * model ids can be code names, so only a Claude or GPT id is left out.
  */
 export function accountUsageCoversModel(provider: AgentProviderId, model: string | null | undefined): boolean {
-  return provider !== "opencode" || Boolean(model?.toLowerCase().startsWith("opencode-go/"));
+  if (provider === "opencode") return Boolean(model?.toLowerCase().startsWith("opencode-go/"));
+  if (provider === "antigravity") return !/^(?:claude|gpt)/iu.test(model ?? "");
+  return true;
 }

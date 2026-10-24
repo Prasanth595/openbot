@@ -52,7 +52,8 @@ interface FilePreviewPanelProps {
   onWidthChange: (width: number) => void;
   onOpenLink: (url: string) => void;
   onOpenSharedFile: (path: string) => void;
-  onOpenWorkspaceFile: (path: string) => void;
+  /** Absent when no agent workspace can resolve a path, so a path stays text. */
+  onOpenWorkspaceFile?: ((path: string) => void) | undefined;
   onOpenWorkspaceFolder?: (path: string) => void;
   /** Goes to the folder the file came from, or to the parent of the folder. */
   onBack?: (() => void) | undefined;
@@ -65,6 +66,11 @@ interface FilePreviewPanelProps {
   pageUrl?: string | null | undefined;
   /** The page itself, for a client that has no page URL. It replaces `pageUrl`. */
   pageHtml?: string | null | undefined;
+  /**
+   * The quote id of the file, without lines. With it, a selection in a text or Markdown file opens
+   * the selection actions, so the user can quote the passage or ask for a change.
+   */
+  selectionQuoteId?: string | undefined;
   onOpenExternally: () => void;
   allowExternalOpen?: boolean;
   onDownload?: () => void;
@@ -101,7 +107,7 @@ export default function FilePreviewPanel(props: FilePreviewPanelProps) {
   const text = createMemo(() => ({ value: source().slice(0, TEXT_LIMIT), truncated: source().length > TEXT_LIMIT }));
   const openEntry = (entry: WorkspaceDirectoryEntry) => {
     if (entry.kind === "directory") props.onOpenWorkspaceFolder?.(entry.path);
-    else props.onOpenWorkspaceFile(entry.path);
+    else props.onOpenWorkspaceFile?.(entry.path);
   };
 
   createEffect(
@@ -342,6 +348,7 @@ export default function FilePreviewPanel(props: FilePreviewPanelProps) {
             renderedClass="message-markdown"
             statusClass="file-preview-markdown-status"
             truncatedClass="file-preview-truncated"
+            selectionQuoteId={props.selectionQuoteId}
             body={text().value}
             truncated={text().truncated}
             agents={props.agents}
@@ -361,7 +368,12 @@ export default function FilePreviewPanel(props: FilePreviewPanelProps) {
           />
         </Show>
         <Show when={showsSourceText()}>
-          <FileSourceText name={title()} text={text().value} wrap={wrapLines()} />
+          <FileSourceText
+            name={title()}
+            text={text().value}
+            wrap={wrapLines()}
+            selectionQuoteId={props.selectionQuoteId}
+          />
           <Show when={previewKind() === "text" && text().truncated}>
             <p class="file-preview-truncated">{t("preview.truncated", { limit: format.number(TEXT_LIMIT) })}</p>
           </Show>
@@ -403,7 +415,7 @@ export default function FilePreviewPanel(props: FilePreviewPanelProps) {
 }
 
 /** The text of a file, highlighted as code when its name gives a language that chat code blocks highlight. */
-function FileSourceText(props: { name: string; text: string; wrap: boolean }) {
+function FileSourceText(props: { name: string; text: string; wrap: boolean; selectionQuoteId?: string | undefined }) {
   const [tokens, setTokens] = createSignal<CodeToken[] | null>(null);
   let highlightRun = 0;
 
@@ -425,7 +437,11 @@ function FileSourceText(props: { name: string; text: string; wrap: boolean }) {
   });
 
   return (
-    <pre class={{ "file-preview-text": true, "file-preview-text-wrap": props.wrap }}>
+    <pre
+      class={{ "file-preview-text": true, "file-preview-text-wrap": props.wrap }}
+      data-selection-file-quote={props.selectionQuoteId}
+      data-selection-file-lines={props.selectionQuoteId ? "true" : undefined}
+    >
       <Show when={tokens()} fallback={props.text}>
         {(highlighted) => (
           <For each={highlighted()}>{(token) => <span data-code-token={token.type}>{token.text}</span>}</For>

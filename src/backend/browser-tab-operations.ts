@@ -1,5 +1,5 @@
 import type { BrowserSnapshot, BrowserTarget } from "@openbot/contracts/ipc";
-import { Deferred, Effect, Fiber } from "effect";
+import { Context, Deferred, Effect, Fiber } from "effect";
 import { type BrowserOperationError, browserFailure, browserSync } from "./browser-effects";
 import {
   BrowserFillFieldsFailure,
@@ -16,12 +16,32 @@ const OPERATION_UNWIND_GRACE_MS = 1_000;
 // Let an operation report its own deadline before the transport backstop wins.
 const OPERATION_DEADLINE_BACKSTOP_MS = 250;
 
+/**
+ * Whether a person controls a tab. Only the agent tool paths provide it, so a person's own actions and
+ * the host's internal work still run while the person holds the tab.
+ */
+export const BrowserToolHold = Context.Reference<(tabId: string) => boolean>("openbot/BrowserToolHold", {
+  defaultValue: () => () => false,
+});
+
+/** An agent tool operation reached a tab that a person controls. The caller waits for the release. */
+export class BrowserUserControlHeld extends Error {
+  readonly tabId: string;
+  constructor(tabId: string) {
+    super("A person controls this browser tab. Wait for the release, then take a fresh snapshot.");
+    this.name = "BrowserUserControlHeld";
+    this.tabId = tabId;
+  }
+}
+
 /** Return the response when ready; retain the queue until all owned work drains. */
 export const enqueueTabOperation = Effect.fn("BrowserTab.enqueue")(function* <A>(
   tab: BrowserHostTab,
   operation: (tab: BrowserHostTab, keepQueueBlocked: KeepQueueBlocked) => Effect.Effect<A, BrowserOperationError>,
   allowProtected = false,
 ) {
+  // Read in the caller's fiber: the queued work below runs in the tab scope.
+  const heldByUser = yield* BrowserToolHold;
   const previous = tab.queue;
   const drained = Deferred.makeUnsafe<void>();
   const response = Deferred.makeUnsafe<A, BrowserOperationError>();
@@ -36,6 +56,8 @@ export const enqueueTabOperation = Effect.fn("BrowserTab.enqueue")(function* <A>
         Effect.gen(function* () {
           yield* Deferred.await(previous);
           if (cancelled) return yield* Effect.interrupt;
+          // An operation that was queued before the person took the tab must not act on it.
+          if (heldByUser(tab.id)) return yield* browserFailure(new BrowserUserControlHeld(tab.id));
           if (tab.secret?.submitted && !allowProtected) {
             return yield* browserFailure(
               new Error("Browser inspection is protected during authentication. Use takeover."),

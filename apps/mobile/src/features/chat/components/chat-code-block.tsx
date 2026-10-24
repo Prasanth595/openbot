@@ -11,22 +11,32 @@ import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 import { type CodeToken, cachedHighlight, codeLanguageLabel, highlightCode } from "../model/code-highlight";
+import { useListSettled } from "./use-list-settled";
 
 /** A streaming block grows each frame. Highlight it at most this often; the new tail stays plain until then. */
 const STREAMING_HIGHLIGHT_INTERVAL_MS = 250;
 
-export const ChatCodeBlock = memo(function ChatCodeBlock({
-  text,
-  language,
-  selectable = true,
-  finished = false,
-}: {
+interface ChatCodeBlockProps {
   text: string;
   language?: string;
   selectable?: boolean;
   /** The text will not change, so its highlight is kept for the app run. */
   finished?: boolean;
-}) {
+}
+
+export const ChatCodeBlock = memo(function ChatCodeBlock(props: ChatCodeBlockProps) {
+  // A block that mounts during a fast fling of the chat colours its code when the list slows down.
+  const settled = useListSettled();
+  return <CodeBlockBody {...props} highlight={settled} />;
+});
+
+const CodeBlockBody = memo(function CodeBlockBody({
+  text,
+  language,
+  selectable = true,
+  finished = false,
+  highlight: highlightAllowed,
+}: ChatCodeBlockProps & { highlight: boolean }) {
   const { fontScale } = useWindowDimensions();
   const { t } = useText();
   const { foreground, muted, colors } = useCodeTokenColors();
@@ -44,6 +54,7 @@ export const ChatCodeBlock = memo(function ChatCodeBlock({
       );
       return;
     }
+    if (!highlightAllowed) return;
     let active = true;
     const run = () => {
       lastHighlight.current = Date.now();
@@ -63,7 +74,7 @@ export const ChatCodeBlock = memo(function ChatCodeBlock({
       active = false;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [text, language, finished]);
+  }, [text, language, finished, highlightAllowed]);
   const tokens =
     !highlight || highlight.language !== language || !text.startsWith(highlight.text)
       ? [{ text, offset: 0 }]

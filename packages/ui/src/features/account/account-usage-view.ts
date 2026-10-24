@@ -1,7 +1,6 @@
 import {
   type AccountUsage,
   type AccountUsageLimit,
-  type AccountUsageWindow,
   type AgentProviderId,
   agentProviderDescriptor,
   agentProviderName,
@@ -9,12 +8,19 @@ import {
   isAgentProvider,
   type ProviderAccountStatus,
 } from "@openbot/contracts/ipc";
+import {
+  type PlanLimitTone,
+  planLimitWindowKind,
+  reportedUsageWindows,
+  usageRemainingPercent,
+  usageTone,
+} from "@openbot/team-client/plan-limits";
 import { providerAccountName } from "../../components/provider-accounts";
 import { currentText, type TextValue } from "../../text";
 
 type UsageText = Pick<TextValue, "t" | "format">;
 
-export type AccountUsageTone = "neutral" | "warning" | "critical";
+export type AccountUsageTone = PlanLimitTone;
 
 /** One limit window that a provider reported, such as its 5-hour or its weekly window. */
 export interface AccountUsageWindowRow {
@@ -39,16 +45,6 @@ export interface AccountUsageProviderRow {
   windows: AccountUsageWindowRow[];
   /** `false` for a provider that has no usage reading, so a missing amount is not a failure. */
   reportsUsage: boolean;
-}
-
-/** Remaining quota from a provider-reported used percentage. */
-export function usageRemainingPercent(usedPercent: number): number {
-  return Math.max(0, Math.round(100 - usedPercent));
-}
-
-export function usageTone(remainingPercent: number | null): AccountUsageTone {
-  if (remainingPercent === null || remainingPercent >= 30) return "neutral";
-  return remainingPercent < 10 ? "critical" : "warning";
 }
 
 /**
@@ -108,10 +104,15 @@ function usageRow(
   limit: AccountUsageLimit | null,
   text: UsageText,
 ): AccountUsageProviderRow {
-  const windows = (limit ? reportedWindows(limit) : []).map((window): AccountUsageWindowRow => {
+  const windows = (limit ? reportedUsageWindows(limit) : []).map((window): AccountUsageWindowRow => {
     const remainingPercent = usageRemainingPercent(window.usedPercent);
     return {
-      label: usageWindowLabel(window.windowDurationMins, text),
+      // Cursor's two windows share one billing cycle and differ by the models they cover. One
+      // window alone is the whole plan.
+      label:
+        provider === "cursor" && limit?.primary && limit.secondary
+          ? text.t(window === limit?.primary ? "account.usage.window.cursorModels" : "account.usage.window.otherModels")
+          : usageWindowLabel(window.windowDurationMins, text),
       remainingPercent,
       tone: usageTone(remainingPercent),
       resetsAt: window.resetsAt,
@@ -139,16 +140,23 @@ function usageRow(
 
 export function usageWindowLabel(durationMins: number | null, text: UsageText = currentText()): string {
   const { t } = text;
-  if (durationMins === null) return t("account.usage.window.limit");
-  if (nearDuration(durationMins, 10_080)) return t("account.usage.window.weekly");
-  if (nearDuration(durationMins, 43_200) || nearDuration(durationMins, 40_320))
-    return t("account.usage.window.monthly");
-  if (nearDuration(durationMins, 1_440)) return t("account.usage.window.daily");
-  if (nearDuration(durationMins, 300)) return t("account.usage.window.fiveHour");
-  if (durationMins >= 60 && durationMins % 60 === 0) {
-    return t("account.usage.window.hours", { count: durationMins / 60 });
+  const window = planLimitWindowKind(durationMins);
+  switch (window.kind) {
+    case "limit":
+      return t("account.usage.window.limit");
+    case "weekly":
+      return t("account.usage.window.weekly");
+    case "monthly":
+      return t("account.usage.window.monthly");
+    case "daily":
+      return t("account.usage.window.daily");
+    case "fiveHour":
+      return t("account.usage.window.fiveHour");
+    case "hours":
+      return t("account.usage.window.hours", { count: window.hours });
+    case "minutes":
+      return t("account.usage.window.minutes", { minutes: window.minutes });
   }
-  return t("account.usage.window.minutes", { minutes: Math.round(durationMins) });
 }
 
 export function formatUsageReset(resetsAt: number | null, text: UsageText = currentText()): string | null {
@@ -197,17 +205,4 @@ export function accountUsageRowLabel(
     if (window.resetsAtLabel) parts.push(t("account.usage.row.resets", { time: window.resetsAtLabel }));
   }
   return parts.join(", ");
-}
-
-function reportedWindows(limit: AccountUsageLimit): AccountUsageWindow[] {
-  return [limit.primary, limit.secondary]
-    .filter((window): window is AccountUsageWindow => window !== null)
-    .sort(
-      (left, right) =>
-        (left.windowDurationMins ?? Number.POSITIVE_INFINITY) - (right.windowDurationMins ?? Number.POSITIVE_INFINITY),
-    );
-}
-
-function nearDuration(durationMins: number, targetMins: number): boolean {
-  return Math.abs(durationMins - targetMins) <= targetMins * 0.05;
 }

@@ -4,14 +4,19 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "Registro ACP",
   "customProvider.registry.description":
-    "Installa gli agenti su questo host. «Rimuovi runtime» mantiene impostazioni, credenziali e conversazioni dell'agente.",
+    "Installa gli agenti su questo server. «Rimuovi runtime» mantiene impostazioni, credenziali e conversazioni dell'agente.",
   "customProvider.registry.search": "Cerca nel registro",
   "customProvider.registry.empty": "Nessun agente corrisponde alla ricerca.",
   "customProvider.registry.agentId": "ID dell'agente personalizzato",
   "customProvider.registry.install": "Installa",
   "customProvider.registry.update": "Aggiorna",
   "customProvider.registry.remove": "Rimuovi runtime",
-  "customProvider.registry.failed": "L'operazione sul registro non è riuscita.",
+  "customProvider.registry.searchFailed": "Impossibile cercare nel registro. Riprova.",
+  "customProvider.registry.statusFailed": "Impossibile controllare l'avanzamento dell'installazione. OpenBot riprova.",
+  "customProvider.registry.installFailed": "Impossibile installare l'agente. Riprova.",
+  "customProvider.registry.updateFailed": "Impossibile aggiornare l'agente. Riprova.",
+  "customProvider.registry.removeFailed": "Impossibile rimuovere il runtime. Riprova.",
+  "customProvider.registry.cancelFailed": "Impossibile annullare l'installazione. Riprova.",
   "customProvider.error.providerIdRequired": "Inserisci un ID del provider.",
   "customProvider.error.providerIdPattern":
     "Usa lettere minuscole, numeri, trattini o trattini bassi, iniziando con una lettera o un numero.",
@@ -51,6 +56,7 @@ export const messages = {
   "customProvider.saveUnavailable": "Questa versione non può salvare un endpoint.",
   "customProvider.removeUnavailable": "Questa versione non può rimuovere un endpoint.",
   "customProvider.form.title": "Aggiungi un provider personalizzato",
+  "customProvider.form.editTitle": "Modifica un provider personalizzato",
   "customProvider.form.description": "Descrivi un endpoint compatibile con OpenAI e i modelli che offre.",
   "customProvider.form.heading": "Provider personalizzato",
   "customProvider.form.subtitle": "Qualsiasi endpoint compatibile con OpenAI.",
@@ -146,6 +152,9 @@ export const messages = {
   "customProvider.acp.args": "Argomenti",
   "customProvider.acp.argsHint":
     "Separa gli argomenti con spazi. Metti tra virgolette un argomento che contiene spazi.",
+  "customProvider.acp.usagePrompt": "Comando di utilizzo",
+  "customProvider.acp.usagePromptHint":
+    "OpenBot lo invia al massimo ogni 5 minuti e mostra l'ultima risposta. Usa un comando a cui l'agente risponde da solo, come /usage.",
   "customProvider.acp.env": "Variabili d'ambiente",
   "customProvider.acp.env.name": "Nome della variabile {number}",
   "customProvider.acp.env.value": "Valore della variabile {number}",
@@ -158,6 +167,10 @@ export const messages = {
   "customProvider.acp.checkOk": "{name} ha risposto",
   "customProvider.acp.checkOkVersion": "{name} {version} ha risposto",
   "customProvider.acp.checkProtocol": "Versione ACP {version}",
+  "customProvider.acp.checkModels": {
+    one: "{count} modello: {models}",
+    other: "{count} modelli: {models}",
+  },
   "customProvider.acp.checkFailed": "L'agente non ha risposto",
   "customProvider.acp.trustTitle": "Questo comando viene eseguito sul tuo computer",
   "customProvider.acp.trustDescription":
@@ -173,6 +186,7 @@ export const messages = {
   "customProvider.acp.error.envDuplicate": "Questo agente imposta già {name}.",
   "customProvider.acp.error.envValueRequired": "Inserisci un valore per questa variabile.",
   "customProvider.acp.error.envValueLength": "Il valore deve avere meno di {max} caratteri.",
+  "customProvider.acp.error.usagePromptInvalid": "Usa una sola riga di massimo {max} caratteri.",
   "customProvider.acp.error.agentIdPattern":
     "Usa lettere minuscole, numeri o trattini, iniziando con una lettera o un numero. Al massimo 40 caratteri.",
   "customProvider.agents.title": "Agenti personalizzati",
@@ -204,6 +218,7 @@ export const messages = {
   "customProvider.list.empty": "Ancora nessun endpoint personalizzato.",
   "customProvider.list.label": "Endpoint personalizzati",
   "customProvider.list.apiKeySaved": "Chiave API salvata",
+  "customProvider.list.editLabel": "Modifica {name}",
   "customProvider.list.deleteLabel": "Elimina {name}",
   "customProvider.list.confirmTitle": "Rimuovere {name}?",
   "customProvider.list.confirmDescription":

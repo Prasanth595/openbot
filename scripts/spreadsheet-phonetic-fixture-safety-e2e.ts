@@ -25,7 +25,7 @@ import { ConversationRuntime } from "../src/backend/agent/conversation-runtime";
 import { MailboxSync } from "../src/backend/agent/mailbox-sync";
 import { RoutineScheduler } from "../src/backend/agent/routine-scheduler";
 import { AgentRoutineStore } from "../src/backend/agent-routine-store";
-import { AgentStore } from "../src/backend/agent-store";
+import { AgentStore, DEFAULT_AGENT_PROVIDER } from "../src/backend/agent-store";
 import { AgentWaitStore } from "../src/backend/agent-waits/agent-wait-store";
 import { AgentWaits } from "../src/backend/agent-waits/agent-waits";
 import { ChannelRoutineStore } from "../src/backend/channel-routine-store";
@@ -38,12 +38,7 @@ import { WebhookRouteStore } from "../src/backend/webhook-route-store";
 import { MANAGED_SKILL_FOLDERS, ManagedSkillService, OWNERSHIP_MARKER } from "../src/main/managed-skill-service";
 import { assertMutationAllowed } from "./dev-automation/cdp-client";
 import { readDevInstanceRecords } from "./dev-automation/instance-registry";
-import {
-  DEVELOPMENT_SEED_MANIFEST_FILE,
-  isDevelopmentProfileActive,
-  SEED_FALLBACK_AGENT,
-  seedDevelopmentState,
-} from "./seed-dev-state";
+import { DEVELOPMENT_SEED_MANIFEST_FILE, isDevelopmentProfileActive, seedDevelopmentState } from "./seed-dev-state";
 import {
   BUILTIN_SKILL_SLUGS,
   digest,
@@ -141,6 +136,9 @@ async function hydrateMessages(fixture: AgentSummary) {
         emit: unexpected,
         ownsRoutine: (agentId, routineId) => records.getRecord(agentId, routineId) !== null,
         hasRoutine: (agentId) => records.listRecords(agentId).length > 0,
+        requireKnownAgent: (agentId) => {
+          conversation.requireKnownAgent(agentId);
+        },
       },
     });
     const timer: RoutineTimer = new RoutineTimer(
@@ -319,7 +317,15 @@ try {
   );
   assert.equal(await isDevelopmentProfileActive(profile), false);
   if (!existsSync(profile))
-    await seedDevelopmentState({ instanceId: INSTANCE, ifMissing: true, agentModel: SEED_FALLBACK_AGENT });
+    await seedDevelopmentState({
+      instanceId: INSTANCE,
+      ifMissing: true,
+      agentModel: {
+        provider: DEFAULT_AGENT_PROVIDER,
+        model: "gpt-6-luna",
+        reasoningEffort: "low",
+      },
+    });
   assert.equal(await isDevelopmentProfileActive(profile), false);
   requireSeedProfile();
   assert.equal(lstatSync(profile).isSymbolicLink(), false);

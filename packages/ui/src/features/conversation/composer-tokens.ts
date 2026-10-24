@@ -1,9 +1,9 @@
 import { type ChatTagKind, chatTagReferences } from "@openbot/contracts/chat-tag-references";
-import type { DraftAttachment, InstalledSkill, McpServerConfig } from "@openbot/contracts/ipc";
+import type { DraftAttachment } from "@openbot/contracts/ipc";
 import { referenceChipClasses } from "@openbot/ui/reference-chip";
 import { usesTouchLayout } from "@openbot/ui/utils";
 import { createStaticAvatarSvg } from "../../bloub-avatar";
-import type { AgentProfile } from "../../data";
+import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "../../data";
 import { currentText } from "../../text";
 import { appendAttachmentReferenceVisual } from "./AttachmentReference";
 
@@ -94,7 +94,7 @@ export function syncAttachmentTokens(
   }
 }
 
-export function createMentionToken(agent: AgentProfile): HTMLSpanElement {
+export function createMentionToken(agent: ComposerAgent): HTMLSpanElement {
   const token = document.createElement("span");
   token.className = `composer-mention-token ${referenceChipClasses.root}`;
   token.dataset.kind = "agent";
@@ -124,13 +124,13 @@ export function createMentionToken(agent: AgentProfile): HTMLSpanElement {
   return token;
 }
 
-export function createSkillToken(skill: InstalledSkill): HTMLSpanElement {
+export function createSkillToken(skill: ComposerSkill): HTMLSpanElement {
   const token = document.createElement("span");
   updateSkillToken(token, skill);
   return token;
 }
 
-function updateSkillToken(token: HTMLSpanElement, skill: InstalledSkill): void {
+function updateSkillToken(token: HTMLSpanElement, skill: ComposerSkill): void {
   token.className = `composer-mention-token ${referenceChipClasses.root}`;
   token.dataset.kind = "skill";
   token.title = skill.name;
@@ -198,13 +198,13 @@ function createChipGlyph(name: string, shapes: GlyphShape[]): SVGSVGElement {
   return svg;
 }
 
-export function createMcpToken(server: McpServerConfig): HTMLSpanElement {
+export function createMcpToken(server: ComposerMcpServer): HTMLSpanElement {
   const token = document.createElement("span");
   updateMcpToken(token, server);
   return token;
 }
 
-function updateMcpToken(token: HTMLSpanElement, server: McpServerConfig): void {
+function updateMcpToken(token: HTMLSpanElement, server: ComposerMcpServer): void {
   token.className = `composer-mention-token ${referenceChipClasses.root}`;
   token.dataset.kind = "mcp";
   token.title = server.name;
@@ -282,7 +282,7 @@ function updateUnavailableMcpToken(token: HTMLSpanElement, id: string, name: str
 
 /* A server the host no longer holds, or one the user turned off, is drawn as a name the agent
    cannot reach - the same outline a removed skill takes. */
-export function syncMcpTokens(editor: HTMLDivElement, servers: McpServerConfig[]): void {
+export function syncMcpTokens(editor: HTMLDivElement, servers: ComposerMcpServer[]): void {
   const available = new Map(servers.filter((server) => server.enabled).map((server) => [server.id, server]));
   for (const token of editor.querySelectorAll<HTMLSpanElement>("[data-mcp-id]")) {
     const id = token.dataset.mcpId;
@@ -293,7 +293,7 @@ export function syncMcpTokens(editor: HTMLDivElement, servers: McpServerConfig[]
   }
 }
 
-export function syncSkillTokens(editor: HTMLDivElement, skills: InstalledSkill[]): void {
+export function syncSkillTokens(editor: HTMLDivElement, skills: ComposerSkill[]): void {
   const available = new Map(
     skills
       .filter((skill) => skill.state !== "needs-repair" && skill.enabled !== false)
@@ -311,9 +311,9 @@ export function syncSkillTokens(editor: HTMLDivElement, skills: InstalledSkill[]
 export function renderEditorValue(
   editor: HTMLDivElement,
   value: string,
-  agents: AgentProfile[],
-  skills: InstalledSkill[],
-  mcpServers: McpServerConfig[],
+  agents: ComposerAgent[],
+  skills: ComposerSkill[],
+  mcpServers: ComposerMcpServer[],
   attachments: DraftAttachment[],
   attachmentTokenActions: AttachmentTokenActions,
 ) {
@@ -364,7 +364,7 @@ export function renderEditorValue(
   if (value.endsWith("\n")) editor.append(document.createElement("br"));
 }
 
-function scheduleStaticMentionAvatar(avatar: HTMLElement, agent: AgentProfile): void {
+function scheduleStaticMentionAvatar(avatar: HTMLElement, agent: ComposerAgent): void {
   queueMicrotask(() => {
     if (!avatar.isConnected) return;
     avatar.replaceChildren(createStaticAvatarSvg(agent.avatarSeed, agent.avatarHue));

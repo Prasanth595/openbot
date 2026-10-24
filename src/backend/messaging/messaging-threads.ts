@@ -4,7 +4,11 @@ import type {
   MessagingPlatform,
   RoutineResultConnectionOption,
 } from "@openbot/contracts/ipc";
-import { CONVERSATION_PLAN_ITEM_TYPE, MESSAGING_LIMITS } from "@openbot/contracts/ipc";
+import {
+  CONVERSATION_PLAN_ITEM_TYPE,
+  CONVERSATION_SUBAGENTS_ITEM_TYPE,
+  MESSAGING_LIMITS,
+} from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Result, Schema, type Scope } from "effect";
 import { type OpenBotToolResponse, openBotToolFailure, openBotToolResult } from "../agent/routine-tools";
@@ -438,6 +442,11 @@ export class MessagingThreads {
     return origin ? (this.store.link(origin.linkId)?.threadId ?? null) : null;
   }
 
+  /** Whether a platform message is in the mailbox, by its idempotency key. */
+  received(idempotencyKey: string): boolean {
+    return this.#mailbox.deliveryForKey(idempotencyKey) !== null;
+  }
+
   ownsDelivery(deliveryId: string): boolean {
     return this.#mailbox.messagingOrigin(deliveryId) !== null;
   }
@@ -467,6 +476,7 @@ export class MessagingThreads {
         authorId: origin.authorId,
         text: context.delivery.text,
         context: prompt.messages,
+        replyTo: origin.replyTo ?? null,
         skippedFiles: prompt.skippedFiles,
         memories: this.memories.list(link.connectionId),
       }),
@@ -690,6 +700,7 @@ function isAnswer(message: ConversationMessage): boolean {
     message.itemType !== "commentary" &&
     message.itemType !== "question_prompt" &&
     message.itemType !== CONVERSATION_PLAN_ITEM_TYPE &&
+    message.itemType !== CONVERSATION_SUBAGENTS_ITEM_TYPE &&
     Boolean(message.text.trim())
   );
 }

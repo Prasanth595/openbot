@@ -155,9 +155,15 @@ export interface ProviderRuntimeManagerOptions {
   heldStageWaitMs?: number;
   /** The waits, in turn, of one move whose source another program holds open. Tests shorten them. */
   heldSourceWaitsMs?: readonly number[];
+  /**
+   * `onWait` says that the update waits, before `install`, for the provider's turns to end. `signal`
+   * aborts when the update is cancelled or the app stops, also while it waits.
+   */
   updateRuntime?: (
     runtime: ManagedRuntimeId,
     install: () => Effect.Effect<string, ProviderRuntimeFailure>,
+    signal: AbortSignal,
+    onWait: () => void,
   ) => Effect.Effect<void, ProviderRuntimeFailure>;
 }
 
@@ -204,6 +210,8 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   readonly #updateRuntime: (
     runtime: ManagedRuntimeId,
     install: () => Effect.Effect<string, ProviderRuntimeFailure>,
+    signal: AbortSignal,
+    onWait: () => void,
   ) => Effect.Effect<void, ProviderRuntimeFailure>;
   #blocked: BlockedVersions = new Map();
   #check: Deferred.Deferred<void, ProviderRuntimeFailure> | null = null;
@@ -654,14 +662,14 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
     return Effect.gen({ self: this }, function* (): Effect.fn.Return<void, ProviderRuntimeFailure> {
       const installed = yield* this.#readStoreEffect(spec);
       if (installed.phase === "ready") {
-        yield* this.#activateEffect(spec, null);
+        yield* this.#activateEffect(spec, signal, false);
         return;
       }
       if (this.#stopping)
         return yield* new ProviderRuntimeFailure({ cause: new Error(sourceText("error.provider.closing")) });
       yield* runtimeSync(() => signal.throwIfAborted());
       this.#setStatus(spec.runtime, { phase: "downloading", progress: 0, message: null, version: installed.version });
-      yield* this.#activateEffect(spec, signal);
+      yield* this.#activateEffect(spec, signal, true);
     });
   }
 
@@ -715,7 +723,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   /**
    * Hands the installed executable to the agent service, which swaps it into its running clients.
    *
-   * A `null` signal means the bytes are in the store already, because a sibling instance put them
+   * No `download` means the bytes are in the store already, because a sibling instance put them
    * there: there is nothing to transfer, only the swap. An install this instance made and could not
    * activate is removed, so the rejected artifact is not selected on the next start; one a sibling
    * made is left where it is, because the sibling is using it. A transfer is not what decides that:
@@ -723,19 +731,34 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
    * then in the store is the sibling's install, adopted rather than written.
    */
 
-  #activateEffect(spec: RuntimeSpec, signal: AbortSignal | null): Effect.Effect<void, ProviderRuntimeFailure> {
+  #activateEffect(
+    spec: RuntimeSpec,
+    signal: AbortSignal,
+    download: boolean,
+  ): Effect.Effect<void, ProviderRuntimeFailure> {
     return Effect.gen({ self: this }, function* () {
       let installed = false;
       const result = yield* Effect.result(
-        this.#updateRuntime(spec.runtime, () =>
-          Effect.gen({ self: this }, function* () {
-            if (signal) {
-              installed = yield* this.#runDownloadEffect(spec, signal);
-              yield* this.#removePartialEffect(spec);
-            }
-            this.#stages.set(spec.runtime, "activate");
-            return join(this.#installRoot(spec), "bin", spec.executableName);
-          }),
+        this.#updateRuntime(
+          spec.runtime,
+          () =>
+            Effect.gen({ self: this }, function* () {
+              // The wait for the provider's turns, if there was one, is over.
+              const status = this.#statuses[spec.runtime];
+              if (status.message !== null) this.#setStatus(spec.runtime, { ...status, message: null });
+              if (download) {
+                installed = yield* this.#runDownloadEffect(spec, signal);
+                yield* this.#removePartialEffect(spec);
+              }
+              this.#stages.set(spec.runtime, "activate");
+              return join(this.#installRoot(spec), "bin", spec.executableName);
+            }),
+          signal,
+          () =>
+            this.#setStatus(spec.runtime, {
+              ...this.#statuses[spec.runtime],
+              message: sourceText("status.provider.updateWaiting"),
+            }),
         ),
       );
       if (Result.isFailure(result)) {
@@ -1851,7 +1874,7 @@ function isVersion(value: string): boolean {
  * A commit orders nothing, so two Cursor builds of the same date and time, or of the same date with
  * no time, are neither older nor newer.
  */
-function olderVersion(installed: string, target: string): boolean {
+export function olderVersion(installed: string, target: string): boolean {
   return isVersion(installed) && isVersion(target) && compareReleases(installed, target) < 0;
 }
 

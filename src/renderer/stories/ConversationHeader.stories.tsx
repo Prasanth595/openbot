@@ -1,7 +1,7 @@
 import { ConversationHeader } from "@openbot/ui/features/conversation/ConversationHeader";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS } from "./fixtures";
+import { STORY_AGENT, STORY_AGENT_STATUS, STORY_MODELS, storyRuntimeSettings } from "./fixtures";
 
 const meta = {
   title: "Conversation/Header",
@@ -11,7 +11,7 @@ const meta = {
     onSettingsIntent: fn(),
     onOpenSettings: fn(),
     modelPicker: {
-      provider: STORY_AGENT.provider,
+      provider: storyRuntimeSettings(STORY_AGENT).provider,
       value: STORY_AGENT.model,
       reasoningEffort: STORY_AGENT.reasoningEffort,
       modelOptions: STORY_MODELS,
@@ -42,4 +42,21 @@ export const AgentUsingBrowser: Story = {
 };
 export const TasksRunning: Story = {
   args: { sidePanel: { open: false, running: 2, onToggle: fn() } },
+};
+/** A model chosen during the turn. The picker names it; the badge says that it starts with the next turn. */
+export const ModelAfterThisTurn: Story = {
+  args: {
+    pendingModel: { running: "GPT-5.6 Luna", next: "GPT-5.6 Terra" },
+    modelPicker: {
+      provider: STORY_AGENT.provider,
+      value: "gpt-5.6-terra",
+      reasoningEffort: STORY_AGENT.reasoningEffort,
+      modelOptions: STORY_MODELS,
+      agentStatus: STORY_AGENT_STATUS,
+      providerChangesDisabled: true,
+      disabledReason: "Wait for the current work to finish before changing the provider or account.",
+      onChange: fn(),
+      onReasoningEffortChange: fn(),
+    },
+  },
 };

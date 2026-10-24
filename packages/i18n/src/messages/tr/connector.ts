@@ -85,6 +85,8 @@ export const messages = {
   "connector.github.close": "Kapat",
   // Bir entegrasyon sayfasının onu kaldıran eylemi içeren son bölümü.
   "connector.dangerZone": "Tehlikeli bölge",
+  "connector.statusUnknown": "Bilinmiyor",
+  "connector.readFailed": "OpenBot bu bağlantının durumunu okuyamadı.",
 
   // Sunucu ayarları > Bağlayıcılar: entegrasyonlar listesi. Her satır kendi sayfasını açar.
   "connector.hub.onThisComputer": "Bu bilgisayarda",
@@ -124,6 +126,7 @@ export const messages = {
     "OpenBot Slack'te şu izinlere sahip değil: {scopes}. Çalışma alanı bağlantısını kesin, ardından tekrar bağlayın.",
   "connector.slack.retryAt": "Slack OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
   "connector.slack.reconnect": "Yeniden bağlan",
+  "connector.slack.pause": "Duraklat",
   "connector.slack.resume": "Sürdür",
   // {action} Pause gibi bir düğmedir; {name} çalışma alanı adıdır.
   "connector.slack.rowAction": "{action}: {name}",
@@ -167,6 +170,15 @@ export const messages = {
   "connector.slack.removeEffectDeleted": "Slack Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "connector.slack.keep": "Bağlı tut",
   "connector.slack.close": "Kapat",
+  "connector.slack.addWorkspace": "Çalışma alanı ekle",
+  "connector.slack.limitReached": {
+    one: "En fazla {count} çalışma alanı bağlayabilirsiniz.",
+    other: "En fazla {count} çalışma alanı bağlayabilirsiniz.",
+  },
+  "connector.slack.summaryMany": {
+    one: "{count} çalışma alanı · Slack Düzenleyicisi yanıtlıyor",
+    other: "{count} çalışma alanı · Slack Düzenleyicisi yanıtlıyor",
+  },
 
   // Sunucu ayarları > Bağlayıcılar > Discord: bir Discord sunucusu tek OpenBot botunu ekler ve Discord
   // Düzenleyicisi ajanı her isteği alır, ekibe sorar ve yanıtlar. Her zaman "Discord sunucusu" yazın.
@@ -195,6 +207,7 @@ export const messages = {
     "OpenBot Discord'da şu izinlere sahip değil: {scopes}. Discord sunucusu bağlantısını kesin, ardından tekrar bağlayın.",
   "connector.discord.retryAt": "Discord OpenBot'tan beklemesini istedi. {time} saatinde tekrar deneyecek.",
   "connector.discord.reconnect": "Yeniden bağlan",
+  "connector.discord.pause": "Duraklat",
   "connector.discord.resume": "Sürdür",
   // {action} Pause gibi bir düğmedir; {name} Discord sunucusunun adıdır.
   "connector.discord.rowAction": "{action}: {name}",
@@ -238,6 +251,30 @@ export const messages = {
   "connector.discord.removeEffectDeleted": "Discord Düzenleyicisi ve konuşmaları OpenBot'tan silinir.",
   "connector.discord.keep": "Bağlı tut",
   "connector.discord.close": "Kapat",
+  "connector.discord.addWorkspace": "Discord sunucusu ekle",
+  "connector.discord.limitReached": {
+    one: "En fazla {count} Discord sunucusu bağlayabilirsiniz.",
+    other: "En fazla {count} Discord sunucusu bağlayabilirsiniz.",
+  },
+  "connector.discord.summaryMany": {
+    one: "{count} Discord sunucusu · Discord Düzenleyicisi yanıtlıyor",
+    other: "{count} Discord sunucusu · Discord Düzenleyicisi yanıtlıyor",
+  },
+  "connector.discord.accessTitle": "OpenBot'u kimler kullanabilir",
+  "connector.discord.accessDescription":
+    "OpenBot yalnızca bu kişilere yanıt verir. Diğerlerinin bahsetmelerini yok sayar.",
+  "connector.discord.accessEveryone": "Sunucudaki herkes",
+  "connector.discord.accessEveryoneDescription": "OpenBot'un gördüğü bir kanala yazabilen herkes ondan bahsedebilir.",
+  "connector.discord.accessRoles": "{roles} rolüne sahip üyeler",
+  "connector.discord.accessChoose": "Rolleri seç",
+  "connector.discord.accessDialogTitle": "{workspace} içinde OpenBot'u kimler kullanabilir?",
+  "connector.discord.accessDialogDescription": "Hiçbir rol seçilmezse herkes OpenBot'tan bahsedebilir.",
+  "connector.discord.accessLoading": "Roller yükleniyor…",
+  "connector.discord.accessLoadFailed": "Discord rolleri yüklenmedi",
+  "connector.discord.accessNoRoles": "Bu sunucuda seçilecek rol yok.",
+  "connector.discord.accessRoleDeleted": "{role} (silindi)",
+  "connector.discord.accessSave": "Kaydet",
+  "connector.discord.accessHostUpdate": "Rol seçmek için {host} üzerindeki OpenBot'u güncelleyin.",
   // Sunucu ayarları > Bağlayıcılar > Telegram: her sohbet tek OpenBot botunu ekler ve Telegram
   // Düzenleyicisi ajanı tüm sohbetlerin mesajlarını alır, ekibe sorar ve yanıtlar.
   "connector.telegram.title": "Telegram",
@@ -346,6 +383,7 @@ export const messages = {
     "1Password uygulamasında Settings > Developer bölümünü açın ve “Integrate with 1Password CLI” seçeneğini açın.",
   "connector.onePassword.stepAppReady": "1Password uygulaması, CLI'nin paylaşılan kasayı oluşturmasına izin veriyor.",
   "connector.onePassword.openApp": "1Password'ü aç",
+  "connector.onePassword.openAppFailed": "OpenBot, 1Password'ü açamadı.",
   "connector.onePassword.checkAgain": "Tekrar denetle",
   "connector.onePassword.stepVaultTitle": "Paylaşılan kasayı oluşturun",
   "connector.onePassword.stepVaultDescription":
@@ -395,4 +433,18 @@ export const messages = {
   "connector.bitwarden.connected": "Bağlandı",
   "connector.bitwarden.disconnected": "Bağlı değil",
   "connector.bitwarden.actionFailed": "OpenBot Bitwarden bağlantısını değiştiremedi.",
+  "connector.bitwarden.descriptionHost":
+    "{host} üzerindeki tarayıcı girişlerini Bitwarden veya Vaultwarden'dan doldurun.",
+  "connector.bitwarden.setupHost":
+    "{host} kendi Bitwarden CLI'si ile oturum açar. Kasanızda Shared with OpenBot adlı bir klasör oluşturun ve içine yalnızca ajanların kullanabileceği girişleri koyun. Web kasasında Ayarlar › Güvenlik › Anahtarlar'ı açın ve API anahtarınızı görüntüleyin. Aşağıya sunucu adresini, client_id, client_secret ve ana parolanızı girin.",
+  "connector.bitwarden.scopeHost":
+    "{host} üzerindeki tüm ajanlar Shared with OpenBot içindeki eşleşen girişleri kullanabilir. OpenBot tam HTTPS kaynaklarını kullanır. Ana parola isteyen öğeleri veya özel URI eşleşme kuralı olan öğeleri kullanmaz.",
+  "connector.bitwarden.sessionHost":
+    "{host}, yeniden başlatmadan sonra kilidi tekrar açabilmek için API anahtarını ve ana parolayı şifreli olarak saklar. Bu bilgisayar bunları saklamaz. Bağlantıyı kesmek bunları {host} üzerinden kaldırır. {host} sunucu adresine HTTPS ile ulaşabilmelidir.",
+  "connector.bitwarden.serverUrl": "Sunucu adresi",
+  "connector.bitwarden.clientId": "API anahtarı client_id",
+  "connector.bitwarden.clientSecret": "API anahtarı client_secret",
+  "connector.bitwarden.masterPassword": "Ana parola",
+  "connector.bitwarden.connecting": "Bağlanıyor",
+  "connector.bitwarden.connectedServer": "{server} sunucusuna bağlı.",
 } as const satisfies PartialTranslation<typeof source>;

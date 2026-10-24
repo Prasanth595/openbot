@@ -26,7 +26,24 @@
   color: var(--openbot-text-muted);
 }
 
+/* Over the image until it loads: a remote image arrives only after its last byte. It shows after a
+ * delay, so an image that loads at once does not flash a spinner. */
+.image-gallery-tile-loading {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-area: 1 / 1;
+  animation: image-gallery-loading-in 0s 400ms both;
+}
+
+@keyframes image-gallery-loading-in {
+  from {
+    visibility: hidden;
+  }
+}
+
 .image-gallery-tile img {
+  grid-area: 1 / 1;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -52,10 +69,9 @@
 /* The viewer. The backdrop is a sibling below the content, and the content covers the window so
  * that its empty stage can take the click that closes it. */
 .ui-dialog-overlay.image-lightbox-backdrop {
-  position: fixed;
-  z-index: var(--openbot-layer-dialog);
-  inset: 0;
   background: var(--openbot-bg-overlay);
+  /* The viewer animates its backdrop from script, with the zoom of the image. */
+  animation: none;
 }
 
 .ui-dialog-content.image-lightbox {

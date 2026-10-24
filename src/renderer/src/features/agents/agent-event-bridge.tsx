@@ -1,3 +1,4 @@
+import { providerDisplayName } from "@openbot/contracts/agent-providers";
 import type { AgentEvent, AgentRuntimeSnapshot } from "@openbot/contracts/ipc";
 import { cleanAgentMessageText } from "@openbot/team-client/agent-message-text";
 import { reconcileQueuesWithRuntimeWork } from "@openbot/team-client/dynamic-island-coordinator";
@@ -20,9 +21,11 @@ import { useConversation } from "../conversation/conversation-context";
 import { useConversationController } from "../conversation/conversation-controller-context";
 import { agentConversationKey, composerDraftKey, promptRequestKey } from "../conversation/conversation-keys";
 import { latestIncomingConversationMessage } from "../conversation/conversation-read-state";
+import { appendTurnStepLine } from "../conversation/turn-step-lines";
 import { useServers } from "../servers/servers-context";
 import { useSidebar } from "../sidebar/sidebar-context";
-import { claimErrorToast, readableAgentError } from "./agent-error-text";
+import { readDictatedReplies } from "../speech/speech-replies";
+import { claimErrorToast, providerErrorTitle, readableAgentError } from "./agent-error-text";
 import { createAgentEventSounds } from "./agent-event-sounds";
 import { reconcileAttentionApprovals, reconcileAttentionPrompts } from "./agent-runtime-snapshot";
 import { useAgents } from "./agents-context";
@@ -45,12 +48,12 @@ import { agentsPort } from "./agents-port";
 export function AgentEventBridge() {
   const channels = useChannels();
   const platform = usePlatform();
-  const { activeServerId } = useServers();
+  const { activeServer, activeServerId } = useServers();
   const { applyAccountUsage } = useAuth();
   const { applyAgentStatus, refreshAgentProviders } = useProviders();
   const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents, applyUserHiddenAgents } =
     useAgents();
-  const { setConversationErrors } = useConversationController();
+  const { setConversationErrors, setConversationErrorRuns } = useConversationController();
   const agentTasks = useAgentTasks();
   const {
     applyRuntimeMessages,
@@ -68,6 +71,7 @@ export function AgentEventBridge() {
   const {
     setActiveTurns,
     setTurnProgress,
+    setTurnStepLines,
     setFailedTurns,
     setUsageLimits,
     setUsageLimitedModels,
@@ -78,7 +82,8 @@ export function AgentEventBridge() {
     setPresentedPromptResolutions,
     submittedPromptRequests,
     setSubmittedPromptRequests,
-    setPendingApprovals,
+    setApprovals,
+    forgetApproval,
     completedTurnByAgent,
     queueSnapshotRequests,
     setWaits,
@@ -87,8 +92,15 @@ export function AgentEventBridge() {
   } = useTurns();
   const { setBrowserControlState, applyBrowserChange } = useBrowserTabs();
   const { setSidebarLayout } = useSidebar();
-  const playAgentEventSound = createAgentEventSounds((agentId) =>
-    agentList().some((agent) => agent.id === agentId && agent.notifications),
+  // As on web, mute and the notification level of the server decide the sounds too. Before the
+  // server list arrives, the sounds play as they did.
+  const soundLevel = () => {
+    const server = activeServer();
+    if (!server) return "all";
+    return server.notificationsMuted ? "nothing" : server.notificationLevel;
+  };
+  const playAgentEventSound = createAgentEventSounds(
+    (agentId) => soundLevel() !== "nothing" && agentList().some((agent) => agent.id === agentId && agent.notifications),
   );
   let readRefresh = 0;
   let modelRefresh = 0;
@@ -161,6 +173,7 @@ export function AgentEventBridge() {
           ...current,
           [event.agentId]: { turnId: event.turnId, detail: cleanAgentMessageText(event.detail) },
         }));
+        setTurnStepLines((current) => appendTurnStepLine(current, event.turnId, cleanAgentMessageText(event.detail)));
         return;
       case "queue-changed":
         queueSnapshotRequests.set(event.snapshot.agentId, (queueSnapshotRequests.get(event.snapshot.agentId) ?? 0) + 1);
@@ -227,10 +240,13 @@ export function AgentEventBridge() {
           }
           return { ...current, [event.agentId]: undefined };
         });
-        setPendingApprovals((current) => ({ ...current, [event.agentId]: undefined }));
+        // Only the approvals of this turn's thread: a task of the agent can still wait for one.
+        setApprovals((current) =>
+          current.filter((approval) => approval.agentId !== event.agentId || approval.threadId !== event.threadId),
+        );
         if (event.status === "completed") {
           markReplyCompleted(event.agentId);
-          playCompletionSoundForAgentEvent(event, agentList());
+          if (soundLevel() === "all" && !platform.chatWindow) playCompletionSoundForAgentEvent(event, agentList());
         }
         return;
       case "prompt":
@@ -247,19 +263,18 @@ export function AgentEventBridge() {
               : current;
           });
         } else {
-          setPendingApprovals((current) => {
-            const approval = current[event.agentId];
-            return approval && String(approval.requestId) === String(event.requestId)
-              ? { ...current, [event.agentId]: undefined }
-              : current;
-          });
+          forgetApproval(event.agentId, event.requestId);
         }
         return;
       case "approval":
-        setPendingApprovals((current) => ({
-          ...current,
-          [event.approval.agentId]: event.approval,
-        }));
+        setApprovals((current) => [
+          ...current.filter(
+            (approval) =>
+              approval.agentId !== event.approval.agentId ||
+              String(approval.requestId) !== String(event.approval.requestId),
+          ),
+          event.approval,
+        ]);
         return;
       case "runtime-snapshot":
         void channels.refresh();
@@ -297,10 +312,19 @@ export function AgentEventBridge() {
           // become a message the user had to scroll past to reach their own conversation. One
           // entry per chat means the newest report replaces the last, so an outage costs the
           // reader one line whatever its length, and dismissing it clears the whole run.
-          setConversationErrors((current) => ({
-            ...current,
-            [composerDraftKey({ agentId, serverId: activeServerId() })]: readableAgentError(event.message),
-          }));
+          const key = composerDraftKey({ agentId, serverId: activeServerId() });
+          const message = readableAgentError(event.message);
+          setConversationErrors((current) => ({ ...current, [key]: message }));
+          // The provider and model above the error let the user report which run failed (#2858).
+          const provider = event.provider ? providerDisplayName(event.provider) : null;
+          const run =
+            provider && event.model ? currentText().t("agent.error.run", { provider, model: event.model }) : provider;
+          setConversationErrorRuns((current) => {
+            if (run) return { ...current, [key]: { message, run } };
+            if (!(key in current)) return current;
+            const { [key]: _replaced, ...next } = current;
+            return next;
+          });
           return;
         }
         // No agent to attach it to - a provider that fails to start is the common case - so this
@@ -320,7 +344,7 @@ export function AgentEventBridge() {
           // provider error sends the user to the wrong settings page.
           const { t } = currentText();
           const title =
-            event.code === "mcp_server_not_started" ? t("agent.error.mcpNotStarted") : t("agent.error.provider");
+            event.code === "mcp_server_not_started" ? t("agent.error.mcpNotStarted") : providerErrorTitle(event.code);
           toast.error(title, {
             ...{ description: toastKey },
             report: { operation: "provider", source: "provider", cause_code: classifyFailure(event.message) },
@@ -351,7 +375,7 @@ export function AgentEventBridge() {
     setUsageLimitedModels(snapshot.usageLimitedModels ?? []);
     setQueues((current) => reconcileQueuesWithRuntimeWork(current, snapshot.work, runtimeTurns));
     setPendingPrompts((current) => reconcileAttentionPrompts(current, snapshot, submittedPromptRequests()));
-    setPendingApprovals((current) => reconcileAttentionApprovals(current, snapshot));
+    setApprovals((current) => reconcileAttentionApprovals(current, snapshot));
     applyRuntimeMessages(snapshot.latestMessages);
   }
 
@@ -362,8 +386,19 @@ export function AgentEventBridge() {
         return;
       }
       flush(() => handleAgentEvent(event));
+      // The main window also gets each event, so a chat window does not play or read it a second time.
+      if (platform.chatWindow) return;
       playAgentEventSound(event);
+      readDictatedReplies(event, activeServerId());
     });
+    // After a reload, a question that still waits is only in the runtime snapshot. Main drops
+    // events while the page loads, so read the snapshot once here.
+    void agentsPort()
+      .agent.getRuntimeSnapshot()
+      .then((snapshot) => {
+        if (snapshot) flush(() => handleAgentEvent({ type: "runtime-snapshot", snapshot }));
+      })
+      .catch(() => undefined);
     return () => {
       readRefresh += 1;
       unsubscribe();

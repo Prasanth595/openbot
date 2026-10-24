@@ -1,10 +1,11 @@
-import type { AgentModelOption, AgentProviderId, CustomProviderSummary } from "@openbot/contracts/ipc";
+import type { AgentProviderId, ClientAgentModelOption, CustomProviderSummary } from "@openbot/contracts/ipc";
 import {
   agentProviderName,
   CUSTOM_AGENT_DEFAULT_MODEL,
   isAgentProvider,
   isCustomProviderModelId,
   isFreeOpencodeModel,
+  isKnownAgentProvider,
 } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import { currentText } from "../text";
@@ -72,7 +73,7 @@ function modelTier(model: PickerModel): 0 | 1 {
 }
 
 /** OpenCode exposes reasoning variants as model IDs. Keep those IDs at the selection boundary. */
-export function pickerModels(options: AgentModelOption[]): PickerModel[] {
+export function pickerModels(options: ClientAgentModelOption[]): PickerModel[] {
   const { t } = currentText();
   const byId = new Map(options.map((model) => [model.id, model]));
   const variants = new Map<string, { id: string; name: string }[]>();
@@ -88,9 +89,11 @@ export function pickerModels(options: AgentModelOption[]): PickerModel[] {
     variants.set(base.id, [...(variants.get(base.id) ?? []), { id: model.id, name }]);
     variantIds.add(model.id);
   }
+  // A model of a provider that this build does not know has no tab here; the picker shows it alone.
   return options
     .filter((model) => !variantIds.has(model.id))
-    .map((model) => {
+    .flatMap((model) => {
+      if (!isKnownAgentProvider(model.provider)) return [];
       // A custom agent that lists no models has one, named for the agent alone.
       if (
         model.provider === "acp" &&
@@ -161,6 +164,6 @@ export function customProviderIds(providers: readonly CustomProviderSummary[]): 
 }
 
 /** A model of the Custom tab: a custom endpoint's, which OpenCode serves, or a custom agent's. */
-export function isCustomModel(model: AgentModelOption, customIds: ReadonlySet<string>): boolean {
+export function isCustomModel(model: ClientAgentModelOption, customIds: ReadonlySet<string>): boolean {
   return model.provider === "acp" || (model.provider === "opencode" && isCustomProviderModelId(model.id, customIds));
 }

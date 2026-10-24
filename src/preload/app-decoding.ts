@@ -17,9 +17,14 @@ import {
 import { parseHostedSiteList, parseHostedSiteSummary } from "@openbot/contracts/hosted-sites";
 import {
   type AccountSession,
+  AGENT_DEFAULT_KEYS,
+  type AgentDefaults,
   type AgentMemoryLimitPreference,
   type AnalyticsPreference,
+  type AppAppearancePreference,
+  type AppBehaviorPreference,
   type AppInfo,
+  type AppInterfaceSizePreference,
   type AppLanguagePreference,
   type AppLogoColorPreference,
   type ApprovalAutomationPreference,
@@ -29,11 +34,15 @@ import {
   type CentralAuthIssue,
   type CentralAuthState,
   type CentralAuthUser,
+  type ChatWindowTarget,
+  CUSTOM_AGENT_LIMITS,
   type CustomAgentCheckResult,
   type CustomAgentResult,
   type CustomAgentSummary,
+  type CustomAgentUsage,
   type CustomProviderResult,
   type CustomProviderSummary,
+  DEFAULT_AGENT_DEFAULTS,
   type DetectedAcpAgent,
   type DetectedModelServer,
   type DiscoverModelsResult,
@@ -48,6 +57,8 @@ import {
   isAgentMemoryLimit,
   isAgentModel,
   isAgentProvider,
+  isAppAppearance,
+  isAppInterfaceSize,
   isAppLanguage,
   isAppLogoColor,
   isApprovalAutomationPreference,
@@ -55,6 +66,7 @@ import {
   isCustomAgentCheckResult,
   isCustomAgentResult,
   isCustomAgentSummary,
+  isCustomAgentUsage,
   isCustomProviderResult,
   isCustomProviderSummary,
   isDetectedAcpAgent,
@@ -63,6 +75,8 @@ import {
   isProviderDetectionSettings,
   isRemoteDesktopSetupStatus,
   isRemoteDesktopTestStatus,
+  isRemoteNetworkRoute,
+  isSpeechVoice,
   isVoiceLanguage,
   isVoiceModelId,
   type MobileConnectedDevice,
@@ -77,7 +91,12 @@ import {
   parseOnePasswordConnectorStatus,
   type RemoteDesktopSetupStatus,
   type RemoteDesktopTestStatus,
+  type RemoteNetworkRouteState,
   type RemoteSessionReusePreference,
+  SPEECH_MODEL_ID,
+  type SpeechAudio,
+  type SpeechModelStatus,
+  type SpeechSettings,
   UPDATE_PHASES,
   type UpdatePreference,
   type UpdateStatus,
@@ -92,12 +111,14 @@ import {
   decodeRecord,
   emptyDecoder,
   guardedDecoder,
+  nullableBoolean,
   nullableNumber,
   nullableString,
   requiredBoolean,
   requiredNumber,
   requiredString,
 } from "@openbot/contracts/ipc-decoding";
+import { type LicenseState, parseLicenseState } from "@openbot/contracts/license";
 import { isPluginSlug } from "@openbot/contracts/plugin-links";
 import { isBoolean, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 
@@ -140,6 +161,13 @@ export function decodeBusyMessageModePreference(value: unknown): BusyMessageMode
   return { mode: preference.mode };
 }
 
+export function decodeAgentDefaults(value: unknown): AgentDefaults {
+  const defaults = decodeRecord(value, "agent defaults");
+  const decoded = { ...DEFAULT_AGENT_DEFAULTS };
+  for (const key of AGENT_DEFAULT_KEYS) decoded[key] = requiredBoolean(defaults, key);
+  return decoded;
+}
+
 export function decodeAgentMemoryLimitPreference(value: unknown): AgentMemoryLimitPreference {
   const preference = decodeRecord(value, "agent memory limit preference");
   if (!isAgentMemoryLimit(preference.limit)) throw new Error("Invalid agent memory limit.");
@@ -156,6 +184,28 @@ export function decodeAppLogoColorPreference(value: unknown): AppLogoColorPrefer
   const preference = decodeRecord(value, "logo color preference");
   if (!isAppLogoColor(preference.color)) throw new Error("Invalid logo color.");
   return { color: preference.color };
+}
+
+export function decodeAppAppearancePreference(value: unknown): AppAppearancePreference {
+  const preference = decodeRecord(value, "appearance preference");
+  if (!isAppAppearance(preference.appearance)) throw new Error("Invalid appearance.");
+  if (typeof preference.transparentWindow !== "boolean") throw new Error("Invalid transparent window.");
+  return { appearance: preference.appearance, transparentWindow: preference.transparentWindow };
+}
+
+export function decodeAppInterfaceSizePreference(value: unknown): AppInterfaceSizePreference {
+  const preference = decodeRecord(value, "interface size preference");
+  if (!isAppInterfaceSize(preference.percent)) throw new Error("Invalid interface size.");
+  return { percent: preference.percent };
+}
+
+export function decodeChatWindowTargets(value: unknown): ChatWindowTarget[] {
+  if (!Array.isArray(value)) throw new Error("Invalid chat windows.");
+  return value.map((item) => {
+    const target = decodeRecord(item, "chat window");
+    if (!isString(target.serverId) || !isString(target.agentId)) throw new Error("Invalid chat window.");
+    return { serverId: target.serverId, agentId: target.agentId };
+  });
 }
 
 export function decodeCentralAuthState(value: unknown): CentralAuthState {
@@ -292,10 +342,26 @@ export function decodeUpdatePreference(value: unknown): UpdatePreference {
   };
 }
 
+export function decodeAppBehaviorPreference(value: unknown): AppBehaviorPreference {
+  const preference = decodeRecord(value, "app behavior preference");
+  return {
+    launchAtLogin: nullableBoolean(preference, "launchAtLogin"),
+    keepRunningInBackground: nullableBoolean(preference, "keepRunningInBackground"),
+    keepAwake: nullableBoolean(preference, "keepAwake"),
+    keepAwakeOnBattery: nullableBoolean(preference, "keepAwakeOnBattery"),
+  };
+}
+
 export function decodeRemoteSessionReusePreference(value: unknown): RemoteSessionReusePreference {
   return {
     keepBetweenRuns: requiredBoolean(decodeRecord(value, "remote session preference"), "keepBetweenRuns"),
   };
+}
+
+export function decodeRemoteNetworkRouteState(value: unknown): RemoteNetworkRouteState {
+  const state = decodeRecord(value, "remote network route");
+  if (!isRemoteNetworkRoute(state.route)) throw new Error("Invalid remote network route.");
+  return { route: state.route, tailscaleConnected: requiredBoolean(state, "tailscaleConnected") };
 }
 
 export function decodeNotificationPreference(value: unknown): NotificationPreference {
@@ -312,6 +378,7 @@ export function decodeNotificationOpenedEvent(value: unknown): NotificationOpene
     serverId: requiredString(opened, "serverId"),
     agentId: requiredString(opened, "agentId"),
     threadId: nullableString(opened, "threadId"),
+    ...(opened.channelId === undefined ? {} : { channelId: requiredString(opened, "channelId") }),
   };
 }
 
@@ -347,6 +414,35 @@ export function decodeVoiceStream(value: unknown): VoiceStream {
 export function decodeVoiceStreamTranscript(value: unknown): VoiceStreamTranscript {
   const transcript = decodeRecord(value, "voice stream transcript");
   return { streamId: requiredString(transcript, "streamId"), text: requiredString(transcript, "text") };
+}
+
+export function decodeSpeechModelStatus(value: unknown): SpeechModelStatus {
+  const status = decodeRecord(value, "speech model status");
+  const { modelId, phase, progress } = status;
+  if (
+    modelId !== SPEECH_MODEL_ID ||
+    !isOneOf(VOICE_MODEL_PHASES, phase) ||
+    (progress !== null && !isNumber(progress))
+  ) {
+    throw new Error("Invalid speech model status.");
+  }
+  return { modelId, phase, progress, message: nullableString(status, "message") };
+}
+
+export function decodeSpeechSettings(value: unknown): SpeechSettings {
+  const settings = decodeRecord(value, "speech settings");
+  const { voice } = settings;
+  if (!isSpeechVoice(voice)) throw new Error("Invalid speech settings.");
+  return { readReplies: requiredBoolean(settings, "readReplies"), voice };
+}
+
+export function decodeSpeechAudio(value: unknown): SpeechAudio {
+  const audio = decodeRecord(value, "speech audio");
+  const { pcm, sampleRate } = audio;
+  if (!(pcm instanceof Uint8Array) || pcm.byteLength % 2 !== 0 || !isNumber(sampleRate) || sampleRate <= 0) {
+    throw new Error("Invalid speech audio.");
+  }
+  return { pcm, sampleRate };
 }
 
 export function decodeExportResult(value: unknown): ExportResult {
@@ -405,6 +501,12 @@ export function decodeOnePasswordConnectorStatus(value: unknown): OnePasswordCon
 export function decodeBillingState(value: unknown): BillingState {
   const state = parseBillingState(value);
   if (!state) throw new Error("Invalid billing state response.");
+  return state;
+}
+
+export function decodeLicenseState(value: unknown): LicenseState {
+  const state = parseLicenseState(value);
+  if (!state) throw new Error("Invalid license state response.");
   return state;
 }
 
@@ -475,6 +577,13 @@ export function decodeCustomAgentResult(value: unknown): CustomAgentResult {
   return value;
 }
 
+export function decodeCustomAgentUsage(value: unknown): CustomAgentUsage[] {
+  if (!Array.isArray(value) || value.length > CUSTOM_AGENT_LIMITS.agents || !value.every(isCustomAgentUsage)) {
+    throw new Error("Invalid custom agent usage response.");
+  }
+  return value;
+}
+
 export function decodeCustomAgentCheckResult(value: unknown): CustomAgentCheckResult {
   if (!isCustomAgentCheckResult(value)) throw new Error("Invalid agent check response.");
   return value;
@@ -505,7 +614,18 @@ export function decodeRemoteDesktopTestFromMain(value: unknown): RemoteDesktopTe
 }
 
 export function decodeBitwardenConnectorStatus(value: unknown): BitwardenConnectorStatus {
-  if (!value || typeof value !== "object" || !("connected" in value) || typeof value.connected !== "boolean")
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("connected" in value) ||
+    !isBoolean(value.connected) ||
+    !("connecting" in value) ||
+    !isBoolean(value.connecting) ||
+    !("serverUrl" in value) ||
+    !(value.serverUrl === null || isString(value.serverUrl)) ||
+    !("error" in value) ||
+    !(value.error === null || isString(value.error))
+  )
     throw new Error("Invalid Bitwarden connector response.");
-  return { connected: value.connected };
+  return { connected: value.connected, connecting: value.connecting, serverUrl: value.serverUrl, error: value.error };
 }

@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "typecheck": "bun ../../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
+    "typecheck": "bun ../../scripts/type-checker.ts --noEmit -p tsconfig.json",
     "notify": "bun scripts/notify.ts",
     "update": "bun scripts/update.ts"
   },

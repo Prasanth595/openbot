@@ -147,6 +147,7 @@ export class ConversationWriter {
           new Date().toISOString(),
           sequence,
         );
+        // A late write for a turn that already ended must not open it again (#2214).
         if (snapshot.activeTurnId) {
           db.prepare(`
             INSERT INTO projection_turns
@@ -156,6 +157,7 @@ export class ConversationWriter {
               WHERE thread_id = ? AND state = 'active' ORDER BY created_at DESC LIMIT 1
             ), 'running', ?, NULL, ?)
             ON CONFLICT(turn_id) DO UPDATE SET status = 'running', last_event_sequence = excluded.last_event_sequence
+            WHERE projection_turns.completed_at IS NULL
           `).run(snapshot.activeTurnId, snapshot.threadId, snapshot.threadId, new Date().toISOString(), sequence);
         }
         if (
@@ -536,6 +538,7 @@ export class ConversationWriter {
           `UPDATE projection_threads
            SET active_turn_id = ?, updated_at = ?, last_event_sequence = ? WHERE thread_id = ?`,
         ).run(input.activeTurnId, new Date().toISOString(), sequence, input.threadId);
+        // A late write for a turn that already ended must not open it again (#2214).
         if (input.activeTurnId) {
           db.prepare(`
             INSERT INTO projection_turns
@@ -545,6 +548,7 @@ export class ConversationWriter {
               WHERE thread_id = ? AND state = 'active' ORDER BY created_at DESC LIMIT 1
             ), 'running', ?, NULL, ?)
             ON CONFLICT(turn_id) DO UPDATE SET status = 'running', last_event_sequence = excluded.last_event_sequence
+            WHERE projection_turns.completed_at IS NULL
           `).run(input.activeTurnId, input.threadId, input.threadId, new Date().toISOString(), sequence);
         }
         if (

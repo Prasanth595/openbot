@@ -1,5 +1,13 @@
+import { PROVIDER_USAGE_RESET_OUTCOMES, type ProviderUsageResetOutcome } from "@openbot/contracts/ipc";
 import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
-import { type DynamicRecord, isBoolean, isDynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import {
+  type DynamicRecord,
+  isBoolean,
+  isDynamicRecord,
+  isNumber,
+  isOneOf,
+  isString,
+} from "@openbot/contracts/runtime-values";
 
 export type RequestId = string | number;
 
@@ -62,8 +70,8 @@ export interface AppServerRequest {
 export interface AccountReadResult {
   account: null | {
     type: string;
-    email?: string | null;
-    planType?: string | null;
+    email?: string | null | undefined;
+    planType?: string | null | undefined;
   };
   requiresOpenaiAuth: boolean;
 }
@@ -95,27 +103,29 @@ export interface AccountLoginCompletedResult {
 }
 
 export interface AccountRateLimitWindowResult {
-  usedPercent?: number | null;
-  windowDurationMins?: number | null;
-  resetsAt?: number | null;
+  usedPercent?: number | null | undefined;
+  windowDurationMins?: number | null | undefined;
+  resetsAt?: number | null | undefined;
 }
 
 export interface AccountRateLimitResult {
-  limitId?: string | null;
-  limitName?: string | null;
-  normalModelSlug?: string | null;
-  primary?: AccountRateLimitWindowResult | null;
-  secondary?: AccountRateLimitWindowResult | null;
+  limitId?: string | null | undefined;
+  limitName?: string | null | undefined;
+  normalModelSlug?: string | null | undefined;
+  primary?: AccountRateLimitWindowResult | null | undefined;
+  secondary?: AccountRateLimitWindowResult | null | undefined;
 }
 
 export interface AccountRateLimitsReadResult {
-  rateLimits?: AccountRateLimitResult | null;
-  rateLimitsByLimitId?: Record<string, AccountRateLimitResult | undefined> | null;
+  rateLimits?: AccountRateLimitResult | null | undefined;
+  rateLimitsByLimitId?: Record<string, AccountRateLimitResult | undefined> | null | undefined;
+  /** Codex only: the usage reset credits of the account. Null when Codex could not count them. */
+  rateLimitResetCredits?: { availableCount: number } | null | undefined;
 }
 
 export interface ThreadItem {
   type: string;
-  id?: string;
+  id?: string | undefined;
   clientId?: string | null;
   text?: string;
   content?: Array<{ type: string; text?: string }>;
@@ -157,6 +167,10 @@ export interface ModelListResponse {
     supportedReasoningEfforts?: Array<{ reasoningEffort?: string }>;
     reasoningEffortConfigurable?: boolean;
     hidden?: boolean;
+    /** Codex: the service tiers of the model, such as `{ id: "priority", name: "Fast" }`. */
+    serviceTiers?: Array<{ id: string; name?: string }>;
+    /** Codex: the older, deprecated form of `serviceTiers`, such as `["fast"]`. */
+    additionalSpeedTiers?: string[];
   }>;
 }
 
@@ -172,6 +186,18 @@ export function decodeModelListResponse(value: unknown): ModelListResponse {
       ...(isBoolean(item.hidden) ? { hidden: item.hidden } : {}),
       ...(isBoolean(item.reasoningEffortConfigurable)
         ? { reasoningEffortConfigurable: item.reasoningEffortConfigurable }
+        : {}),
+      ...(Array.isArray(item.serviceTiers)
+        ? {
+            serviceTiers: item.serviceTiers
+              .filter(isRecord)
+              .flatMap((tier) =>
+                isString(tier.id) ? [{ id: tier.id, ...(isString(tier.name) ? { name: tier.name } : {}) }] : [],
+              ),
+          }
+        : {}),
+      ...(Array.isArray(item.additionalSpeedTiers)
+        ? { additionalSpeedTiers: item.additionalSpeedTiers.filter(isString) }
         : {}),
       ...(Array.isArray(item.supportedReasoningEfforts)
         ? {
@@ -201,11 +227,13 @@ export function decodeAccountReadResult(value: unknown): AccountReadResult {
     };
   }
   const accountRecord = decodeRecord(account, "account");
+  const email = optionalString(accountRecord, "email");
+  const planType = optionalString(accountRecord, "planType");
   return {
     account: {
       type: requiredString(accountRecord, "type"),
-      email: optionalString(accountRecord, "email"),
-      planType: optionalString(accountRecord, "planType"),
+      ...(email === undefined ? {} : { email }),
+      ...(planType === undefined ? {} : { planType }),
     },
     requiresOpenaiAuth: requiresOpenaiAuth === undefined ? false : recordBoolean(record, "requiresOpenaiAuth"),
   };
@@ -248,10 +276,20 @@ export function decodeAccountLoginCompletedResult(value: unknown): AccountLoginC
 
 export function decodeAccountRateLimitsReadResult(value: unknown): AccountRateLimitsReadResult {
   const record = decodeRecord(value, "rate limits response");
+  const rateLimits = decodeRateLimit(record.rateLimits);
+  const rateLimitsByLimitId = decodeRateLimitsById(record.rateLimitsByLimitId);
+  const rateLimitResetCredits = decodeRateLimitResetCredits(record.rateLimitResetCredits);
   return {
-    rateLimits: decodeRateLimit(record.rateLimits),
-    rateLimitsByLimitId: decodeRateLimitsById(record.rateLimitsByLimitId),
+    ...(rateLimits === undefined ? {} : { rateLimits }),
+    ...(rateLimitsByLimitId === undefined ? {} : { rateLimitsByLimitId }),
+    ...(rateLimitResetCredits === undefined ? {} : { rateLimitResetCredits }),
   };
+}
+
+export function decodeRateLimitResetCreditConsumeResult(value: unknown): ProviderUsageResetOutcome {
+  const outcome = decodeRecord(value, "rate limit reset response").outcome;
+  if (!isOneOf(PROVIDER_USAGE_RESET_OUTCOMES, outcome)) throw new Error("Invalid rate limit reset outcome.");
+  return outcome;
 }
 
 /** A sparse `account/rateLimits/updated` push: only the windows it holds changed. */
@@ -343,23 +381,43 @@ function decodeThreadContent(value: unknown): Array<{ type: string; text?: strin
 function decodeRateLimit(value: unknown): AccountRateLimitResult | null | undefined {
   if (value === undefined || value === null) return value;
   const record = decodeRecord(value, "rate limit");
+  const limitId = optionalString(record, "limitId");
+  const limitName = optionalString(record, "limitName");
+  const normalModelSlug = optionalString(record, "normalModelSlug");
+  const primary = decodeRateLimitWindow(record.primary);
+  const secondary = decodeRateLimitWindow(record.secondary);
   return {
-    limitId: optionalString(record, "limitId"),
-    limitName: optionalString(record, "limitName"),
-    normalModelSlug: optionalString(record, "normalModelSlug"),
-    primary: decodeRateLimitWindow(record.primary),
-    secondary: decodeRateLimitWindow(record.secondary),
+    ...(limitId === undefined ? {} : { limitId }),
+    ...(limitName === undefined ? {} : { limitName }),
+    ...(normalModelSlug === undefined ? {} : { normalModelSlug }),
+    ...(primary === undefined ? {} : { primary }),
+    ...(secondary === undefined ? {} : { secondary }),
   };
 }
 
 function decodeRateLimitWindow(value: unknown): AccountRateLimitWindowResult | null | undefined {
   if (value === undefined || value === null) return value;
   const record = decodeRecord(value, "rate limit window");
+  const usedPercent = optionalNumber(record, "usedPercent");
+  const windowDurationMins = optionalNumber(record, "windowDurationMins");
+  const resetsAt = optionalNumber(record, "resetsAt");
   return {
-    usedPercent: optionalNumber(record, "usedPercent"),
-    windowDurationMins: optionalNumber(record, "windowDurationMins"),
-    resetsAt: optionalNumber(record, "resetsAt"),
+    ...(usedPercent === undefined ? {} : { usedPercent }),
+    ...(windowDurationMins === undefined ? {} : { windowDurationMins }),
+    ...(resetsAt === undefined ? {} : { resetsAt }),
   };
+}
+
+/**
+ * Only the count: the credit rows are display text that OpenBot does not show. A count it cannot
+ * read is unknown, so the usage reading that carries it still decodes.
+ */
+function decodeRateLimitResetCredits(value: unknown): AccountRateLimitsReadResult["rateLimitResetCredits"] {
+  if (value === undefined) return value;
+  const availableCount = isDynamicRecord(value) ? value.availableCount : undefined;
+  return typeof availableCount === "number" && Number.isSafeInteger(availableCount) && availableCount >= 0
+    ? { availableCount }
+    : null;
 }
 
 function decodeRateLimitsById(value: unknown): AccountRateLimitsReadResult["rateLimitsByLimitId"] {

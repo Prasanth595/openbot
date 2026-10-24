@@ -151,6 +151,13 @@ export const messages = defineMessages("marketplace", {
   "marketplace.plugin.notion.prompt.meetingNotes":
     "Turn these bullets into a structured meeting note in my team space.",
   "marketplace.plugin.notion.prompt.updateDoc": "Update the onboarding doc with the new release checklist.",
+  "marketplace.plugin.cobrain.tagline": "Shared memory for your AI agents",
+  "marketplace.plugin.cobrain.description":
+    "Cobrain is a Markdown memory that every AI you connect can read and write. Agents load the context of a client or project before working, search past notes and decisions, and save what they learn so the next thread starts where the last one ended. Each user signs in to their own Cobrain account.",
+  "marketplace.plugin.cobrain.app": "Read, search and write notes in your Cobrain brain over one MCP server.",
+  "marketplace.plugin.cobrain.prompt.startSession": "Load my Cobrain context for this project before we start.",
+  "marketplace.plugin.cobrain.prompt.searchDecision": "Search my Cobrain notes for what we decided about pricing.",
+  "marketplace.plugin.cobrain.prompt.saveNote": "Save a note in Cobrain with what we did today and what is left.",
   "marketplace.plugin.figma.tagline": "Designs and prototypes",
   "marketplace.plugin.figma.description":
     "Figma lets agents read design files, inspect components, styles and variables, and hand production specs to engineers. It connects to the MCP server in the Figma desktop app, on this computer. The server can read designs only; write support is in progress.",
@@ -242,12 +249,19 @@ export const messages = defineMessages("marketplace", {
   "marketplace.plugin.resend.prompt.template": "Draft a password-reset email for the new flow.",
   "marketplace.plugin.composio.tagline": "Many apps through your own Composio link",
   "marketplace.plugin.composio.description":
-    "Composio connects agents to Gmail, Slack, GitHub, and hundreds of other apps through one MCP server. Create the server in your Composio account, add the apps you want to it, and paste its link here. Add an API key only if your server requires one.",
+    "Composio connects agents to Gmail, Slack, GitHub, and hundreds of other apps through one MCP server. Connect the apps you want in your Composio account, then paste its MCP URL and API key here.",
   "marketplace.plugin.composio.app":
     "The apps you add to your Composio MCP server, over the link from your Composio account.",
   "marketplace.plugin.composio.prompt.inbox": "Summarize my unread email and draft replies to the urgent ones.",
   "marketplace.plugin.composio.prompt.handoff": "Post a summary of this pull request to our team channel.",
   "marketplace.plugin.composio.prompt.apps": "Which apps and actions can you use through Composio?",
+  // The connect form text of the catalog listings. Each English text is the catalog's own text, byte for byte.
+  "marketplace.plugin.composio.hint.url": "The URL of an MCP server in your Composio account",
+  "marketplace.plugin.composio.hint.apiKey": "Find it in your Composio account, in Settings > Sessions & API Key.",
+  "marketplace.auth.apiKey": "API key",
+  "marketplace.auth.personalApiKey": "Personal API key",
+  "marketplace.auth.mcpUrl": "MCP URL",
+  "marketplace.auth.createKey": "Create a key",
 
   // Skills. {label} is the install button text: an agent name, "All agents" or "2 agents".
   "marketplace.skill.installMenu.install": "Install",

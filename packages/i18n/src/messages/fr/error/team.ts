@@ -10,6 +10,7 @@ export const messages = {
   "error.team.identityCreateFailed": "Impossible de créer l’identité de l’équipe.",
   "error.team.accountChangedDuringCreate": "Le compte connecté a changé pendant la création de ce serveur.",
   "error.team.notConfigured": "Cet OpenBot n’a pas été configuré.",
+  "error.team.keyRotationMissing": "Aucun changement de clé du serveur n’est en attente.",
   "error.team.serverNotActive": "Ce serveur n’est plus le serveur actif du compte connecté.",
   "error.team.logoInvalid": "Choisissez une image PNG, JPEG ou WebP valide de 512 Ko au maximum.",
   "error.team.ownerMembershipConflict":
@@ -29,6 +30,8 @@ export const messages = {
   "error.team.loginIncorrect": "Le nom d’utilisateur ou le mot de passe est incorrect.",
   "error.team.currentPasswordIncorrect": "Le mot de passe actuel est incorrect.",
   "error.team.memberNotFound": "Membre de l’équipe introuvable.",
+  "error.team.directMessageSelf": "Vous ne pouvez pas ouvrir de message privé avec vous-même.",
+  "error.team.directRecipientUnavailable": "Ce membre de l’équipe n’est pas disponible.",
   "error.team.ownerCannotChange": "Le compte propriétaire ne peut pas être modifié.",
   "error.team.ownerCannotRemove": "Le compte propriétaire ne peut pas être supprimé.",
   "error.team.serverNotConfigured": "Le serveur de l’équipe n’est pas configuré.",
@@ -60,6 +63,7 @@ export const messages = {
   "error.team.channelDeleteUnsupported": "La suppression de canaux n’est pas prise en charge par cette connexion.",
   "error.team.membersCannotDeleteChannels": "Les membres ne peuvent pas supprimer de canaux.",
   "error.team.membersCannotArchiveChannels": "Les membres ne peuvent pas archiver de canaux.",
+  "error.team.membersCannotRestoreChannels": "Les membres ne peuvent pas restaurer de canaux.",
   "error.team.sharedDataUnsupported": "Les données partagées ne sont pas prises en charge par cette connexion.",
   "error.team.agentInstallUnsupported": "L’ajout d’agents n’est pas pris en charge par cette connexion.",
   "error.team.agentHideUnsupported": "Le masquage d’agents n’est pas pris en charge par cette connexion.",
@@ -67,9 +71,11 @@ export const messages = {
   "error.team.agentUpdateUnsupported": "La mise à jour des agents n’est pas prise en charge par cette connexion.",
   "error.team.contextResetUnsupported":
     "Commencer une nouvelle discussion n’est pas pris en charge par cette connexion.",
+  "error.team.contextCompactUnsupported": "Cette connexion ne prend pas en charge la compaction du contexte.",
   "error.team.workspaceDirectoryUnsupported": "L’affichage des dossiers n’est pas pris en charge par cette connexion.",
   "error.team.conversationFileSearchUnsupported":
     "La recherche de fichiers n’est pas prise en charge par cette connexion.",
+  "error.team.sideQuestionUnsupported": "Les questions annexes ne sont pas prises en charge par cette connexion.",
   "error.team.routineFlowsUnsupported":
     "Ce serveur ne prend pas en charge les flux de routines. Mettez à jour OpenBot sur l’ordinateur qui l’exécute.",
   "error.team.routineCanvasTooLarge":
@@ -87,6 +93,9 @@ export const messages = {
     "Les modifications de l’identité du serveur ne sont pas prises en charge par cette connexion.",
   "error.team.hostUpdateUnsupported": "Les mises à jour de l’hôte ne sont pas prises en charge par cette connexion.",
   "error.team.hostTimezoneUnsupported": "Cette connexion ne prend pas en charge le fuseau horaire du serveur.",
+  "error.team.routineResultsUnsupported": "Cette connexion ne prend pas en charge les destinations des routines.",
+  "error.team.agentMemoryLimitUnsupported": "Cette connexion ne prend pas en charge la limite de souvenirs des agents.",
+  "error.team.promptCacheTtlUnsupported": "Cette connexion ne prend pas en charge la durée du cache de prompt.",
   "error.team.attachmentNameRequired": "Un nom de pièce jointe sûr est requis.",
   "error.team.attachmentNotFound": "Pièce jointe introuvable.",
   "error.team.sharedFileTooLarge": "Le fichier partagé dépasse la limite de 100 Mo.",
@@ -121,6 +130,8 @@ export const messages = {
     "Ce serveur ne peut pas relayer les connexions. Mettez à jour OpenBot sur l’hôte.",
   "error.team.connectorsUnsupported":
     "Les connexions de ce serveur ne peuvent pas être gérées d’ici. Mettez à jour OpenBot sur l’hôte.",
+  "error.team.discordAccessUnsupported":
+    "Ce serveur ne peut pas définir de rôles Discord. Mettez à jour OpenBot sur ce serveur.",
   "error.team.connectorPageRefused": "Le serveur a envoyé une page qu’OpenBot n’ouvre pas.",
   "error.team.signInRelayUnknown": "Cette connexion est terminée ou n’existe pas.",
   "error.team.signInRelayUsed": "Cette connexion a déjà été envoyée.",

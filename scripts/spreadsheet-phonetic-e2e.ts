@@ -30,6 +30,7 @@ const phase = process.argv.find((arg) => arg.startsWith("--phase="))?.slice(8);
 assert.ok(phase === "before" || phase === "after", "Pass --phase=before or --phase=after.");
 const out = resolve(OUT, phase);
 const sources = [
+  "packages/contracts/src/spreadsheet-workbook.ts",
   "packages/ui/src/features/conversation/SpreadsheetFilePreview.tsx",
   "packages/ui/src/features/conversation/FilePreviewPanel.tsx",
   "scripts/spreadsheet-phonetic-e2e.ts",

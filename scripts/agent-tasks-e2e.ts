@@ -13,7 +13,15 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
-import type { AgentSummary, AgentTask, AgentTasksSnapshot, OpenBotDesktopApi } from "@openbot/contracts/ipc";
+import {
+  type AgentSummary,
+  type AgentTask,
+  type AgentTasksSnapshot,
+  type ClientAgentSummary,
+  isAgentModelOption,
+  isAgentSummary,
+  type OpenBotDesktopApi,
+} from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { assertMutationAllowed, connectToDevApp } from "./dev-automation/cdp-client";
@@ -74,15 +82,17 @@ function listTasks(): Promise<AgentTasksSnapshot> {
   return page.evaluate((id) => window.openbot.agent.listTasks(id), agentId);
 }
 
-function readAgent(): Promise<AgentSummary> {
-  return page.evaluate(async (id) => {
+async function readAgent(): Promise<AgentSummary> {
+  const agent = await page.evaluate(async (id) => {
     const agent = (await window.openbot.agent.listAgents()).find((candidate) => candidate.id === id);
     if (!agent) throw new Error(`Unknown agent: ${id}`);
     return agent;
   }, agentId);
+  if (!isAgentSummary(agent)) throw new Error(`The agent ${agentId} has a provider that this build does not know.`);
+  return agent;
 }
 
-function setTaskLimit(taskLimit: number | null): Promise<AgentSummary> {
+function setTaskLimit(taskLimit: number | null): Promise<ClientAgentSummary> {
   return page.evaluate(({ id, limit }) => window.openbot.agent.updateAgent({ agentId: id, taskLimit: limit }), {
     id: agentId,
     limit: taskLimit,
@@ -156,11 +166,8 @@ try {
   assert.equal(raised.limit, 2);
 
   // 3. A provider switch waits for the running tasks, and the error says so.
-  const target = await page.evaluate(
-    async ({ provider }) =>
-      (await window.openbot.agent.listModels()).find((model) => model.provider !== provider) ?? null,
-    { provider: before.provider },
-  );
+  const models = await page.evaluate(() => window.openbot.agent.listModels());
+  const target = models.filter(isAgentModelOption).find((model) => model.provider !== before.provider) ?? null;
   const running = await listTasks();
   if (target && taskIn(running, first.id).state === "running") {
     const outcome = await page.evaluate(

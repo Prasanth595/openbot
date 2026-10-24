@@ -1,19 +1,23 @@
+import { rankAgentMentions } from "@openbot/contracts/agent-mention-rank";
 import { GlassView } from "expo-glass-effect";
 import { useIsFocused } from "expo-router";
 import { Button, Spinner, Typography } from "heroui-native";
 import ArrowUp from "lucide-react-native/icons/arrow-up";
+import Blocks from "lucide-react-native/icons/blocks";
 import Mic from "lucide-react-native/icons/mic";
 import Plus from "lucide-react-native/icons/plus";
 import Reply from "lucide-react-native/icons/reply";
+import Sparkles from "lucide-react-native/icons/sparkles";
 import Square from "lucide-react-native/icons/square";
 import X from "lucide-react-native/icons/x";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Text as NativeText,
   Pressable,
   ScrollView,
   TextInput,
+  type TextInputInstance,
   useWindowDimensions,
   View,
   type ViewStyle,
@@ -41,15 +45,18 @@ import type { ChatBubbleMessage } from "@/features/chat/model/chat-messages";
 import type { MobileAgent } from "@/features/workspace/model/workspace-types";
 import { haptics } from "@/shared/lib/haptics";
 import { useMotionPreference, useReducedMotion } from "@/shared/lib/motion";
+import { isAndroid } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 import { editMentionDraft, insertMention, mentionDraft, mentionQuery } from "../model/chat-mentions";
 import { applyMarkdownListEdit, markdownListReturn } from "../model/composer-lists";
 import { largePastedText } from "../model/composer-paste";
+import { deleteComposerFiles } from "../model/composer-requests";
 import { createComposerSendGate } from "../model/composer-send";
 import { composerAction } from "../model/voice-dictation";
 import { attachmentTypeLabel, shareLocalAttachment } from "./attachment-preview";
 import { AttachmentPreviewSheet } from "./attachment-preview-sheet";
 import { ComposerAttachmentTile, localPreviewUri } from "./composer-attachment-tile";
+import { ComposerPasteTarget, type PastedFiles } from "./composer-paste-target";
 import type { ChatAttachments } from "./use-chat-attachments";
 import type { VoiceMode } from "./use-voice-mode";
 
@@ -124,6 +131,12 @@ interface ChatComposerProps {
   /** Replaces "Ask {name}", such as while the composer answers a question. */
   placeholder?: string;
   mentionAgents: MobileAgent[];
+  /** The skills of the chat's agent and the apps of its server. `@` offers them after the agents. */
+  mentionSkills?: readonly MentionSkill[];
+  /** A new value writes `@` in the field and offers the skills and apps alone, for the plus menu. */
+  skillPickerVersion?: number;
+  /** Tells the chat when the `@` list opens and closes, so that a drag in it does not move the keyboard. */
+  onSuggestionsVisibleChange?: (visible: boolean) => void;
   bottomInset: number;
   disabled: boolean;
   draft: string;
@@ -139,11 +152,12 @@ interface ChatComposerProps {
   /** 0 with the keyboard down, 1 with it up, and every value a swipe passes through. */
   keyboardProgress: SharedValue<number>;
   /** The attachment card is open on the plus, which then has to hold still. */
-  menuOpen: boolean;
+  menuOpen?: boolean;
   /** The card's open progress, so the plus can cross-fade against the card. */
-  menuProgress: SharedValue<number>;
+  menuProgress?: SharedValue<number>;
   stopping?: boolean;
-  attachments: ChatAttachments;
+  /** Absent for a text-only composer: no plus, and a paste adds no file. */
+  attachments?: ChatAttachments;
   sendRetryVersion: number;
   replyTarget: ChatBubbleMessage | null;
   replyFocusVersion: number;
@@ -152,9 +166,24 @@ interface ChatComposerProps {
   /** Focuses the field after another screen, such as Agent info > Skills, handed text to it. */
   handoffFocusVersion?: number;
   onCancelReply: () => void;
-  voice: VoiceMode;
+  /** Absent for a text-only composer: the control never dictates. */
+  voice?: VoiceMode;
   /** The agent's colour for the filled voice controls, the glyph colour on it, and the glass tint. */
-  voiceAccent: { fill: string; glyph: string; tint: string };
+  voiceAccent?: { fill: string; glyph: string; tint: string };
+}
+
+const NO_FILES: ChatAttachments["items"] = [];
+const NO_SKILLS: readonly MentionSkill[] = [];
+
+/**
+ * A skill or a connected app that the composer can name, as `@[name](skill:id)` or `@[name](mcp:id)`,
+ * the references the desktop composer writes.
+ */
+export interface MentionSkill {
+  kind: "skill" | "mcp";
+  id: string;
+  name: string;
+  description: string;
 }
 
 /** Bars that follow the microphone level, drawn in the listening voice button. */
@@ -180,13 +209,16 @@ function VoiceLevelBar({ level, weight, color }: { level: SharedValue<number>; w
 const FOCUS_RETRY_MS = 1500;
 const FOCUS_RETRY_INTERVAL_MS = 100;
 
-export function ChatComposer({
+export const ChatComposer = memo(function ChatComposer({
   sendLabel,
   action,
   actionForeground,
   agentName,
   placeholder,
   mentionAgents,
+  mentionSkills = NO_SKILLS,
+  skillPickerVersion = 0,
+  onSuggestionsVisibleChange,
   bottomInset,
   disabled,
   draft,
@@ -199,7 +231,7 @@ export function ChatComposer({
   onSend,
   onStop,
   keyboardProgress,
-  menuOpen,
+  menuOpen = false,
   menuProgress,
   stopping = false,
   attachments,
@@ -213,31 +245,43 @@ export function ChatComposer({
   voiceAccent,
 }: ChatComposerProps) {
   const { t, format, sourceText } = useText();
+  // A text-only composer has no menu or voice motion of its own; these stay at rest.
+  const still = useSharedValue(0);
+  const menuMotion = menuProgress ?? still;
+  const morph = voice?.presence ?? still;
+  const voiceSplit = voice?.split ?? still;
+  const files = attachments?.items ?? NO_FILES;
+  const preparing = attachments?.preparing ?? false;
   const display = mentionDraft(draft);
   const displayText = display.text;
   const [cursor, setCursor] = useState(0);
   // The file whose preview is open. An ID, not a copy: a removed file closes its own preview.
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const previewItem = attachments.items.find((item) => item.id === previewId) ?? null;
+  const previewItem = files.find((item) => item.id === previewId) ?? null;
   const query = mentionQuery(draft, cursor);
-  const suggestions = query
-    ? mentionAgents
-        .filter((agent) =>
-          `${agent.name} ${agent.title} ${agent.description}`.toLocaleLowerCase().includes(query.query.trim()),
-        )
+  // Set by Use skill in the plus menu: the list under that `@` shows the skills alone.
+  const [skillsOnly, setSkillsOnly] = useState(false);
+  const hasQuery = query !== null;
+  useEffect(() => {
+    if (!hasQuery) setSkillsOnly(false);
+  }, [hasQuery]);
+  const skillSuggestions = query
+    ? mentionSkills
+        .filter((skill) => `${skill.name} ${skill.description}`.toLocaleLowerCase().includes(query.query.trim()))
         .slice(0, 8)
     : [];
+  // The limit comes after the rank, so it never cuts an agent whose name matches.
+  const suggestions = query && !skillsOnly ? rankAgentMentions(mentionAgents, query.query).slice(0, 8) : [];
   // What the bar has to stay open for. A send takes the text and the files out of
   // the composer at once, so a draft is always a new one.
-  const hasDraft = Boolean(draft.trim()) || attachments.items.length > 0;
-  const inputRef = useRef<TextInput>(null);
+  const hasDraft = Boolean(draft.trim()) || files.length > 0;
+  const inputRef = useRef<TextInputInstance>(null);
   const isFocused = useIsFocused();
   const latestTextRef = useRef(draft);
   const [sendGate] = useState(createComposerSendGate);
   // The chat owns the voice mode: its overlay covers the whole chat. The
   // composer only changes shape for it.
-  const voiceOpen = voice.stage !== "closed";
-  const morph = voice.presence;
+  const voiceOpen = voice !== undefined && voice.stage !== "closed";
   const focusedReplyVersion = useRef(0);
   useEffect(() => {
     if (isFocused && !disabled && replyTarget && focusedReplyVersion.current !== replyFocusVersion) {
@@ -268,6 +312,26 @@ export function ChatComposer({
     }, FOCUS_RETRY_INTERVAL_MS);
     return () => clearInterval(retry);
   }, [isFocused, disabled, handoffFocusVersion]);
+  // The copies are read as attachments in the same way as a share from another app, then deleted.
+  const pasteFiles = ({ files: pasted, failed }: PastedFiles) => {
+    if (!attachments) {
+      deleteComposerFiles(pasted);
+      return;
+    }
+    void attachments
+      .addShared("", pasted, () => {})
+      .finally(() => {
+        deleteComposerFiles(pasted);
+        if (failed === 0) return;
+        void haptics.notification("error");
+        showFailureAlert(
+          undefined,
+          "turn",
+          t("mobile.chat.attachment.addFailed"),
+          t("mobile.chat.attachment.unavailable"),
+        );
+      });
+  };
   const pendingCursor = useRef<number | null>(null);
   useLayoutEffect(() => {
     if (pendingCursor.current === null) return;
@@ -275,9 +339,26 @@ export function ChatComposer({
     pendingCursor.current = null;
     inputRef.current?.setNativeProps({ selection: { start: position, end: position } });
   }, [displayText]);
+  const pickedSkillVersion = useRef(skillPickerVersion);
+  useEffect(() => {
+    if (pickedSkillVersion.current === skillPickerVersion) return;
+    pickedSkillVersion.current = skillPickerVersion;
+    // An `@` at the end, after a space, opens the list; the skills show alone until one is chosen.
+    const source = latestTextRef.current;
+    const next = source && !/\s$/u.test(source) ? `${source} @` : `${source}@`;
+    latestTextRef.current = next;
+    onChangeDraft(next);
+    const position = mentionDraft(next).text.length;
+    setCursor(position);
+    pendingCursor.current = position;
+    setSkillsOnly(true);
+    inputRef.current?.focus();
+  }, [skillPickerVersion, onChangeDraft]);
   const { fontScale, width: windowWidth } = useWindowDimensions();
   const lineHeight = 22 * fontScale;
-  const rowTextWidth = windowWidth - BAR_INSET * 2 - ROW_CONTROL_INSET * 2;
+  // Without the plus, the text starts at the card's own inset.
+  const leadingInset = attachments ? ROW_CONTROL_INSET : FIELD_INSET;
+  const rowTextWidth = windowWidth - BAR_INSET * 2 - ROW_CONTROL_INSET - leadingInset;
   // One reading drives both the shape and the height. Measuring the two widths
   // separately gave the card two targets in two frames, so it animated twice.
   const [wrap, setWrap] = useState({ lines: 1, width: 0 });
@@ -288,7 +369,7 @@ export function ChatComposer({
     TOOLBAR_HEIGHT,
     Math.min(MAX_INPUT_LINES, wrap.lines) * lineHeight + FIELD_VERTICAL_PADDING,
   );
-  const attachmentsOpen = attachments.items.length > 0;
+  const attachmentsOpen = files.length > 0;
   const reducedMotion = useReducedMotion();
   const shapeDuration = reducedMotion ? 0 : SHAPE_DURATION;
   // Settings can keep the composer open, and reduced motion always does.
@@ -311,9 +392,12 @@ export function ChatComposer({
   const restControlShift = TOOLBAR_PADDING + (CONTROL_SIZE - restHeight) / 2;
   const restControlDrawn = CONTROL_SIZE * REST_CONTROL_SCALE;
   const restTextInset = (restHeight - restControlDrawn) / 2 + restControlDrawn + REST_TEXT_GAP;
+  // Without the plus, the placeholder starts at the card's own inset.
+  const restLeadingInset = attachments ? restTextInset : FIELD_INSET;
   // Sized from the placeholder, so the bar carries no empty space. Full width
   // until the measurement lands: a bar that starts narrow would jump open.
-  const restWidth = placeholderWidth > 0 ? Math.min(cardWidth, placeholderWidth + restTextInset * 2) : cardWidth;
+  const restWidth =
+    placeholderWidth > 0 ? Math.min(cardWidth, placeholderWidth + restLeadingInset + restTextInset) : cardWidth;
   // The worklets read the resting width from here, so a new placeholder tweens the bar instead of
   // snapping it. The first measurement is taken at once, as before: the bar must not shrink in
   // from full width when the chat opens.
@@ -397,10 +481,10 @@ export function ChatComposer({
   // With Liquid Glass the round button stays glass, so the glow under it shows
   // through and spreads on it. Without glass the card is opaque, so the agent's
   // colour fills it while it listens. Continue is the card again.
-  const voiceFilled = !liquidGlassAvailable;
-  const listeningGlyph = voiceFilled ? voiceAccent.glyph : String(foreground);
+  const voiceFilled = !liquidGlassAvailable && voiceAccent !== undefined;
+  const listeningGlyph = voiceFilled && voiceAccent ? voiceAccent.glyph : String(foreground);
   const voiceFill = useSharedValue(0);
-  const listening = voice.stage === "listening" && !voice.exit;
+  const listening = voice?.stage === "listening" && !voice.exit;
   useEffect(() => {
     voiceFill.set(
       withTiming(listening ? 1 : 0, {
@@ -421,14 +505,14 @@ export function ChatComposer({
     return interpolate(open, [0, 0.5], [0, 1], Extrapolation.CLAMP);
   };
   const cancelSideStyle = useAnimatedStyle(() => {
-    const open = voice.split.get();
+    const open = voiceSplit.get();
     return {
       opacity: sideOpacity(open),
       transform: [{ translateX: -VOICE_SIDE_OFFSET * open }, { scale: 0.5 + 0.5 * open }],
     };
   });
   const sendSideStyle = useAnimatedStyle(() => {
-    const open = voice.split.get();
+    const open = voiceSplit.get();
     return {
       opacity: sideOpacity(open),
       transform: [{ translateX: VOICE_SIDE_OFFSET * open }, { scale: 0.5 + 0.5 * open }],
@@ -491,8 +575,8 @@ export function ChatComposer({
   // Centred at rest, and never further left than the plus: a placeholder wider
   // than the smaller bar, or one not measured yet, keeps the open position and
   // truncates instead of starting under a control.
-  const openTextOffset = ROW_CONTROL_INSET - FIELD_INSET;
-  const restTextOffset = placeholderWidth > 0 ? restTextInset - FIELD_INSET : openTextOffset;
+  const openTextOffset = leadingInset - FIELD_INSET;
+  const restTextOffset = placeholderWidth > 0 ? restLeadingInset - FIELD_INSET : openTextOffset;
   const fieldSlideStyle = useAnimatedStyle(() => ({
     height: fieldHeightValue.get(),
     transform: [
@@ -522,8 +606,8 @@ export function ChatComposer({
 
   useLayoutEffect(() => {
     // Selecting a file is a draft edit even when TextInput never receives focus.
-    if (attachments.items.length > 0) sendGate.edit();
-  }, [attachments.items, sendGate]);
+    if (files.length > 0) sendGate.edit();
+  }, [files, sendGate]);
 
   useLayoutEffect(() => {
     if (sendRetryVersion > 0) sendGate.allowRetry();
@@ -540,29 +624,36 @@ export function ChatComposer({
     }
   }, [disabled, sendGate]);
 
-  const suggestionsVisible = Boolean(focused && query && suggestions.length > 0 && !disabled);
+  const suggestionCount = suggestions.length + skillSuggestions.length;
+  // Android takes the focus from the field when its keyboard hides, which a drag in this list does, and
+  // when the plus menu that asks for the skills closes. There the list stays while an `@` query is in
+  // the text, and closes with a choice or the end of the query. iOS keeps the field focused for both.
+  const suggestionsVisible = Boolean((focused || isAndroid) && query && suggestionCount > 0 && !disabled);
+  useEffect(() => {
+    onSuggestionsVisibleChange?.(suggestionsVisible);
+  }, [onSuggestionsVisibleChange, suggestionsVisible]);
   const announcedSuggestions = useRef("");
   useEffect(() => {
     // The list opens and closes under the keyboard with no focus change, so a
     // screen reader gets no event. Announce the count, once per distinct query.
-    const announcement = suggestionsVisible ? `${suggestions.length}:${query?.query ?? ""}` : "";
+    const announcement = suggestionsVisible ? `${suggestionCount}:${query?.query ?? ""}` : "";
     if (announcedSuggestions.current === announcement) return;
     announcedSuggestions.current = announcement;
     if (!suggestionsVisible) return;
     AccessibilityInfo.announceForAccessibility(
-      suggestions.length === 1 ? "1 teammate suggestion" : `${suggestions.length} teammate suggestions`,
+      suggestionCount === 1 ? "1 teammate suggestion" : `${suggestionCount} teammate suggestions`,
     );
-  }, [suggestionsVisible, suggestions.length, query?.query]);
+  }, [suggestionsVisible, suggestionCount, query?.query]);
 
-  const busy = attachments.preparing;
-  const attachmentsBlocked = disabled || attachments.preparing;
+  const busy = preparing;
+  const attachmentsBlocked = disabled || preparing;
   const leadingBlocked = attachmentsBlocked;
   // The card covers this glyph and draws the same corner, so the two trade
   // places on one progress: the glyph is gone by the time the card is drawn,
   // and back on the frames the card fades out. Waiting for the card to
   // unmount left the corner empty for the whole length of its collapse.
   const plusGlyphStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(menuProgress.get(), [0, 0.2], [1, 0], Extrapolation.CLAMP) * (leadingBlocked ? 0.45 : 1),
+    opacity: interpolate(menuMotion.get(), [0, 0.2], [1, 0], Extrapolation.CLAMP) * (leadingBlocked ? 0.45 : 1),
   }));
   // Where the plus is drawn, in either shape, from the constants that draw it.
   // Measuring it cannot work: `measureInWindow` reads the layout tree, and the
@@ -583,11 +674,11 @@ export function ChatComposer({
     busy,
     canStop: Boolean(onStop),
     stopping,
-    voiceAvailable: voice.available,
+    voiceAvailable: voice?.available ?? false,
   });
 
   function requestSend(): void {
-    if (disabled || attachments.preparing) return;
+    if (disabled || preparing) return;
     const action = sendGate.request();
     if (action === "blur") inputRef.current?.blur();
     else if (action === "send") onSend(latestTextRef.current);
@@ -602,7 +693,7 @@ export function ChatComposer({
         // The keyboard has no place in the voice mode, and the field is
         // read-only until it closes.
         inputRef.current?.blur();
-        voice.open();
+        voice?.open();
         return;
       case "send":
         requestSend();
@@ -616,10 +707,10 @@ export function ChatComposer({
   }[control.mode];
   // The round button: Stop while it listens, Continue after.
   const voiceLabel =
-    voice.stage === "listening" ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.voice.continue");
+    voice?.stage === "listening" ? t("mobile.chat.composer.stopDictation") : t("mobile.chat.voice.continue");
   // Stop is pressable while the recognizer starts too, and then closes the
   // voice mode. Continue waits until the chat can listen again.
-  const voicePressable = !voice.exit && (voice.stage === "listening" || voice.canResume);
+  const voicePressable = voice !== undefined && !voice.exit && (voice.stage === "listening" || voice.canResume);
 
   const focusInput = useCallback(() => {
     if (!disabled) inputRef.current?.focus();
@@ -682,6 +773,54 @@ export function ChatComposer({
                 </Typography.Paragraph>
               </Button>
             ))}
+            {(["skill", "mcp"] as const).map((kind) => {
+              const group = skillSuggestions.filter((tool) => tool.kind === kind);
+              if (group.length === 0) return null;
+              // A heading when the list shows another group above this one.
+              const titled = suggestions.length > 0 || (kind === "mcp" && group.length < skillSuggestions.length);
+              return (
+                <View key={kind}>
+                  {titled ? (
+                    <Typography type="body-xs" className="px-4 pt-2 pb-1 text-muted">
+                      {t(kind === "skill" ? "mobile.chat.composer.skills" : "mobile.chat.composer.apps")}
+                    </Typography>
+                  ) : null}
+                  {group.map((tool) => (
+                    <Button
+                      key={tool.id}
+                      variant="ghost"
+                      className="min-h-12 flex-row justify-start gap-3 rounded-none px-4"
+                      accessibilityLabel={t(
+                        kind === "skill" ? "mobile.chat.composer.useSkill" : "mobile.chat.composer.useApp",
+                        { name: tool.name },
+                      )}
+                      onPress={() => {
+                        void haptics.selection();
+                        const next = insertMention(latestTextRef.current, query, tool, kind);
+                        latestTextRef.current = next;
+                        onChangeDraft(next);
+                        const position = query.start + tool.name.length + 2;
+                        setCursor(position);
+                        pendingCursor.current = position;
+                        setSkillsOnly(false);
+                        inputRef.current?.focus();
+                      }}
+                    >
+                      <View className="size-7 items-center justify-center rounded-lg bg-control">
+                        {kind === "skill" ? (
+                          <Sparkles color={String(foreground)} size={16} strokeWidth={1.9} />
+                        ) : (
+                          <Blocks color={String(foreground)} size={16} strokeWidth={1.9} />
+                        )}
+                      </View>
+                      <Typography.Paragraph numberOfLines={1} className="flex-1">
+                        {tool.name}
+                      </Typography.Paragraph>
+                    </Button>
+                  ))}
+                </View>
+              );
+            })}
           </ScrollView>
         </GlassView>
       ) : null}
@@ -712,7 +851,7 @@ export function ChatComposer({
         >
           {placeholderText}
         </NativeText>
-        {voiceOpen ? (
+        {voiceOpen && voice ? (
           // Drawn before the card, so the two buttons come out from under it.
           <View
             pointerEvents={voice.stage === "review" && !voice.exit ? "box-none" : "none"}
@@ -754,7 +893,7 @@ export function ChatComposer({
                 // would stop iOS from drawing it.
                 <GlassView
                   glassEffectStyle="regular"
-                  tintColor={voice.canSend ? voiceAccent.tint : undefined}
+                  tintColor={voice.canSend ? voiceAccent?.tint : undefined}
                   style={{
                     width: VOICE_SIDE_SIZE,
                     height: VOICE_SIDE_SIZE,
@@ -785,12 +924,12 @@ export function ChatComposer({
                   style={{
                     width: VOICE_SIDE_SIZE,
                     height: VOICE_SIDE_SIZE,
-                    backgroundColor: voiceAccent.fill,
+                    backgroundColor: voiceAccent?.fill ?? action,
                     opacity: voice.canSend ? 1 : 0.45,
                   }}
                   onPress={voice.send}
                 >
-                  <ArrowUp color={voiceAccent.glyph} size={24} strokeWidth={2.2} />
+                  <ArrowUp color={voiceAccent?.glyph ?? String(actionForeground)} size={24} strokeWidth={2.2} />
                 </Pressable>
               )}
             </Animated.View>
@@ -810,7 +949,7 @@ export function ChatComposer({
               cardStyle,
             ]}
           >
-            {voiceFilled ? (
+            {voiceFilled && voiceAccent ? (
               <Animated.View
                 pointerEvents="none"
                 style={[{ position: "absolute", inset: 0, backgroundColor: voiceAccent.fill }, voiceFillStyle]}
@@ -880,13 +1019,13 @@ export function ChatComposer({
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: 8, paddingHorizontal: 8, paddingTop: 8 }}
                 >
-                  {attachments.items.map((item, index) => (
+                  {files.map((item, index) => (
                     <ComposerAttachmentTile
                       key={item.id}
                       item={item}
                       index={index}
-                      count={attachments.items.length}
-                      disabled={attachments.preparing}
+                      count={files.length}
+                      disabled={preparing}
                       foreground={foreground}
                       raised={raised}
                       onPreview={() => {
@@ -895,7 +1034,7 @@ export function ChatComposer({
                       }}
                       onRemove={() => {
                         void haptics.selection();
-                        attachments.remove(item.id);
+                        attachments?.remove(item.id);
                       }}
                     />
                   ))}
@@ -916,100 +1055,103 @@ export function ChatComposer({
                 <Animated.View
                   style={[{ position: "absolute", left: FIELD_INSET, right: FIELD_INSET, bottom: 0 }, fieldSlideStyle]}
                 >
-                  <TextInput
-                    ref={inputRef}
-                    nativeID="chat-composer-input"
-                    accessibilityLabel={t("mobile.chat.composer.messageAgent", { name: agentName })}
-                    accessibilityState={{ disabled: disabled || voiceOpen }}
-                    accessibilityElementsHidden={voiceOpen}
-                    importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
-                    editable={!disabled && !voiceOpen}
-                    showSoftInputOnFocus={!disabled && !voiceOpen}
-                    className="min-w-0 font-sans text-foreground"
-                    autoCorrect
-                    autoCapitalize="sentences"
-                    multiline
-                    scrollEnabled={wrap.lines > MAX_INPUT_LINES}
-                    returnKeyType="default"
-                    submitBehavior="newline"
-                    selectionColor={foreground}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      fontSize: 16,
-                      lineHeight: 22,
-                      paddingVertical: FIELD_VERTICAL_PADDING / 2,
-                      textAlignVertical: "top",
-                    }}
-                    onSelectionChange={({ nativeEvent }) =>
-                      setCursor(
-                        nativeEvent.selection.start === nativeEvent.selection.end ? nativeEvent.selection.end : -1,
-                      )
-                    }
-                    onFocus={() => {
-                      sendGate.focus();
-                      setFocused(true);
-                    }}
-                    onBlur={() => setFocused(false)}
-                    onChangeText={(text) => {
-                      sendGate.edit();
-                      const pasted = largePastedText(latestTextRef.current, text);
-                      if (pasted) {
-                        // Keep the pasted text until its attachment is durable. A failed write must not lose it.
-                        latestTextRef.current = text;
-                        onChangeDraft(text);
-                        void Promise.resolve()
-                          .then(() => attachments.paste({ type: "text", text: pasted.text }, () => {}))
-                          .then(() => {
-                            if (latestTextRef.current !== text) return;
-                            latestTextRef.current = pasted.draft;
-                            onChangeDraft(pasted.draft);
-                          })
-                          .catch((error) => {
-                            void haptics.notification("error");
-                            showFailureAlert(
-                              error,
-                              "turn",
-                              t("mobile.chat.composer.pasteFailed"),
-                              error instanceof Error ? sourceText(error.message) : t("mobile.chat.tryAgain"),
-                            );
-                          });
-                        return;
+                  <ComposerPasteTarget onPasteFiles={pasteFiles}>
+                    <TextInput
+                      ref={inputRef}
+                      nativeID="chat-composer-input"
+                      accessibilityLabel={t("mobile.chat.composer.messageAgent", { name: agentName })}
+                      accessibilityState={{ disabled: disabled || voiceOpen }}
+                      accessibilityElementsHidden={voiceOpen}
+                      importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
+                      editable={!disabled && !voiceOpen}
+                      showSoftInputOnFocus={!disabled && !voiceOpen}
+                      className="min-w-0 font-sans text-foreground"
+                      autoCorrect
+                      autoCapitalize="sentences"
+                      multiline
+                      scrollEnabled={wrap.lines > MAX_INPUT_LINES}
+                      returnKeyType="default"
+                      submitBehavior="newline"
+                      selectionColor={foreground}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        fontSize: 16,
+                        lineHeight: 22,
+                        paddingVertical: FIELD_VERTICAL_PADDING / 2,
+                        textAlignVertical: "top",
+                      }}
+                      onSelectionChange={({ nativeEvent }) =>
+                        setCursor(
+                          nativeEvent.selection.start === nativeEvent.selection.end ? nativeEvent.selection.end : -1,
+                        )
                       }
-                      const source = latestTextRef.current;
-                      const previous = mentionDraft(source).text;
-                      const listEdit = markdownListReturn(previous, text, cursor);
-                      if (listEdit) pendingCursor.current = listEdit.caret;
-                      const next = listEdit
-                        ? applyMarkdownListEdit(source, previous, cursor, listEdit)
-                        : editMentionDraft(source, text);
-                      latestTextRef.current = next;
-                      onChangeDraft(next);
-                    }}
-                    onSubmitEditing={({ nativeEvent }) => {
-                      if (!disabled && sendGate.submit())
-                        onSend(editMentionDraft(latestTextRef.current, nativeEvent.text));
-                    }}
-                    onEndEditing={({ nativeEvent: { text } }) => {
-                      // Native editing can end before the send button's release event,
-                      // while TextInput.isFocused() is still waiting for onBlur.
-                      latestTextRef.current = editMentionDraft(latestTextRef.current, text);
-                      if (sendGate.commit() && !disabled) onSend(latestTextRef.current);
-                    }}
-                  >
-                    {/* TextInput requires native text children for editable attributed text. */}
-                    <NativeText>
-                      {display.mentions.map((mention, index) => (
-                        <NativeText key={mention.start}>
-                          {displayText.slice(index ? (display.mentions[index - 1]?.end ?? 0) : 0, mention.start)}
-                          <NativeText style={{ color: action }}>
-                            {displayText.slice(mention.start, mention.end)}
+                      onFocus={() => {
+                        sendGate.focus();
+                        setFocused(true);
+                      }}
+                      onBlur={() => setFocused(false)}
+                      onChangeText={(text) => {
+                        sendGate.edit();
+                        // A text-only composer keeps a long paste as text: it has no file to turn it into.
+                        const pasted = attachments ? largePastedText(latestTextRef.current, text) : null;
+                        if (pasted && attachments) {
+                          // Keep the pasted text until its attachment is durable. A failed write must not lose it.
+                          latestTextRef.current = text;
+                          onChangeDraft(text);
+                          void Promise.resolve()
+                            .then(() => attachments?.pasteText(pasted.text, () => {}))
+                            .then(() => {
+                              if (latestTextRef.current !== text) return;
+                              latestTextRef.current = pasted.draft;
+                              onChangeDraft(pasted.draft);
+                            })
+                            .catch((error) => {
+                              void haptics.notification("error");
+                              showFailureAlert(
+                                error,
+                                "turn",
+                                t("mobile.chat.composer.pasteFailed"),
+                                error instanceof Error ? sourceText(error.message) : t("mobile.chat.tryAgain"),
+                              );
+                            });
+                          return;
+                        }
+                        const source = latestTextRef.current;
+                        const previous = mentionDraft(source).text;
+                        const listEdit = markdownListReturn(previous, text, cursor);
+                        if (listEdit) pendingCursor.current = listEdit.caret;
+                        const next = listEdit
+                          ? applyMarkdownListEdit(source, previous, cursor, listEdit)
+                          : editMentionDraft(source, text);
+                        latestTextRef.current = next;
+                        onChangeDraft(next);
+                      }}
+                      onSubmitEditing={({ nativeEvent }) => {
+                        if (!disabled && sendGate.submit())
+                          onSend(editMentionDraft(latestTextRef.current, nativeEvent.text));
+                      }}
+                      onEndEditing={({ nativeEvent: { text } }) => {
+                        // Native editing can end before the send button's release event,
+                        // while TextInput.isFocused() is still waiting for onBlur.
+                        latestTextRef.current = editMentionDraft(latestTextRef.current, text);
+                        if (sendGate.commit() && !disabled) onSend(latestTextRef.current);
+                      }}
+                    >
+                      {/* TextInput requires native text children for editable attributed text. */}
+                      <NativeText>
+                        {display.mentions.map((mention, index) => (
+                          <NativeText key={mention.start}>
+                            {displayText.slice(index ? (display.mentions[index - 1]?.end ?? 0) : 0, mention.start)}
+                            <NativeText style={{ color: action }}>
+                              {displayText.slice(mention.start, mention.end)}
+                            </NativeText>
                           </NativeText>
-                        </NativeText>
-                      ))}
-                      {displayText.slice(display.mentions.at(-1)?.end ?? 0)}
-                    </NativeText>
-                  </TextInput>
+                        ))}
+                        {displayText.slice(display.mentions.at(-1)?.end ?? 0)}
+                      </NativeText>
+                    </TextInput>
+                  </ComposerPasteTarget>
                 </Animated.View>
                 {displayText ? null : (
                   <Animated.View
@@ -1067,7 +1209,7 @@ export function ChatComposer({
                 }}
               >
                 <Animated.View style={controlStyle}>
-                  {voiceOpen ? (
+                  {voiceOpen && voice ? (
                     <Pressable
                       accessibilityLabel={voiceLabel}
                       accessibilityRole="button"
@@ -1133,33 +1275,35 @@ export function ChatComposer({
         {/* Outside the glass container on purpose. A SwiftUI Menu anchored
             inside one makes iOS morph that container into the menu, which ate
             the whole composer whenever the card was no taller than the row. */}
-        <Animated.View
-          // The plus fades out with the morph, and the voice mode has no attachments.
-          pointerEvents={voiceOpen ? "none" : "box-none"}
-          accessibilityElementsHidden={voiceOpen}
-          importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
-          // Absolute insets here are measured from the bar's outer edge, so they
-          // have to carry the bar's own padding to land on the card.
-          style={[{ position: "absolute", left: BAR_INSET + 8, bottom: Math.max(bottomInset, 10) + 4 }, plusStyle]}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("mobile.chat.composer.addAttachment")}
-            accessibilityState={{ disabled: leadingBlocked }}
-            disabled={leadingBlocked}
-            hitSlop={4}
-            className="size-10 items-center justify-center rounded-full"
-            onPress={() => {
-              void haptics.selection();
-              setOpenedWith({ expanded: !restingPlus, focused });
-              attachments.openMenu(attachmentAnchor);
-            }}
+        {attachments ? (
+          <Animated.View
+            // The plus fades out with the morph, and the voice mode has no attachments.
+            pointerEvents={voiceOpen ? "none" : "box-none"}
+            accessibilityElementsHidden={voiceOpen}
+            importantForAccessibility={voiceOpen ? "no-hide-descendants" : "auto"}
+            // Absolute insets here are measured from the bar's outer edge, so they
+            // have to carry the bar's own padding to land on the card.
+            style={[{ position: "absolute", left: BAR_INSET + 8, bottom: Math.max(bottomInset, 10) + 4 }, plusStyle]}
           >
-            <Animated.View style={plusGlyphStyle}>
-              <Plus color={String(foreground)} size={24} strokeWidth={1.8} />
-            </Animated.View>
-          </Pressable>
-        </Animated.View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("mobile.chat.composer.addAttachment")}
+              accessibilityState={{ disabled: leadingBlocked }}
+              disabled={leadingBlocked}
+              hitSlop={4}
+              className="size-10 items-center justify-center rounded-full"
+              onPress={() => {
+                void haptics.selection();
+                setOpenedWith({ expanded: !restingPlus, focused });
+                attachments?.openMenu(attachmentAnchor);
+              }}
+            >
+              <Animated.View style={plusGlyphStyle}>
+                <Plus color={String(foreground)} size={24} strokeWidth={1.8} />
+              </Animated.View>
+            </Pressable>
+          </Animated.View>
+        ) : null}
       </View>
       <AttachmentPreviewSheet
         preview={
@@ -1180,14 +1324,14 @@ export function ChatComposer({
                   : [{ label: t("common.open"), onPress: () => void shareLocalAttachment(previewItem) }]),
                 {
                   label: t("mobile.chat.attachment.replace"),
-                  disabled: attachments.preparing,
-                  onPress: () => void attachments.replace(previewItem.id),
+                  disabled: preparing,
+                  onPress: () => void attachments?.replace(previewItem.id),
                 },
                 {
                   label: t("common.remove"),
                   variant: "danger-soft" as const,
-                  disabled: attachments.preparing,
-                  onPress: () => attachments.remove(previewItem.id),
+                  disabled: preparing,
+                  onPress: () => attachments?.remove(previewItem.id),
                 },
               ]
             : []
@@ -1196,4 +1340,4 @@ export function ChatComposer({
       />
     </View>
   );
-}
+});

@@ -1,12 +1,12 @@
 import { ProviderLogo } from "@openbot/brand";
-import { agentProviderName } from "@openbot/contracts/agent-providers";
+import { agentProviderName, isKnownAgentProvider } from "@openbot/contracts/agent-providers";
 import {
   AGENT_BACKUP_MODEL_LIMIT,
   type AgentBackupModels,
   type AgentModelChoice,
-  type AgentModelOption,
   type AgentProviderId,
   type AgentStatus,
+  type ClientAgentModelOption,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   sameAgentModelChoice,
 } from "@openbot/contracts/ipc";
@@ -51,7 +51,7 @@ export interface BackupModelOption {
 
 /** What the options are built from: the host's models and providers, and its usage limits. */
 export interface BackupModelSource {
-  modelOptions: readonly AgentModelOption[];
+  modelOptions: readonly ClientAgentModelOption[];
   providers: AgentStatus["providers"];
   /** Whether a usage limit holds this model and account now. */
   limited?: ((choice: AgentModelChoice) => boolean) | undefined;
@@ -84,11 +84,14 @@ export function backupModelOptions(
   exclude: readonly AgentModelChoice[],
 ): BackupModelOption[] {
   return source.modelOptions.flatMap((model) => {
-    const provider = source.providers?.find((status) => status.id === model.provider);
+    // A provider that this build does not know cannot be a backup: its model cannot be chosen here.
+    const modelProvider = model.provider;
+    if (!isKnownAgentProvider(modelProvider)) return [];
+    const provider = source.providers?.find((status) => status.id === modelProvider);
     const accountIds = provider?.accounts?.map((account) => account.id) ?? [DEFAULT_PROVIDER_ACCOUNT_ID];
     return accountIds.flatMap((accountId) => {
       const choice: AgentModelChoice = {
-        provider: model.provider,
+        provider: modelProvider,
         model: model.id,
         ...(accountId === DEFAULT_PROVIDER_ACCOUNT_ID ? {} : { providerAccountId: accountId }),
       };
