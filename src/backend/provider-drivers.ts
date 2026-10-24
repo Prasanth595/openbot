@@ -184,12 +184,20 @@ function antigravityKeyOptions(context: ProviderClientContext, agentEnvironment:
 }
 
 /**
+ * On macOS, Antigravity 1.4.0 and later keep the Google sign-in in the login Keychain only when a
+ * test item can be written there at start. A Workspace only process cannot write the Keychain, so
+ * it reads the token file in `antigravity-acp`, which does not exist, and reports no account
+ * (#2988). The token file is the store on every platform, so each process shares one sign-in.
+ */
+const ANTIGRAVITY_ENV = { AGY_ACP_FORCE_FILE_STORAGE: "1" };
+
+/**
  * Antigravity 1.3.0 starts Google's browser sign-in by itself when `session/new` finds no valid
  * token, and waits there for five minutes. A client that serves turns must never open that page:
  * `BROWSER=true` stops the launch, and the prompt line tells the account check to stop waiting.
  */
 const ANTIGRAVITY_SERVING_OPTIONS = {
-  env: { BROWSER: "true" },
+  env: { BROWSER: "true", ...ANTIGRAVITY_ENV },
   interactiveSignInPrompt: /Open the following link to authenticate the ACP server: /u,
 };
 
@@ -686,6 +694,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
       kind: "acp-authenticate",
       methodId: "oauth-personal",
       argv: ANTIGRAVITY_ARGV,
+      env: ANTIGRAVITY_ENV,
       timeoutMs: CLI_LOGIN_TIMEOUT_MS,
     },
     resolveCli: resolveAntigravityCli,

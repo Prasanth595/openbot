@@ -432,7 +432,12 @@ does not create that manifest. An invalid override remains an error: OpenBot doe
 it with the managed runtime. Managed updates do not change the explicit override.
 
 The server runs confined; `antigravityStatePaths` gives it `~/.gemini/antigravity-acp` and
-`~/.gemini/artifacts` and protects its settings files. Migration 22 adds `antigravity` to
+`~/.gemini/artifacts` and protects its settings files. On macOS, runtime 1.4.0 and later keep the
+Google sign-in in the login Keychain only when a test item can be written there at start, and a
+confined process cannot write the Keychain (#2988). So every Antigravity process, the sign-in
+included, gets `AGY_ACP_FORCE_FILE_STORAGE=1` and keeps the token in
+`~/.gemini/antigravity-acp/acp_token.json`, as on Linux and Windows. A token that an earlier
+version saved in the Keychain is not read, so the user signs in again once. Migration 22 adds `antigravity` to
 `projection_provider_sessions`.
 
 From 1.4.1 the server answers a prompt that starts with `/usage` itself, without a model turn: it
