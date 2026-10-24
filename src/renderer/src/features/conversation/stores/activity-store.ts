@@ -13,6 +13,8 @@ import type { ConversationProps } from "../conversation-types";
 
 /** A turn with nothing from its provider for this long shows that it waits, not that it works. */
 const PROVIDER_SILENT_AFTER_MS = 60_000;
+/** With no network, a turn with nothing from its provider for this long shows that it cannot get a reply. */
+const OFFLINE_SILENT_AFTER_MS = 5_000;
 
 export interface RenderedAgentActivity {
   activityId: string;
@@ -234,21 +236,24 @@ export function createActivityStore(deps: ActivityStoreDeps) {
       !deps.props.approval &&
       !deps.props.browserTakeover,
   );
-  /** Changes when anything of the running turn arrives: text, a thought, a progress line, a step. */
+  /** Changes when anything of the running turn arrives: text, a thought, a plan or subagent step, a progress line. */
   const turnUpdate = () => {
     const turnId = deps.props.activeTurnId;
     if (!turnId) return null;
-    const streaming = streamingAgentMessage();
-    return [
-      turnId,
-      deps.props.messages.length,
-      streaming?.id,
-      streaming?.body.length,
-      streaming?.items?.length,
-      latestActiveCommentary(),
-      deps.props.activityDetail,
-      deps.props.turnStepLines?.[turnId]?.length,
-    ].join("\u0000");
+    // The last line's id, not the count: a turn keeps only its newest lines, so the count stops at the limit.
+    const parts: unknown[] = [turnId, deps.props.activityDetail, deps.props.turnStepLines?.[turnId]?.at(-1)?.id];
+    // The turn's replies are at the end of the chat. An older page or a message from the user is not an
+    // update from the provider, so the scan reads only the agent messages of this turn.
+    for (let index = deps.props.messages.length - 1; index >= 0; index -= 1) {
+      const message = deps.props.messages[index];
+      if (message?.author !== "agent") continue;
+      if (message.turnId !== turnId) break;
+      parts.push(message.id, message.body.length, message.items?.length, message.items?.at(-1)?.length);
+      if (message.plan) parts.push(JSON.stringify(message.plan));
+      for (const subagent of message.subagents ?? [])
+        parts.push(subagent.id, subagent.status, subagent.steps.at(-1)?.id, subagent.steps.at(-1)?.text.length);
+    }
+    return parts.join("\u0000");
   };
   const [lastTurnUpdateAt, setLastTurnUpdateAt] = createSignal(Date.now());
   createEffect(turnUpdate, () => {
@@ -275,9 +280,12 @@ export function createActivityStore(deps: ActivityStoreDeps) {
   });
   /**
    * `navigator.onLine` is false only when the computer has no network at all, so an offline reading
-   * is certain and shows at once. A network with no internet still reads online, and shows as silence.
+   * with a few seconds of silence shows at once. A local model can still reply with no network, and
+   * its updates keep the notice away. A network with no internet still reads online, and shows as silence.
    */
-  const providerOffline = createMemo(() => waitsForProvider() && !online());
+  const providerOffline = createMemo(
+    () => waitsForProvider() && !online() && clock() - lastTurnUpdateAt() >= OFFLINE_SILENT_AFTER_MS,
+  );
   onCleanup(() => {
     clearAgentActivityShowTimer();
     clearAgentActivityExitDelayTimer();

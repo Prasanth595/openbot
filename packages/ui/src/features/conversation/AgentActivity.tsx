@@ -84,8 +84,8 @@ export function AgentActivityIndicator(props: {
   /** The "Show agent steps" setting: the steps are open when the turn starts. */
   stepsOpenByDefault?: boolean | undefined;
   /**
-   * The provider name, when nothing has come from the provider for a while. The line then says that
-   * it waits, with no shine, because a silent provider is not visible work.
+   * The provider name, when nothing has come from the provider for a while or the computer has no
+   * network. The line then says that it waits, with no shine, because a silent provider is not visible work.
    */
   waitingFor?: string | null | undefined;
 }) {
@@ -104,7 +104,7 @@ export function AgentActivityIndicator(props: {
   };
   // A named function, not a ternary in the prop: the compiler wraps a ternary prop in a memo, and
   // the avatar reads its mood in a tracked effect, where a new memo halts the reactive system.
-  const mood = () => (props.waitingFor ? "waiting" : "working");
+  const mood = () => (props.waitingFor ? "connecting" : "working");
   const waiting = () => (props.waitingFor ? "true" : undefined);
   const elapsedMs = createElapsed(() => (props.phase === "exiting" ? undefined : props.since));
   const elapsed = createMemo(() => {

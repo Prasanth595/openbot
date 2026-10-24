@@ -162,6 +162,7 @@ export function ConversationTimeline() {
     sendCardMessage,
     reactToMessage,
     renderedAgentActivity,
+    providerOffline,
     providerSilentMinutes,
     replyJump,
     respondToBrowserTakeover,
@@ -192,9 +193,10 @@ export function ConversationTimeline() {
   const { t, format } = useText();
   // A named function, not a ternary in the prop: the compiler wraps a ternary prop in a memo, and
   // the avatar reads it in a tracked effect, where a new memo halts the reactive system.
-  const silentProviderName = () => {
+  const waitingProviderName = () => {
     const agent = props.agent;
-    return providerSilentMinutes() !== null && agent ? providerDisplayName(agent.provider) : undefined;
+    const waiting = providerSilentMinutes() !== null || providerOffline();
+    return waiting && agent ? providerDisplayName(agent.provider) : undefined;
   };
   /** An agent reply can be read aloud by this computer's speech model, in this chat's voice. */
   const readAloudAction = (message: AgentMessage) => {
@@ -1275,7 +1277,7 @@ export function ConversationTimeline() {
                     since={activity().since}
                     steps={turnSteps.activeSteps()}
                     stepsOpenByDefault={showAgentSteps()}
-                    waitingFor={silentProviderName()}
+                    waitingFor={waitingProviderName()}
                   />
                 )}
               </Show>
