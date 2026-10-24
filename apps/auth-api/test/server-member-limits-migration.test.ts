@@ -14,11 +14,14 @@ describe("server member limits migration", () => {
     databases.push(database);
     database.exec(`
       INSERT INTO users(id, identity_key, email, name, avatar_url, created_at, updated_at)
-      VALUES ('owner', 'email:owner@example.test', 'owner@example.test', 'Owner', NULL, 1, 1);
+      VALUES ('owner', 'email:owner@example.test', 'owner@example.test', 'Owner', NULL, 1, 1),
+             ('other', 'email:other@example.test', 'other@example.test', 'Other', NULL, 1, 1);
       INSERT INTO remote_hosts(host_id, owner_user_id, name, device_public_key, machine_token_hash, auth_epoch, created_at, updated_at)
       VALUES ('host-1', 'owner', 'Studio', 'key-a', 'token-hash', 4, 1, 1);
       INSERT INTO remote_memberships(membership_id, host_id, user_id, role, status, created_at, updated_at)
       VALUES ('m-owner', 'host-1', 'owner', 'owner', 'active', 1, 1);
+      INSERT INTO hosted_servers(server_id, owner_user_id, name, size, plan, billing_interval, currency, desired_state, observed_state, idempotency_key, created_at, updated_at)
+      VALUES ('hosted-1', 'owner', 'Cloud', 'small', 'starter', 'month', 'eur', 'running', 'creating', 'key-1', 1, 1);
     `);
     const before = snapshot(database);
 
@@ -28,7 +31,7 @@ describe("server member limits migration", () => {
     database.exec(migration("0040_server_member_limits.sql"));
 
     expect(snapshot(database)).toEqual(before);
-    // The old Worker's host registration and removal still run.
+    // The old Worker's host registration still runs.
     database.exec(`
       UPDATE remote_hosts SET device_public_key = 'key-b', auth_epoch = auth_epoch + 1, updated_at = 2
        WHERE host_id = 'host-1' AND owner_user_id = 'owner';
@@ -38,21 +41,48 @@ describe("server member limits migration", () => {
     ).toEqual({ device_public_key: "key-b", auth_epoch: 5 });
 
     const insert = database.prepare(
-      "INSERT INTO server_member_limits(server_id, member_limit, created_at, updated_at) VALUES (?, ?, ?, ?)",
+      "INSERT INTO server_member_limits(server_id, owner_user_id, member_limit, created_at, updated_at) VALUES (?, ?, ?, 3, 3)",
     );
-    insert.run("host-1", 40, 3, 3);
+    insert.run("host-1", "owner", 40);
     // A hosted server that has not published its host yet can have a limit too.
-    insert.run("hosted-1", 60, 3, 3);
-    expect(() => insert.run("host-1", 50, 4, 4)).toThrow();
-    expect(() => insert.run("host-2", 0, 4, 4)).toThrow();
+    insert.run("hosted-1", "owner", 60);
+    expect(() => insert.run("host-1", "owner", 50)).toThrow();
+    // A host stores at most 100 members, and a limit is a whole number.
+    for (const limit of [0, 101, 2.5]) expect(() => insert.run("host-2", "owner", limit)).toThrow();
+    expect(() => insert.run("host-2", "missing", 10)).toThrow();
 
-    // A host that the owner deletes and registers again keeps its limit.
+    // The query of RemoteControlPlane.#memberLimit.
+    const customLimit = (serverId: string) =>
+      database
+        .prepare(
+          `SELECT l.member_limit FROM server_member_limits l
+             LEFT JOIN remote_hosts h ON h.host_id = l.server_id AND h.owner_user_id = l.owner_user_id
+             LEFT JOIN hosted_servers hs ON hs.server_id = l.server_id AND hs.owner_user_id = l.owner_user_id
+            WHERE l.server_id = ? AND (h.host_id IS NOT NULL OR hs.server_id IS NOT NULL)`,
+        )
+        .get(serverId);
+    expect(customLimit("host-1")).toEqual({ member_limit: 40 });
+    expect(customLimit("hosted-1")).toEqual({ member_limit: 60 });
+
+    // A host that the owner deletes and registers again keeps its limit. Another account that
+    // registers the same ID gets nothing.
     database.exec("DELETE FROM remote_hosts WHERE host_id = 'host-1'");
-    expect(
-      database.prepare("SELECT server_id, member_limit FROM server_member_limits ORDER BY server_id").all(),
-    ).toEqual([
-      { server_id: "host-1", member_limit: 40 },
-      { server_id: "hosted-1", member_limit: 60 },
+    expect(customLimit("host-1")).toBeUndefined();
+    const register = database.prepare(
+      "INSERT INTO remote_hosts(host_id, owner_user_id, name, auth_epoch, created_at, updated_at) VALUES ('host-1', ?, 'Studio', 1, 4, 4)",
+    );
+    register.run("other");
+    expect(customLimit("host-1")).toBeUndefined();
+    database.exec("DELETE FROM remote_hosts WHERE host_id = 'host-1'");
+    register.run("owner");
+    expect(customLimit("host-1")).toEqual({ member_limit: 40 });
+
+    // The rows stop with their account.
+    insert.run("host-3", "other", 10);
+    database.exec("DELETE FROM users WHERE id = 'other'");
+    expect(database.prepare("SELECT server_id FROM server_member_limits ORDER BY server_id").all()).toEqual([
+      { server_id: "host-1" },
+      { server_id: "hosted-1" },
     ]);
     expect(database.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
     expect(database.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
@@ -63,4 +93,5 @@ const snapshot = (database: DatabaseSync) => ({
   users: database.prepare("SELECT * FROM users ORDER BY id").all(),
   hosts: database.prepare("SELECT * FROM remote_hosts ORDER BY host_id").all(),
   memberships: database.prepare("SELECT * FROM remote_memberships ORDER BY membership_id").all(),
+  hosted: database.prepare("SELECT * FROM hosted_servers ORDER BY server_id").all(),
 });

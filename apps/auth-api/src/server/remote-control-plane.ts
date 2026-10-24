@@ -2845,9 +2845,15 @@ export class RemoteControlPlane {
     hostId: string,
   ): Effect.fn.Return<number, RemoteFailure, RemoteDependencies> {
     const dependencies = yield* RemoteDependencies;
+    // Only the account that owns the server gets its custom limit, as with `getServerEntitlement`.
     const custom = yield* remoteCall(() =>
       dependencies.database
-        .prepare("SELECT member_limit FROM server_member_limits WHERE server_id = ?")
+        .prepare(
+          `SELECT l.member_limit FROM server_member_limits l
+             LEFT JOIN remote_hosts h ON h.host_id = l.server_id AND h.owner_user_id = l.owner_user_id
+             LEFT JOIN hosted_servers hs ON hs.server_id = l.server_id AND hs.owner_user_id = l.owner_user_id
+            WHERE l.server_id = ? AND (h.host_id IS NOT NULL OR hs.server_id IS NOT NULL)`,
+        )
         .bind(hostId)
         .first<{ member_limit: number }>(),
     );
