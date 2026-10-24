@@ -589,6 +589,11 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     return this.#store.activeServerId;
   }
 
+  /** The servers that a chat window shows. Their hosts keep sending chat events. */
+  setChatWindowServers(serverIds: ReadonlySet<string>): void {
+    this.#events.setChatWindowServers(serverIds);
+  }
+
   // What the host on the other end negotiated it can do. An IPC handler asks before calling a route
   // an older host does not serve, so this answers false until compatibility is known rather than
   // waiting for it -- a capability nobody has confirmed is one you cannot use yet.

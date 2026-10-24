@@ -89,8 +89,10 @@ export interface AppProps {
 export function AppProviders(props: ParentProps<AppProps>): JSX.Element {
   // A chat window starts with the saved drafts but does not save its own. It would write all the
   // drafts that it read at its start, over the drafts that the main window saved after that.
+  // It sends no typing state either: main sends typing to the main window's server, which can be
+  // another server than the chat window's.
   const stableConversation = createStableConversationState(
-    { onTypingChange: notifyTeamTyping },
+    { onTypingChange: props.chatWindow ? () => undefined : notifyTeamTyping },
     !props.chatWindow,
     readStoredComposerDrafts(),
   );

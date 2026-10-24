@@ -250,7 +250,9 @@ export function createMainWindowController({
   }
 
   function announceChatWindows(): void {
-    sendToRenderer(holder.current, IPC_ENDPOINTS.app.chatWindows, chatWindowTargets());
+    const targets = chatWindowTargets();
+    sendToRenderer(holder.current, IPC_ENDPOINTS.app.chatWindows, targets);
+    getServices()?.remoteServers.setChatWindowServers(new Set(targets.map((target) => target.serverId)));
   }
 
   function openChatWindow(target: ChatWindowTarget): void {

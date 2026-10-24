@@ -56,7 +56,7 @@ export interface ServersPort {
   >;
   servers: Pick<
     OpenBotDesktopApi["servers"],
-    | "getPresence"
+    | "getPresenceFor"
     | "join"
     | "list"
     | "onEvent"
