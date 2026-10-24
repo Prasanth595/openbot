@@ -30,6 +30,10 @@
 .channel-activity-name {
   color: var(--channel-activity-name-color, var(--openbot-text-muted));
 }
+/* In a narrow pane, long names end in an ellipsis before the short label wraps. */
+.channel-activity-content .agent-activity-label {
+  flex-shrink: 0;
+}
 
 /* Reserve space outside the transcript. Only the panel's padded lower edge sits behind the composer.
    The top edge is pulled over the transcript's own bottom padding, so messages pass behind the glass
