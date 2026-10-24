@@ -338,6 +338,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `host-update-v1` | Check for, download and restart into an app update; cancel a restart that waits | `hostAdmin` |
 | `host-timezone-v1` | Read and set the server timezone | `hostAdmin` |
 | `agent-memory-limit-v1` | Read and set how many memories each agent keeps | `hostAdmin` |
+| `prompt-cache-ttl-v1` | Read and set how long Claude keeps the prompt cache of the host's agents | `hostAdmin` |
 | `agent-access-v1` | Read and set the roles that give members access to agents (see [Roles](#roles)) | `hostAdmin` |
 | `discord-access-v1` | Read and set which Discord roles can use OpenBot in a Discord server; list its roles | `messaging` |
 | `events-v1` | Manage webhook routines, their secrets, and activity | `events` |
@@ -393,6 +394,14 @@ agent's memories (`app:agent-memory-limit`). A lower limit deletes no memories. 
 change the 8,192-byte budget of essential memories. Server settings → General → Agents is the only
 place that sets the limit, for this computer (`hostAdmin.setAgentMemoryLimit`, local handler) and for a
 joined server. App Settings does not show it, so that one name does not have two values.
+
+`prompt-cache-ttl-v1` reads and sets how long Claude keeps the prompt cache of the host's agents
+(`openbot-prompt-cache-ttl-v1.json`; `1h` or `5m`, default `1h`). With `1h` the host starts each
+Claude process with `ENABLE_PROMPT_CACHING_1H=1`. With `5m` it sets nothing, so Claude Code uses its
+own choice: 5 minutes with an API key, 1 hour on a subscription within its limits. A `promptCacheTtl`
+in the Claude settings or `CLAUDE_CODE_PROMPT_CACHE_TTL` on the host still wins. A change applies to
+the next Claude process, not to a running one; an idle thread starts a new process when it resumes.
+Server settings → General → Agents sets it for this computer and for a joined server.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until

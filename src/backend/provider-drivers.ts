@@ -2,7 +2,13 @@ import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import type { ClientSideConnection, InitializeResponse } from "@agentclientprotocol/sdk";
-import type { AgentAuthState, AgentModelOption, AgentProviderId } from "@openbot/contracts/ipc";
+import {
+  type AgentAuthState,
+  type AgentModelOption,
+  type AgentProviderId,
+  DEFAULT_PROMPT_CACHE_TTL,
+  type PromptCacheTtl,
+} from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { Effect } from "effect";
 import { AcpAgentClient, type AcpHistoryPersistence } from "./acp-client";
@@ -364,6 +370,11 @@ export interface ProviderClientContext {
    * custom agent is saved.
    */
   readonly customAgents?: CustomAgentSource;
+  /**
+   * How long this server asks Claude to keep the prompt cache, read at each spawn. Optional for the
+   * same reason as `reportMcpDrops`: without it the cache time is one hour.
+   */
+  readonly promptCacheTtl?: () => PromptCacheTtl;
 }
 
 /** The agent environment with the account's home folder after it, so the account folder wins. */
@@ -373,6 +384,22 @@ function withAccountEnvironment(
   const { agentEnvironment, accountEnvironment } = context;
   if (!accountEnvironment) return agentEnvironment;
   return (inherited) => ({ ...agentEnvironment?.(inherited), ...accountEnvironment });
+}
+
+/**
+ * Claude's agent environment with the prompt cache time of this server. With an API key the CLI
+ * caches the prompt for 5 minutes, and agent turns are often further apart, so each turn paid for
+ * the full context again. The CLI reads `ENABLE_PROMPT_CACHING_1H` last: a `promptCacheTtl` in the
+ * Claude settings or `CLAUDE_CODE_PROMPT_CACHE_TTL` still wins. `5m` leaves the CLI's own choice.
+ */
+function claudeAgentEnvironment(
+  context: ProviderClientContext,
+): (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>> {
+  const environment = withAccountEnvironment(context);
+  return (inherited) => ({
+    ...((context.promptCacheTtl?.() ?? DEFAULT_PROMPT_CACHE_TTL.ttl) === "1h" ? { ENABLE_PROMPT_CACHING_1H: "1" } : {}),
+    ...environment?.(inherited),
+  });
 }
 
 /** Nothing stored and no endpoint, for tests and for call sites that predate the credential store. */
@@ -611,7 +638,7 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         context.mcpToolRuntimes,
         context.mcpEndpoint,
         context.providerStateDirectory,
-        withAccountEnvironment(context),
+        claudeAgentEnvironment(context),
       ),
     authState: (account) => ({ kind: "claude", email: account?.email ?? null }),
     validateAccount: () => undefined,

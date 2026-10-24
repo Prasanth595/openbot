@@ -67,6 +67,7 @@ import {
   MCP_SIGN_IN_APP_CAPABILITY,
   MCP_SIGN_IN_CAPABILITY,
   ONEPASSWORD_CONNECTOR_CAPABILITY,
+  PROMPT_CACHE_TTL_CAPABILITY,
   PROVIDER_ACCOUNT_RELAY_CAPABILITY,
   PROVIDER_ACCOUNTS_CAPABILITY,
   PROVIDER_HOST_SIGN_IN_CAPABILITY,
@@ -204,6 +205,7 @@ import { routeMcpServers } from "./team-api/route-mcp";
 import { routeMcpSignIn } from "./team-api/route-mcp-sign-in";
 import { routeMcpSignInApp } from "./team-api/route-mcp-sign-in-app";
 import { routeOnePasswordConnector } from "./team-api/route-onepassword-connector";
+import { routePromptCacheTtl } from "./team-api/route-prompt-cache-ttl";
 import { routeProviderAccounts } from "./team-api/route-provider-accounts";
 import { routeProviderHostSignIn } from "./team-api/route-provider-host-sign-in";
 import { routeProviderUsageReset } from "./team-api/route-provider-usage-reset";
@@ -870,6 +872,7 @@ export class TeamApiServer {
       if ((await routeHostUpdate(context, this.#options.admin)) === "handled") return;
       if ((await routeHostTimezone(context, this.#options.admin)) === "handled") return;
       if ((await routeAgentMemoryLimit(context, this.#options.admin)) === "handled") return;
+      if ((await routePromptCacheTtl(context, this.#options.admin)) === "handled") return;
       if (
         (await routeAgentAccess(
           context,
@@ -1926,6 +1929,7 @@ export class TeamApiServer {
         if (capability === HOST_RELEASE_CAPABILITY) return this.#options.admin?.release !== undefined;
         if (capability === HOST_TIMEZONE_CAPABILITY) return this.#options.admin?.timezone !== undefined;
         if (capability === AGENT_MEMORY_LIMIT_CAPABILITY) return this.#options.admin?.memoryLimit !== undefined;
+        if (capability === PROMPT_CACHE_TTL_CAPABILITY) return this.#options.admin?.promptCacheTtl !== undefined;
         if (capability === AGENT_ACCESS_CAPABILITY) return this.#options.agentAccess !== undefined;
         if (capability === HOST_UPDATE_CAPABILITY || capability === HOST_MEMBER_UPDATE_CAPABILITY)
           return this.#options.admin?.update !== undefined;

@@ -12,6 +12,7 @@ import type { PeerCustomProviderChanges } from "../custom-provider-changes";
 import type { HostEventsApi } from "../host-events-api";
 import type { HostReleaseService } from "../host-release-service";
 import type { HostService } from "../host-service";
+import type { PromptCacheTtlPreferenceStore } from "../prompt-cache-ttl-preference-store";
 import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import type { RemoteWorkflowError } from "../remote-service-effects";
@@ -299,6 +300,8 @@ export interface TeamApiAdmin {
   timezone?: Pick<ServerTimezonePreferenceStore, "get" | "set">;
   /** `agent-memory-limit-v1`: how many memories each agent of this computer can keep. */
   memoryLimit?: AgentMemoryLimitSetting;
+  /** `prompt-cache-ttl-v1`: how long the provider keeps the prompt cache of this computer's agents. */
+  promptCacheTtl?: Pick<PromptCacheTtlPreferenceStore, "get" | "set">;
   /** `routine-results-v1`: the place where an agent routine sends its answers. */
   routineResults?: TeamApiRoutineResults;
 }

@@ -64,6 +64,7 @@ import { type ServerImportDetail, type ServerImportOptions, ServerImportPanel } 
 import { type McpPanelDetail, type McpPanelSignIn, ServerMcpPanel } from "./ServerMcpPanel";
 import { createServerMembersSection } from "./ServerMembersSection";
 import type { ServerMemoryLimitOptions } from "./ServerMemoryLimitSetting";
+import type { ServerPromptCacheTtlOptions } from "./ServerPromptCacheTtlSetting";
 import { createServerRolesSection, type ServerAgentAccessOptions } from "./ServerRolesSection";
 import { type ServerRoutineFeedOptions, ServerRoutineFeedPanel } from "./ServerRoutineFeedPanel";
 import type { ServerTimezoneOptions } from "./ServerTimezoneSetting";
@@ -198,6 +199,11 @@ export interface ServerSettingsModalProps {
    * the local server or a remote host with `agent-memory-limit-v1` that this member administers.
    */
   hostMemoryLimit?: ServerMemoryLimitOptions | undefined;
+  /**
+   * General shows how long Claude keeps the prompt cache only when a caller supplies this, and only
+   * for the local server or a remote host with `prompt-cache-ttl-v1` that this member administers.
+   */
+  hostPromptCacheTtl?: ServerPromptCacheTtlOptions | undefined;
   /**
    * The Roles section appears only when a caller supplies this, and only for the local server or a
    * remote host with `agent-access-v1` that this member administers.

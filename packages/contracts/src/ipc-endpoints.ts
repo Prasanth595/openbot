@@ -343,6 +343,7 @@ import type {
   OnePasswordConnectorStatus,
   OnePasswordHostConnectInput,
 } from "./ipc-onepassword-connector";
+import type { PromptCacheTtl, PromptCacheTtlSetting } from "./ipc-prompt-cache";
 import type {
   DetectedModelServer,
   DiscoverModelsInput,
@@ -1019,6 +1020,10 @@ export const IPC_ENDPOINTS = {
     // How many memories each agent of the server can keep, and the values its host permits.
     getAgentMemoryLimit: scopedQuery<HostAgentMemoryLimit, "required">()("host-admin:get-agent-memory-limit"),
     setAgentMemoryLimit: scopedRequest<number, HostAgentMemoryLimit, "required">()("host-admin:set-agent-memory-limit"),
+    getPromptCacheTtl: scopedQuery<PromptCacheTtlSetting, "required">()("host-admin:get-prompt-cache-ttl"),
+    setPromptCacheTtl: scopedRequest<PromptCacheTtl, PromptCacheTtlSetting, "required">()(
+      "host-admin:set-prompt-cache-ttl",
+    ),
     // The roles of the server and the level each gives for each agent. A member reads only `mine`.
     getAgentAccess: scopedQuery<AgentAccessSnapshot, "required">()("host-admin:get-agent-access"),
     setAgentAccess: scopedRequest<AgentAccessChange, AgentAccessSnapshot, "required">()("host-admin:set-agent-access"),

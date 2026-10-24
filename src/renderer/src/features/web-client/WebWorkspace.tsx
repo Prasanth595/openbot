@@ -48,6 +48,7 @@ import {
   getAgentAdminSettings,
   getHostAgentAccess,
   getHostAgentMemoryLimit,
+  getHostPromptCacheTtl,
   getHostReleaseStatus,
   getHostTimezone,
   getHostUpdateStatus,
@@ -55,6 +56,7 @@ import {
   listHostedSites,
   setHostAgentAccess,
   setHostAgentMemoryLimit,
+  setHostPromptCacheTtl,
   setHostTimezone,
   setHostUpdateSettings,
   startHostUpdate,
@@ -157,6 +159,7 @@ import {
   routineMadeThisSession,
 } from "../servers/hosted-server-upsell-controller";
 import type { HostMemoryLimitCalls } from "../servers/ServerMemoryLimitSetting";
+import type { HostPromptCacheTtlCalls } from "../servers/ServerPromptCacheTtlSetting";
 import type { HostAgentAccessCalls } from "../servers/ServerRolesSection";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
@@ -967,6 +970,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       runTeamEffect(
         setHostAgentMemoryLimit(hostRequest(serverId), limit).pipe(Effect.mapError((error) => error.cause)),
       ),
+  };
+  const hostPromptCacheTtlCalls: HostPromptCacheTtlCalls = {
+    getPromptCacheTtl: async (serverId) =>
+      runTeamEffect(getHostPromptCacheTtl(hostRequest(serverId)).pipe(Effect.mapError((error) => error.cause))),
+    setPromptCacheTtl: async (ttl, serverId) =>
+      runTeamEffect(setHostPromptCacheTtl(hostRequest(serverId), ttl).pipe(Effect.mapError((error) => error.cause))),
   };
   const hostAgentAccessCalls: HostAgentAccessCalls = {
     getAgentAccess: async (serverId) =>
@@ -1972,6 +1981,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       hostUpdate={{ calls: hostUpdateCalls }}
                       hostTimezone={{ calls: hostTimezoneCalls }}
                       hostMemoryLimit={{ calls: hostMemoryLimitCalls }}
+                      hostPromptCacheTtl={{ calls: hostPromptCacheTtlCalls }}
                       agentAccess={{ calls: hostAgentAccessCalls, listAgents: () => workspace.runtime.listAgents() }}
                       browserProfiles={browserProfileSettings()}
                       // Any member imports into a host with `agent-import-v1`.

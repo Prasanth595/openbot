@@ -62,6 +62,7 @@ import {
   DEFAULT_APPROVAL_AUTOMATION_PREFERENCE,
   DEFAULT_BUSY_MESSAGE_MODE,
   DEFAULT_DYNAMIC_ISLAND_PREFERENCE,
+  DEFAULT_PROMPT_CACHE_TTL,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   DEFAULT_PROVIDER_DETECTION_SETTINGS,
   DEFAULT_REMOTE_NETWORK_ROUTE,
@@ -79,6 +80,7 @@ import {
   hostAgentMemoryLimit,
   isAgentMemoryLimit,
   isAgentSummary,
+  isPromptCacheTtl,
   isReleasedRoutineSchedule,
   type MacPermissionId,
   nextBrowserProfileHue,
@@ -87,6 +89,7 @@ import {
   type OpenBotDesktopApi,
   type OpenSharedFileInput,
   type OpenWorkspaceFileInput,
+  type PromptCacheTtlSetting,
   type ProviderAccountStatus,
   type ProviderDetectionSettings,
   parseAgentAccessChange,
@@ -314,6 +317,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let busyMessageMode: BusyMessageModePreference = { mode: DEFAULT_BUSY_MESSAGE_MODE };
   let agentDefaults: AgentDefaults = { ...DEFAULT_AGENT_DEFAULTS };
   let agentMemoryLimit: AgentMemoryLimitPreference = { limit: DEFAULT_AGENT_MEMORY_LIMIT };
+  let promptCacheTtl: PromptCacheTtlSetting = { ...DEFAULT_PROMPT_CACHE_TTL };
   let agentAccess: AgentAccessChange = { revision: 0, everyone: {}, roles: [] };
   const agentMemoryLimitListeners = new Set<(preference: AgentMemoryLimitPreference) => void>();
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
@@ -2619,6 +2623,13 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         agentMemoryLimit = { limit };
         for (const listener of agentMemoryLimitListeners) listener(clone(agentMemoryLimit));
         return hostAgentMemoryLimit(agentMemoryLimit);
+      },
+      // Preview has one host, so every server shares one cache time.
+      getPromptCacheTtl: async () => clone(promptCacheTtl),
+      setPromptCacheTtl: async (ttl) => {
+        if (!isPromptCacheTtl(ttl)) throw new Error("Prompt cache time is required.");
+        promptCacheTtl = { ttl };
+        return clone(promptCacheTtl);
       },
       // Preview has one host, and its user owns it, so `mine` gives every agent.
       getAgentAccess: async () => ({

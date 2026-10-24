@@ -229,6 +229,7 @@ import { MessagingCredentialStore } from "./messaging-credential-store";
 import { NotificationPreferenceStore } from "./notification-preference-store";
 import { OnePasswordConnectorService } from "./onepassword-connector-service";
 import { OnePasswordConnectorStore } from "./onepassword-connector-store";
+import { PromptCacheTtlPreferenceStore } from "./prompt-cache-ttl-preference-store";
 import { ProviderAccountsHost } from "./provider-accounts-host";
 import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
@@ -329,6 +330,7 @@ const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
 const AGENT_DEFAULTS_PREFERENCE_FILE = "openbot-agent-defaults-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
+const PROMPT_CACHE_TTL_PREFERENCE_FILE = "openbot-prompt-cache-ttl-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
 const REMOTE_NETWORK_ROUTE_PREFERENCE_FILE = "openbot-remote-network-route-v1.json";
 const APP_BEHAVIOR_PREFERENCE_FILE = "openbot-app-behavior-preference-v1.json";
@@ -526,6 +528,7 @@ export interface ApplicationServices {
   agentMemoryLimit: AgentMemoryLimitSetting;
   agentAccess: AgentAccessStore;
   serverTimezone: ServerTimezonePreferenceStore;
+  promptCacheTtl: PromptCacheTtlPreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteNetworkRoute: RemoteNetworkRoutePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
@@ -1096,6 +1099,10 @@ export async function createApplicationServices({
     join(app.getPath("userData"), SERVER_TIMEZONE_PREFERENCE_FILE),
   );
   await runCauseEffect(serverTimezone.load());
+  const promptCacheTtl = new PromptCacheTtlPreferenceStore(
+    join(app.getPath("userData"), PROMPT_CACHE_TTL_PREFERENCE_FILE),
+  );
+  await runCauseEffect(promptCacheTtl.load());
   const remoteSessionReuse = createRemoteSessionReusePreferenceStore(
     join(app.getPath("userData"), REMOTE_SESSION_REUSE_PREFERENCE_FILE),
   );
@@ -1580,6 +1587,8 @@ export async function createApplicationServices({
     developmentDefaults: appVariant === "dev",
     credentials: {
       apiKey: (provider) => providerCredentials.get(provider),
+      // Read at each Claude spawn, so a change from Server settings applies to the next process.
+      promptCacheTtl: () => promptCacheTtl.get().ttl,
       // `configs()`, not `list()`: this is the one path the API keys travel, and it ends at the
       // spawned provider process. The IPC handlers are given `list()`.
       customProviders: () => customProviders.configs(),
@@ -2159,6 +2168,7 @@ export async function createApplicationServices({
       },
       timezone: serverTimezone,
       memoryLimit: agentMemoryLimitSetting,
+      promptCacheTtl,
       routineResults: routineResultRuntime,
     },
     // The host's Team API routes share the IPC handlers' runtime preparation: a first server
@@ -2833,6 +2843,7 @@ export async function createApplicationServices({
     agentMemoryLimit: agentMemoryLimitSetting,
     agentAccess,
     serverTimezone,
+    promptCacheTtl,
     remoteSessionReuse,
     remoteNetworkRoute,
     remoteSessionCache,

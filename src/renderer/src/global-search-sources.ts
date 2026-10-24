@@ -1,4 +1,4 @@
-import { BookMarked, Bot, CalendarClock, Hash, Server, Store, UsersRound } from "@openbot/ui";
+import { BookMarked, Bot, CalendarClock, Clock3, Hash, Server, Store, UsersRound } from "@openbot/ui";
 import type {
   GlobalSearchAction,
   GlobalSearchFile,
@@ -190,6 +190,19 @@ export function useGlobalSearchSources(open: () => boolean) {
             detail: server.name,
             group: "settings",
             icon: BookMarked,
+            run: () => openServerSettings(server.id, globalSearchOpener(), "general"),
+          });
+        }
+        if (
+          serverCanAdminister(server, "prompt-cache-ttl-v1") &&
+          (server.kind === "local" || server.state === "online")
+        ) {
+          list.push({
+            id: "server:prompt-cache-ttl",
+            label: t("server.settings.promptCacheTtl"),
+            detail: server.name,
+            group: "settings",
+            icon: Clock3,
             run: () => openServerSettings(server.id, globalSearchOpener(), "general"),
           });
         }

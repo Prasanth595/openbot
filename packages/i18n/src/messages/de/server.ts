@@ -298,6 +298,12 @@ export const messages = {
   "server.settings.memoryLimit": "Erinnerungen pro Agent",
   "server.settings.memoryLimitDescription": "Wie viele Erinnerungen jeder Agent auf diesem Server behalten kann.",
   "server.settings.memoryLimitLoadFailed": "Das Erinnerungslimit dieses Servers konnte nicht geladen werden.",
+  "server.settings.promptCacheTtl": "Claude-Prompt-Cache",
+  "server.settings.promptCacheTtlDescription":
+    "Wie lange Claude den Kontext eines Agenten zwischen den Zügen im Cache behält.",
+  "server.settings.promptCacheTtlHour": "1 Stunde",
+  "server.settings.promptCacheTtlMinutes": "5 Minuten",
+  "server.settings.promptCacheTtlLoadFailed": "Die Prompt-Cache-Dauer dieses Servers konnte nicht geladen werden.",
   "server.settings.remoteOnline": "Der Host ist online. Sein Eigentümer steuert die Veröffentlichung.",
   "server.settings.remoteOffline": "Der Host ist offline. Sein Eigentümer steuert die Veröffentlichung.",
   "server.settings.reachable": "Online erreichbar. Nur eingeladene Personen können sich anmelden.",
