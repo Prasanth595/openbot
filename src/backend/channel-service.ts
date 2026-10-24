@@ -26,7 +26,12 @@ import { type DynamicRecord, isDynamicRecord, isString } from "@openbot/contract
 import { isFixedSourceText, matchingSourceKeys, sourceText } from "@openbot/i18n/source";
 import { Deferred, Effect, Exit, Fiber, Result, Schema, Scope } from "effect";
 import { type ChannelOperationError, channelFailure, channelResult, channelSync } from "./channel-effects";
-import { ChannelHistory, type ChannelTextModel, isMemberThinking } from "./channel-history";
+import {
+  ChannelHistory,
+  type ChannelTextModel,
+  type DeliveredChannelContext,
+  isMemberThinking,
+} from "./channel-history";
 import {
   CHANNEL_MANAGEMENT_TOOLS,
   type ChannelChangeNote,
@@ -39,7 +44,7 @@ import {
   PERSON_REQUEST_REQUIRED,
 } from "./channel-management";
 import { ChannelMemoryStore } from "./channel-memory-store";
-import { type ChannelAssignment, ChannelStore } from "./channel-store";
+import { type ChannelAssignment, type ChannelContext, ChannelStore } from "./channel-store";
 import type { DeliveryContext, MailboxStore } from "./mailbox-store";
 import type { OpenBotDatabase } from "./openbot-database";
 import { extractJsonObject, StructuredOutputError } from "./structured-output";
@@ -157,6 +162,8 @@ export class ChannelService {
   readonly #assignmentTerminalWaiters = new Map<string, Set<() => void>>();
   /** The active assignments last seen per channel, so turn traffic reports no new hold. */
   readonly #activeAssignments = new Map<string, string>();
+  /** The provider session that each prepared packet continues, by delivery, when it has no full history. */
+  readonly #continuedSessions = new Map<string, string>();
 
   constructor(
     database: OpenBotDatabase,
@@ -1639,12 +1646,16 @@ export class ChannelService {
     const agent = this.hooks.agents().find((item) => item.id === assignment.agentId);
     if (!agent) return yield* channelFailure(new Error(sourceText("error.backend.channelAssigneeUnavailable")));
     const context = yield* channelSync(() => this.store.context(channel.id, agent.id));
+    const delivered = this.#deliveredContext(context, agent);
     const history = yield* this.#history.prepare(
       task,
       agent,
       this.hooks.agents().find((item) => item.id === channel.leadAgentId),
+      delivered,
       this.hooks.contextCharacters?.(agent.id, context.threadId),
     );
+    if (delivered) this.#continuedSessions.set(delivery.delivery.id, delivered.sessionId);
+    else this.#continuedSessions.delete(delivery.delivery.id);
     const current = (yield* channelSync(() => this.store.tasks(channel.id))).find((item) => item.id === task.id);
     if (
       !current ||
@@ -1663,6 +1674,30 @@ export class ChannelService {
     return { threadId: context.threadId, text: history.text };
   }).bind(this);
 
+  /**
+   * What the member's active provider session already read of the channel, or null when the next
+   * packet must be complete: the session is new, another one, or compacted since (cursor zero).
+   */
+  #deliveredContext(
+    context: ChannelContext,
+    agent: AgentSummary,
+  ): (DeliveredChannelContext & { sessionId: string }) | null {
+    if (!context.sessionId || context.throughSequence <= 0) return null;
+    const session = this.store.database.activeProviderSession(context.threadId, agent.provider);
+    return session?.externalSessionId === context.sessionId
+      ? { sessionId: context.sessionId, throughSequence: context.throughSequence }
+      : null;
+  }
+
+  /** The provider compacted this session; the next packet of each channel in it is complete. */
+  contextCompacted(sessionId: string): void {
+    try {
+      this.store.resetContextsForSession(sessionId);
+    } catch (error) {
+      this.hooks.error(error);
+    }
+  }
+
   accepted(deliveryId: string, sessionId: string, turnId: string): Effect.Effect<void, ChannelOperationError> {
     return Effect.gen({ self: this }, function* () {
       const assignment = yield* channelSync(() => this.store.assignmentForDelivery(deliveryId));
@@ -1671,15 +1706,22 @@ export class ChannelService {
         (item) => item.id === assignment.taskId,
       );
       if (!task) return;
-      yield* channelSync(() =>
-        this.store.acceptContext(
-          assignment.channelId,
-          assignment.agentId,
-          sessionId,
-          assignment.throughSequence,
-          assignment.summaryVersion,
-        ),
-      );
+      // The packet gave only the messages after the cursor of another session, so this session did
+      // not read the earlier ones. The cursor stays on the other session, and the next packet is
+      // complete. The entry stays too: the turn start can report this acceptance a second time.
+      const continued = this.#continuedSessions.get(deliveryId);
+      if (continued === undefined || continued === sessionId) {
+        this.#continuedSessions.delete(deliveryId);
+        yield* channelSync(() =>
+          this.store.acceptContext(
+            assignment.channelId,
+            assignment.agentId,
+            sessionId,
+            assignment.throughSequence,
+            assignment.summaryVersion,
+          ),
+        );
+      }
       yield* channelSync(() =>
         this.store.update(this.store.get(assignment.channelId), {
           assignments: [{ ...assignment, state: "running", turnId }],
@@ -2212,7 +2254,8 @@ export class ChannelService {
     const turnId = assignment.turnId;
     const agent = this.hooks.agents().find((item) => item.id === assignment.agentId);
     if (!agent) return false;
-    const threadId = (yield* channelSync(() => this.store.context(channelId, agent.id))).threadId;
+    const context = yield* channelSync(() => this.store.context(channelId, agent.id));
+    const threadId = context.threadId;
     let history: Effect.Success<ReturnType<ChannelHistory["prepare"]>>;
     try {
       history = channelResult(
@@ -2221,6 +2264,7 @@ export class ChannelService {
             task,
             agent,
             this.hooks.agents().find((item) => item.id === this.store.get(channelId).leadAgentId),
+            this.#deliveredContext(context, agent),
             this.hooks.contextCharacters?.(agent.id, threadId),
           ),
         ),

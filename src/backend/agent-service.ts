@@ -752,6 +752,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
       scheduleDrain: (agentId) => this.#drain.scheduleDrain(agentId),
       rotateSession: (agentId, client, threadId) => this.#threads.rotateProviderSession(agentId, client, threadId),
+      compacted: (threadId) => this.channels.contextCompacted(threadId),
     });
     this.#attention = new AttentionRegistry({
       conversation: this.#conversation,

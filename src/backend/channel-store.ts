@@ -597,9 +597,10 @@ export class ChannelStore {
     sessionId: string,
     throughSequence: number,
     summaryVersion: number,
+    operationId = `channel-context-accepted:${channelId}:${agentId}:${sessionId}:${throughSequence}:${summaryVersion}`,
   ): void {
     this.database.dispatch(
-      `channel-context-accepted:${channelId}:${agentId}:${sessionId}:${throughSequence}:${summaryVersion}`,
+      operationId,
       [
         {
           aggregateType: "channel",
@@ -614,6 +615,30 @@ export class ChannelStore {
         ).run(sessionId, throughSequence, summaryVersion, channelId, agentId);
       },
     );
+  }
+
+  /**
+   * The provider compacted this session, so its summary can leave out channel messages that it
+   * read. A cursor at zero makes the next packet complete. It is the acceptance event, not a new
+   * event type, so an earlier version still rebuilds the channel.
+   */
+  resetContextsForSession(sessionId: string): void {
+    const rows = databaseRows(
+      this.database.connection
+        .prepare(
+          "SELECT channel_id, agent_id FROM projection_channel_contexts WHERE session_id = ? AND through_sequence > 0",
+        )
+        .all(sessionId),
+    );
+    for (const row of rows)
+      this.acceptContext(
+        requiredStringColumn(row, "channel_id"),
+        requiredStringColumn(row, "agent_id"),
+        sessionId,
+        0,
+        0,
+        `channel-context-reset:${randomUUID()}`,
+      );
   }
 
   summary(channelId: string): ChannelHistorySummary {
