@@ -21,6 +21,12 @@ export const messages = {
   "chat.steps.hide": "Ukryj kroki",
   "chat.steps.list": "Kroki agenta",
   "chat.steps.count": { one: "{count} krok", few: "{count} kroki", many: "{count} kroków", other: "{count} kroku" },
+  "chat.steps.failed": {
+    one: "{count} nieudany",
+    few: "{count} nieudane",
+    many: "{count} nieudanych",
+    other: "{count} nieudanego",
+  },
   "chat.steps.memory": "Wspomnienia: {changes}",
   "chat.steps.memorySaved": {
     one: "{count} zapisane",

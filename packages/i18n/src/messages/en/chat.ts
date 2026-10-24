@@ -20,6 +20,7 @@ export const messages = defineMessages("chat", {
   "chat.steps.hide": "Hide steps",
   "chat.steps.list": "Agent steps",
   "chat.steps.count": { one: "{count} step", other: "{count} steps" },
+  "chat.steps.failed": { one: "{count} failed", other: "{count} failed" },
   "chat.steps.memory": "Memory: {changes}",
   "chat.steps.memorySaved": { one: "{count} saved", other: "{count} saved" },
   "chat.steps.memoryUpdated": { one: "{count} updated", other: "{count} updated" },

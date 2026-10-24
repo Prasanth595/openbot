@@ -21,6 +21,7 @@ export const messages = {
   "chat.steps.hide": "Ocultar pasos",
   "chat.steps.list": "Pasos del agente",
   "chat.steps.count": { one: "{count} paso", other: "{count} pasos" },
+  "chat.steps.failed": { one: "{count} fallido", other: "{count} fallidos" },
   "chat.steps.memory": "Recuerdos: {changes}",
   "chat.steps.memorySaved": { one: "{count} guardado", other: "{count} guardados" },
   "chat.steps.memoryUpdated": { one: "{count} actualizado", other: "{count} actualizados" },

@@ -21,6 +21,12 @@ export const messages = {
   "chat.steps.hide": "Скрыть шаги",
   "chat.steps.list": "Шаги агента",
   "chat.steps.count": { one: "{count} шаг", few: "{count} шага", many: "{count} шагов", other: "{count} шага" },
+  "chat.steps.failed": {
+    one: "{count} с ошибкой",
+    few: "{count} с ошибкой",
+    many: "{count} с ошибкой",
+    other: "{count} с ошибкой",
+  },
   "chat.steps.memory": "Память: {changes}",
   "chat.steps.memorySaved": {
     one: "сохранено {count}",

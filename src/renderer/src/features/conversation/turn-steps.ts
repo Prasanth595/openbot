@@ -1,6 +1,6 @@
 import type { ConversationTurnTrace } from "@openbot/contracts/ipc";
 import type { AgentMessage } from "@openbot/ui/data";
-import type { AgentStep } from "@openbot/ui/features/conversation/AgentSteps";
+import type { AgentStep, AgentStepsFacts } from "@openbot/ui/features/conversation/AgentSteps";
 import { silentAgentAnswer } from "@openbot/ui/features/conversation/new-message-tally";
 import type { TraceSpan } from "@openbot/ui/features/conversation/TraceWaterfall";
 import { createMemo } from "solid-js";
@@ -262,6 +262,34 @@ export function createTurnSteps(deps: {
     return steps;
   }
 
+  /**
+   * The start and end of a turn, with the parts that its trace is made of. The host's start is the
+   * run's start; a message of the turn can be older, because it waited in the queue.
+   */
+  function turnBounds(turnId: string) {
+    const { subagents, answerTimes, startTimes, traces } = sources();
+    const timed = timedSteps(turnId);
+    const stored = traces.get(turnId);
+    const answerAt = Date.parse(answerTimes.get(turnId) ?? "");
+    const startAt = Date.parse(startTimes.get(turnId) ?? "");
+    const ran = (subagents.get(turnId)?.subagents ?? []).map((subagent) => ({
+      subagent,
+      start: Date.parse(subagent.startedAt),
+      end: subagent.endedAt === null ? null : Date.parse(subagent.endedAt),
+    }));
+    const starts = [startAt, ...timed.map(({ at }) => at), ...ran.map(({ start }) => start)].filter(Number.isFinite);
+    if (starts.length === 0) return undefined;
+    const lastStepAt = timed.at(-1)?.at ?? Number.NaN;
+    const ends = [answerAt, lastStepAt, ...ran.map(({ end }) => end ?? Number.NaN)].filter(Number.isFinite);
+    const storedStart = Date.parse(stored?.startedAt ?? "");
+    const storedEnd = Date.parse(stored?.endedAt ?? "");
+    const turnStart = Number.isFinite(storedStart)
+      ? Math.min(storedStart, ...starts.filter((at) => at !== startAt))
+      : Math.min(...starts);
+    const turnEnd = Math.max(turnStart, ...ends, ...(Number.isFinite(storedEnd) ? [storedEnd] : []));
+    return { timed, stored, ran, answerAt, turnStart, turnEnd };
+  }
+
   /** The finished turn whose steps show above this message: the first answer of the turn. */
   const turnOfAnswer = createMemo(() => {
     const active = deps.activeTurnId();
@@ -294,6 +322,15 @@ export function createTurnSteps(deps: {
       const steps = stepsOf(turnId);
       return steps.length > 0 ? steps : undefined;
     },
+    /** The time that the turn of an answer took, and how many of its steps and subagents failed. */
+    factsAbove(messageId: string | undefined): AgentStepsFacts | undefined {
+      const turnId = messageId === undefined ? undefined : turnOfAnswer().get(messageId);
+      const turn = turnId === undefined ? undefined : turnBounds(turnId);
+      if (!turn) return undefined;
+      const failedSteps = turn.stored?.steps.filter((step) => step.failed === true).length ?? 0;
+      const failedSubagents = turn.ran.filter(({ subagent }) => subagent.status === "failed").length;
+      return { durationMs: turn.turnEnd - turn.turnStart, failed: failedSteps + failedSubagents };
+    },
     /**
      * The trace of the turn of an answer: the turn, then each of its steps, and each subagent. The
      * host stores the times of each step and the usage of a turn that ends. A turn from before that
@@ -303,28 +340,10 @@ export function createTurnSteps(deps: {
      */
     traceAbove(messageId: string | undefined, labels: TraceLabels): TraceSpan[] {
       const turnId = messageId === undefined ? undefined : turnOfAnswer().get(messageId);
-      if (!turnId) return [];
-      const { subagents, answerTimes, startTimes, traces, sent, replies } = sources();
-      const timed = timedSteps(turnId);
-      const stored = traces.get(turnId);
-      const answerAt = Date.parse(answerTimes.get(turnId) ?? "");
-      const startAt = Date.parse(startTimes.get(turnId) ?? "");
-      const ran = (subagents.get(turnId)?.subagents ?? []).map((subagent) => ({
-        subagent,
-        start: Date.parse(subagent.startedAt),
-        end: subagent.endedAt === null ? null : Date.parse(subagent.endedAt),
-      }));
-      const starts = [startAt, ...timed.map(({ at }) => at), ...ran.map(({ start }) => start)].filter(Number.isFinite);
-      if (starts.length === 0) return [];
-      const lastStepAt = timed.at(-1)?.at ?? Number.NaN;
-      const ends = [answerAt, lastStepAt, ...ran.map(({ end }) => end ?? Number.NaN)].filter(Number.isFinite);
-      const storedStart = Date.parse(stored?.startedAt ?? "");
-      const storedEnd = Date.parse(stored?.endedAt ?? "");
-      // The host's start is the run's start. A message of the turn can be older: it waited in the queue.
-      const turnStart = Number.isFinite(storedStart)
-        ? Math.min(storedStart, ...starts.filter((at) => at !== startAt))
-        : Math.min(...starts);
-      const turnEnd = Math.max(turnStart, ...ends, ...(Number.isFinite(storedEnd) ? [storedEnd] : []));
+      const turn = turnId === undefined ? undefined : turnBounds(turnId);
+      if (!turnId || !turn) return [];
+      const { sent, replies } = sources();
+      const { timed, stored, ran, answerAt, turnStart, turnEnd } = turn;
       const spans: TraceSpan[] = [
         {
           id: "turn",

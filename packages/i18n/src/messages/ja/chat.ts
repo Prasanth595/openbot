@@ -21,6 +21,7 @@ export const messages = {
   "chat.steps.hide": "ステップを隠す",
   "chat.steps.list": "エージェントのステップ",
   "chat.steps.count": { other: "{count} ステップ" },
+  "chat.steps.failed": { other: "{count} 件失敗" },
   "chat.steps.memory": "メモリー: {changes}",
   "chat.steps.memorySaved": { other: "{count} 件保存" },
   "chat.steps.memoryUpdated": { other: "{count} 件更新" },

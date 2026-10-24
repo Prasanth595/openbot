@@ -21,6 +21,7 @@ export const messages = {
   "chat.steps.hide": "단계 숨기기",
   "chat.steps.list": "에이전트 단계",
   "chat.steps.count": { other: "{count}단계" },
+  "chat.steps.failed": { other: "{count}개 실패" },
   "chat.steps.memory": "메모리: {changes}",
   "chat.steps.memorySaved": { other: "{count}개 저장" },
   "chat.steps.memoryUpdated": { other: "{count}개 업데이트" },

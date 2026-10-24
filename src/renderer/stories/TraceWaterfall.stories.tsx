@@ -283,7 +283,12 @@ const STEPS: AgentStep[] = TURN.filter((span) => span.parentId === "agent" && sp
 export const FromStepsRow: Story = {
   render: () => (
     <div style={{ width: "640px" }}>
-      <AgentStepsDisclosure steps={STEPS} defaultOpen={false} trace={{ spans: () => FINISHED, keyboard: "mac" }} />
+      <AgentStepsDisclosure
+        steps={STEPS}
+        defaultOpen={false}
+        trace={{ spans: () => FINISHED, keyboard: "mac" }}
+        facts={{ durationMs: TURN_LENGTH, failed: FINISHED.filter((span) => span.failed).length }}
+      />
     </div>
   ),
 };

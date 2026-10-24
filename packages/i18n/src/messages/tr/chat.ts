@@ -21,6 +21,7 @@ export const messages = {
   "chat.steps.hide": "Adımları gizle",
   "chat.steps.list": "Ajan adımları",
   "chat.steps.count": { one: "{count} adım", other: "{count} adım" },
+  "chat.steps.failed": { one: "{count} başarısız", other: "{count} başarısız" },
   "chat.steps.memory": "Bellek: {changes}",
   "chat.steps.memorySaved": { one: "{count} kaydedildi", other: "{count} kaydedildi" },
   "chat.steps.memoryUpdated": { one: "{count} güncellendi", other: "{count} güncellendi" },

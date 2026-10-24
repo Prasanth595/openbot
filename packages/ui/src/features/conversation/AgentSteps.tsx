@@ -2,10 +2,12 @@ import type { ConversationMemoryChange } from "@openbot/contracts/ipc";
 import { countConversationMemoryChanges } from "@openbot/contracts/ipc";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, createUniqueId, For, onSettled, Show } from "solid-js";
+import { Badge } from "../../badge";
 import { Button } from "../../button";
-import { Brain, ChevronDown, Puzzle, Sparkles } from "../../icons";
+import { Brain, ChevronRight, Puzzle, Sparkles } from "../../icons";
 import { type TextValue, useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
+import { useDuration } from "./Subagents";
 import { type TraceKeyboard, type TraceSpan, TraceWaterfallDialog } from "./TraceWaterfall";
 
 /**
@@ -155,17 +157,29 @@ export interface AgentStepsTrace {
   onSelectSpan?: (id: string) => void;
 }
 
+/** The facts of a finished turn that its steps row shows. */
+export interface AgentStepsFacts {
+  durationMs: number;
+  /** The steps and subagents that failed. */
+  failed: number;
+}
+
 /**
  * The steps of a finished turn, above its answer: a closed summary row that opens the list, or the
- * trace when the turn has one. The "Show agent steps" setting opens the list at first. An open list,
- * also one that a step picked in the trace opened, closes from the row.
+ * trace when the turn has one. The row looks like the header of the subagents above it. The "Show
+ * agent steps" setting opens the list at first. An open list, also one that a step picked in the
+ * trace opened, closes from the row.
  */
 export function AgentStepsDisclosure(props: {
   steps: readonly AgentStep[];
   defaultOpen: boolean;
   trace?: AgentStepsTrace | undefined;
+  facts?: AgentStepsFacts | undefined;
 }) {
   const text = useText();
+  const duration = useDuration();
+  /** Whole seconds, rounded as the trace rounds the turn, so that the row and the trace agree. */
+  const turnTime = (ms: number) => duration(Math.round(ms / 1_000) * 1_000);
   const panelId = createUniqueId();
   const [choice, setChoice] = createSignal<boolean>();
   // The time the trace opened: a finished turn does not move, so its "now" stays at that time.
@@ -221,11 +235,18 @@ export function AgentStepsDisclosure(props: {
         aria-haspopup={popup()}
         onClick={activate}
       >
-        <Sparkles class="agent-steps-header-icon" aria-hidden="true" />
         <span class="agent-steps-summary">{stepsSummary(props.steps, text)}</span>
-        <Show when={!opensTrace()}>
-          <ChevronDown class="agent-steps-chevron" aria-hidden="true" />
+        <Show when={props.facts}>
+          {(facts) => (
+            <>
+              <Show when={facts().failed > 0}>
+                <Badge class="agent-steps-failed">{text.t("chat.steps.failed", { count: facts().failed })}</Badge>
+              </Show>
+              <span class="agent-steps-duration">{turnTime(facts().durationMs)}</span>
+            </>
+          )}
         </Show>
+        <ChevronRight class="agent-steps-chevron" aria-hidden="true" />
       </Button>
       <Show when={traceUsed() && props.trace}>
         {(trace) => {
