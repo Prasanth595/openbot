@@ -47,6 +47,9 @@ const config: KnipConfig = {
         // Each file in scripts/ is a command that package.json, CI or another script runs.
         "scripts/**/*.ts",
         "tools/**/*.ts",
+        // The prototype skill builds its stories on this helper. No story on main uses it, because
+        // prototype stories are deleted after the decision (.agents/skills/prototype/SKILL.md).
+        "src/renderer/stories/prototype-support.tsx",
       ],
       project: ["src/**/*.{ts,tsx,css}", "scripts/**/*.ts", "tools/**/*.ts"],
       ignoreDependencies: [
