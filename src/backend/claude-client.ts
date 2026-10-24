@@ -1396,8 +1396,13 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   ): void {
     const turn = runtime.activeTurn;
     if (!turn) return;
-    // A bridged call holds the tool's own arguments in `arguments`.
-    const toolInput = isRecord(input) && "name" in input && isRecord(input.arguments) ? input.arguments : input;
+    // A bridged call names the OpenBot tool and holds its own arguments in `arguments`.
+    const bridged = name === "mcp__openbot__tool_call" && isRecord(input) && input.name === "openbot.send_message";
+    const message = name === "mcp__openbot__send_message" ? input : bridged ? input.arguments : undefined;
+    const recipients =
+      isRecord(message) && Array.isArray(message.recipientAgentIds)
+        ? { recipientAgentIds: message.recipientAgentIds }
+        : null;
     this.emit("notification", {
       method: completed ? "item/completed" : "item/started",
       params: {
@@ -1422,9 +1427,9 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
           ...(name === "Bash" && isRecord(input) && typeof input.command === "string"
             ? { command: input.command.slice(0, INPUT_LIMITS.messageText) }
             : {}),
-          ...(name === "mcp__openbot__send_message" && isRecord(toolInput) && Array.isArray(toolInput.recipientAgentIds)
-            ? { arguments: { recipientAgentIds: toolInput.recipientAgentIds } }
-            : {}),
+          ...(recipients === null
+            ? {}
+            : { arguments: bridged ? { name: "openbot.send_message", arguments: recipients } : recipients }),
         },
       },
     });

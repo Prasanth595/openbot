@@ -320,7 +320,10 @@ export function createTurnSteps(deps: {
       const ends = [answerAt, lastStepAt, ...ran.map(({ end }) => end ?? Number.NaN)].filter(Number.isFinite);
       const storedStart = Date.parse(stored?.startedAt ?? "");
       const storedEnd = Date.parse(stored?.endedAt ?? "");
-      const turnStart = Number.isFinite(storedStart) ? Math.min(storedStart, ...starts) : Math.min(...starts);
+      // The host's start is the run's start. A message of the turn can be older: it waited in the queue.
+      const turnStart = Number.isFinite(storedStart)
+        ? Math.min(storedStart, ...starts.filter((at) => at !== startAt))
+        : Math.min(...starts);
       const turnEnd = Math.max(turnStart, ...ends, ...(Number.isFinite(storedEnd) ? [storedEnd] : []));
       const spans: TraceSpan[] = [
         {
@@ -340,6 +343,8 @@ export function createTurnSteps(deps: {
       else spans.push(...guessedSpans(timed, Number.isFinite(answerAt) ? answerAt : turnEnd, labels));
       for (const { subagent, start, end } of ran) {
         if (!Number.isFinite(start)) continue;
+        // A subagent with no end in a finished turn stopped when the app did: it ends with the turn.
+        const running = subagent.status === "running" && !stored;
         spans.push({
           id: `${SUBAGENT_SPAN_PREFIX}${subagent.id}`,
           parentId: "turn",
@@ -349,7 +354,7 @@ export function createTurnSteps(deps: {
           icon: "agent",
           failed: subagent.status === "failed",
           start,
-          end: end !== null && Number.isFinite(end) ? end : null,
+          end: end !== null && Number.isFinite(end) ? end : running ? null : turnEnd,
         });
       }
       for (const message of sent.get(turnId) ?? []) {

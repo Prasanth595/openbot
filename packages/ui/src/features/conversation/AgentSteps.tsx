@@ -1,7 +1,7 @@
 import type { ConversationMemoryChange } from "@openbot/contracts/ipc";
 import { countConversationMemoryChanges } from "@openbot/contracts/ipc";
 import type { JSX } from "@solidjs/web";
-import { createEffect, createSignal, createUniqueId, For, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createUniqueId, For, onSettled, Show } from "solid-js";
 import { Button } from "../../button";
 import { Brain, ChevronDown, Puzzle, Sparkles } from "../../icons";
 import { type TextValue, useText } from "../../text";
@@ -170,6 +170,8 @@ export function AgentStepsDisclosure(props: {
   const [choice, setChoice] = createSignal<boolean>();
   // The time the trace opened: a finished turn does not move, so its "now" stays at that time.
   const [traceOpenedAt, setTraceOpenedAt] = createSignal<number | null>(null);
+  // A long chat has a row for each turn, so a row builds its trace dialog when it first opens.
+  const [traceUsed, setTraceUsed] = createSignal(false);
   const open = () => choice() ?? props.defaultOpen;
   // The step that the user picked in the trace. A new object each time scrolls to it again.
   const [focus, setFocus] = createSignal<{ id: string } | null>(null);
@@ -201,6 +203,7 @@ export function AgentStepsDisclosure(props: {
   };
   const activate = () => {
     if (opensTrace()) {
+      setTraceUsed(true);
       setTraceOpenedAt(Date.now());
       return;
     }
@@ -224,20 +227,24 @@ export function AgentStepsDisclosure(props: {
           <ChevronDown class="agent-steps-chevron" aria-hidden="true" />
         </Show>
       </Button>
-      <Show when={props.trace}>
-        {(trace) => (
-          <TraceWaterfallDialog
-            open={traceOpenedAt() !== null}
-            onOpenChange={(next) => {
-              if (!next) setTraceOpenedAt(null);
-            }}
-            spans={trace().spans()}
-            now={traceOpenedAt() ?? 0}
-            keyboard={trace().keyboard}
-            canSelectSpan={canSelectSpan}
-            onSelectSpan={selectSpan}
-          />
-        )}
+      <Show when={traceUsed() && props.trace}>
+        {(trace) => {
+          // The waterfall reads its spans many times for each change; this builds them once.
+          const spans = createMemo(() => trace().spans());
+          return (
+            <TraceWaterfallDialog
+              open={traceOpenedAt() !== null}
+              onOpenChange={(next) => {
+                if (!next) setTraceOpenedAt(null);
+              }}
+              spans={spans()}
+              now={traceOpenedAt() ?? 0}
+              keyboard={trace().keyboard}
+              canSelectSpan={canSelectSpan}
+              onSelectSpan={selectSpan}
+            />
+          );
+        }}
       </Show>
       {/* A long chat has a row for each turn, so a closed row builds no list. */}
       <Show when={open()}>
