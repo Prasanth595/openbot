@@ -21,7 +21,7 @@ import {
 import { currentText } from "@openbot/ui/text";
 import type { VirtualItem } from "@tanstack/virtual-core";
 import { createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
-import { groupAgentMessageMarkers } from "../agent-message-timeline";
+import { groupAgentMessageMarkers, markOpenAgentMessages } from "../agent-message-timeline";
 import type { ConversationProps, ConversationTarget } from "../conversation-types";
 import {
   expandRoutineRunGroups,
@@ -94,6 +94,15 @@ export function createScrollStore(deps: ScrollStoreDeps) {
     const key = routineRunToggleKey(marker);
     setOpenRoutineRuns((open) => new Map(open).set(key, marker.expanded !== true));
   }
+  /* The exchange ids of the agent messages whose text shows under their marker. */
+  const [openAgentMessages, setOpenAgentMessages] = createSignal<ReadonlySet<string>>(new Set());
+  function toggleAgentMessage(messageId: string): void {
+    setOpenAgentMessages((open) => {
+      const next = new Set(open);
+      if (!next.delete(messageId)) next.add(messageId);
+      return next;
+    });
+  }
   /*
    * An open chat marks its messages read at once, so read state loses the first unread message.
    * The visit keeps it until the reader opens another chat. A newer unread message replaces it.
@@ -125,7 +134,7 @@ export function createScrollStore(deps: ScrollStoreDeps) {
       state?.agentId === deps.props.agent?.id && state?.threadId === deps.props.agent?.threadId
         ? state?.compaction?.startedAt
         : undefined;
-    const messages = drawnMessages();
+    const messages = markOpenAgentMessages(drawnMessages(), openAgentMessages());
     const boundary =
       startedAt === undefined
         ? -1
@@ -321,6 +330,7 @@ export function createScrollStore(deps: ScrollStoreDeps) {
     messageVirtualizer,
     timelineMessages,
     toggleRoutineRun,
+    toggleAgentMessage,
     timelineIndexById,
     unreadBoundaryMessageId,
     updateScrollFade,

@@ -871,6 +871,13 @@ button.chat-action-target:active,
   color: var(--openbot-text-primary);
 }
 
+/* The open text of an agent message reads as a chat message under its centred marker. */
+.chat-action-message-text {
+  align-self: stretch;
+  margin-block: var(--openbot-space-2);
+  text-align: start;
+}
+
 .chat-action-target-status-in-progress .ui-marker-icon {
   color: var(--openbot-accent);
 }

@@ -24,6 +24,7 @@ import { Dynamic } from "@solidjs/web";
 import { createSignal, createUniqueId, For, Show, untrack } from "solid-js";
 import { avatarHeadColor } from "../../bloub-avatar";
 import type {
+  AgentMessageMarkerModel,
   AgentProfile,
   ChatActionMarkerModel,
   ChatActionMarkerStatus,
@@ -45,7 +46,14 @@ interface ChatActionMarkerProps {
   onOpenHostedSite?: ((url: string) => void) | undefined;
   /** Opens or closes the messages of a run, or the runs of a group, whose marker sets `expanded`. */
   onToggleRoutineRun?: ((marker: RoutineRunToggleMarkerModel) => void) | undefined;
+  /** Opens or closes the text of an agent message whose marker sets `expanded`, by its `messageId`. */
+  onToggleAgentMessage?: ((messageId: string) => void) | undefined;
+  /** Draws the text of an open agent message under its marker, by its `messageId`. */
+  agentMessageText?: ((messageId: string) => JSX.Element) | undefined;
 }
+
+/** The parts of a marker that open the text of an agent message, for the markers in a group. */
+type AgentMessageTextProps = Pick<ChatActionMarkerProps, "onToggleAgentMessage" | "agentMessageText">;
 
 const STATUS_LABELS = {
   queued: "chat.marker.status.queued",
@@ -108,6 +116,8 @@ export function ChatActionMarker(props: ChatActionMarkerProps) {
                   onOpenRoutine={props.onOpenRoutine}
                   onOpenHostedSite={props.onOpenHostedSite}
                   onToggleRoutineRun={props.onToggleRoutineRun}
+                  onToggleAgentMessage={props.onToggleAgentMessage}
+                  agentMessageText={props.agentMessageText}
                 />
               )}
             </Show>
@@ -133,6 +143,8 @@ export function ChatActionMarker(props: ChatActionMarkerProps) {
           agents={props.agents}
           drawnMessageCount={drawnEntryCount}
           onSelectAgent={props.onSelectAgent}
+          onToggleAgentMessage={props.onToggleAgentMessage}
+          agentMessageText={props.agentMessageText}
         />
       )}
     </Show>
@@ -152,20 +164,22 @@ interface MarkerGroupToggle {
  * it, and the live text that announces an entry that joins the group. With `onToggle`, the host owns
  * the open state and draws the entries as rows under the group, so the group draws no list.
  */
-function MarkerGroup(props: {
-  class: string;
-  label: string;
-  listLabel: string;
-  entries: readonly { id: string; marker: SingleChatActionMarkerModel }[];
-  drawnCount: number;
-  agents: AgentProfile[];
-  routineAvailable?: boolean | undefined;
-  onSelectAgent: (agentId: string) => void;
-  onOpenRoutine?: ((routine: { routineId: string; name: string }) => void) | undefined;
-  expanded?: boolean | undefined;
-  onToggle?: (() => void) | undefined;
-  summary: (control: MarkerGroupToggle) => JSX.Element;
-}) {
+function MarkerGroup(
+  props: AgentMessageTextProps & {
+    class: string;
+    label: string;
+    listLabel: string;
+    entries: readonly { id: string; marker: SingleChatActionMarkerModel }[];
+    drawnCount: number;
+    agents: AgentProfile[];
+    routineAvailable?: boolean | undefined;
+    onSelectAgent: (agentId: string) => void;
+    onOpenRoutine?: ((routine: { routineId: string; name: string }) => void) | undefined;
+    expanded?: boolean | undefined;
+    onToggle?: (() => void) | undefined;
+    summary: (control: MarkerGroupToggle) => JSX.Element;
+  },
+) {
   const { t, sourceText } = useText();
   const [listExpanded, setListExpanded] = createSignal(false);
   const expanded = () => (props.onToggle ? props.expanded === true : listExpanded());
@@ -217,6 +231,8 @@ function MarkerGroup(props: {
                         routineAvailable={props.routineAvailable}
                         onSelectAgent={props.onSelectAgent}
                         onOpenRoutine={props.onOpenRoutine}
+                        onToggleAgentMessage={props.onToggleAgentMessage}
+                        agentMessageText={props.agentMessageText}
                       />
                     </li>
                   )}
@@ -239,12 +255,14 @@ function MarkerGroup(props: {
  * Consecutive messages to and from other agents, drawn as one row. The row names how many messages
  * and agents there are, and opens to show each message's own marker.
  */
-function AgentMessageGroupMarker(props: {
-  group: AgentMessageGroupMarkerModel;
-  agents: AgentProfile[];
-  drawnMessageCount: number;
-  onSelectAgent: (agentId: string) => void;
-}) {
+function AgentMessageGroupMarker(
+  props: AgentMessageTextProps & {
+    group: AgentMessageGroupMarkerModel;
+    agents: AgentProfile[];
+    drawnMessageCount: number;
+    onSelectAgent: (agentId: string) => void;
+  },
+) {
   const { t, format } = useText();
   const agentIds = () => [
     ...new Set(
@@ -271,6 +289,8 @@ function AgentMessageGroupMarker(props: {
       drawnCount={props.drawnMessageCount}
       agents={props.agents}
       onSelectAgent={props.onSelectAgent}
+      onToggleAgentMessage={props.onToggleAgentMessage}
+      agentMessageText={props.agentMessageText}
       summary={(control) => (
         <>
           <span class="chat-action-marker-label">{label()}</span>
@@ -409,6 +429,18 @@ function SingleChatActionMarker(
     const run = messagesRun();
     return (run ? run.expanded === true : historyMounted()) && (routineHistory()?.length ?? 0) > 0;
   };
+  // An agent message whose text the chat has opens it under the marker with its toggle.
+  const textMessage = () =>
+    props.marker.kind === "agent-message" &&
+    props.marker.expanded !== undefined &&
+    props.onToggleAgentMessage &&
+    props.agentMessageText
+      ? props.marker
+      : undefined;
+  const openTextMessage = () => {
+    const marker = textMessage();
+    return marker?.expanded === true ? marker : undefined;
+  };
   return (
     <Marker
       class={`chat-action-marker chat-action-marker-${props.marker.kind}`}
@@ -488,6 +520,15 @@ function SingleChatActionMarker(
               </Button>
             )}
           </Show>
+          <Show when={textMessage()}>
+            {(marker) => (
+              <AgentMessageTextToggle
+                marker={marker()}
+                agents={props.agents}
+                onToggle={() => props.onToggleAgentMessage?.(marker().messageId)}
+              />
+            )}
+          </Show>
           <Show when={!messagesRun() && (routineHistory()?.length ?? 0) > 0}>
             <Button
               variant="ghost"
@@ -523,9 +564,57 @@ function SingleChatActionMarker(
             />
           )}
         </Show>
+        <Show when={openTextMessage()}>
+          {(marker) => <div class="chat-action-message-text">{props.agentMessageText?.(marker().messageId)}</div>}
+        </Show>
       </div>
     </Marker>
   );
+}
+
+/** The chevron that opens the text of an agent message under its marker. */
+function AgentMessageTextToggle(props: {
+  marker: AgentMessageMarkerModel;
+  agents: AgentProfile[];
+  onToggle: () => void;
+}) {
+  const { t } = useText();
+  const expanded = () => props.marker.expanded === true;
+  // The agent on the other end: the sender of a message that arrived, or the recipients of one sent.
+  const name = () => {
+    if (props.marker.direction === "incoming") {
+      return agentName(props.agents, props.marker.sourceAgentId, t);
+    }
+    const recipients = props.marker.targetDeliveries;
+    if (recipients.length !== 1) return t("chat.marker.agentCount", { count: recipients.length });
+    return agentName(props.agents, recipients[0]?.agentId, t);
+  };
+  const label = () => {
+    if (props.marker.direction === "incoming") {
+      return t(expanded() ? "chat.marker.hideMessageFrom" : "chat.marker.showMessageFrom", { name: name() });
+    }
+    return t(expanded() ? "chat.marker.hideMessageTo" : "chat.marker.showMessageTo", { name: name() });
+  };
+  const expandedState = () => (expanded() ? "true" : "false");
+  const tap = () => (expanded() ? "close" : "open");
+  return (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      class="chat-action-history-toggle"
+      type="button"
+      aria-expanded={expandedState()}
+      aria-label={label()}
+      data-cuelume-tap={tap()}
+      onClick={() => props.onToggle()}
+    >
+      <ChevronDown aria-hidden="true" />
+    </Button>
+  );
+}
+
+function agentName(agents: AgentProfile[], agentId: string | undefined, t: AppTranslate): string {
+  return agents.find((agent) => agent.id === agentId)?.name ?? t("chat.marker.unavailableAgent");
 }
 
 function RoutineRunHistory(props: {

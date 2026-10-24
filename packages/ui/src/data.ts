@@ -76,6 +76,8 @@ export interface AgentMessageMarkerModel {
   replyToMessageId: string | null;
   /** The sender asked for no answer, so the marker names it as information rather than a request. */
   expectsReply: boolean;
+  /** Set when the chat has the text of the message: whether the text shows under the marker. */
+  expanded?: boolean;
 }
 
 export interface RoutineRunMarkerModel {

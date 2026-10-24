@@ -141,6 +141,7 @@ export function ConversationTimeline() {
     newMessageCount,
     timelineMessages,
     toggleRoutineRun,
+    toggleAgentMessage,
     timelineIndexById,
     unreadBoundaryMessageId,
     moveChatSearch,
@@ -298,6 +299,76 @@ export function ConversationTimeline() {
       name: (member ? teamMemberName(member) : sender.name.trim()) || t("chat.message.memberFallback"),
       avatarSeed: sender.id,
     };
+  };
+  /** The agent messages of the chat by their exchange id, so a marker finds its text and its request. */
+  const agentMessagesByExchangeId = createMemo(
+    () =>
+      new Map(
+        props.messages.flatMap((message) => (message.exchange ? [[message.exchange.messageId, message] as const] : [])),
+      ),
+  );
+  const exchangeAuthor = (message: AgentMessage): ChatMessageAuthor => {
+    const agentId = message.exchange?.senderAgentId;
+    const agent = props.agents.find((candidate) => candidate.id === agentId);
+    return { kind: "agent", name: agent?.name ?? t("chat.message.agentFallback"), agent, avatarSeed: agentId };
+  };
+  // The request of an agent message is another agent message, or a message of this chat.
+  const exchangeRequest = (replyToMessageId: string | null | undefined) =>
+    replyToMessageId
+      ? (agentMessagesByExchangeId().get(replyToMessageId) ??
+        props.messages.find((candidate) => candidate.id === replyToMessageId) ??
+        props.messageReferences?.[replyToMessageId])
+      : undefined;
+  const requestAuthorName = (request: AgentMessage): string | undefined => {
+    if (request.exchange) return exchangeAuthor(request).name;
+    const sender = otherSender(request);
+    if (sender) return memberAuthor(sender).name;
+    return request.author === "agent" ? props.agent?.name : undefined;
+  };
+  /*
+   * The text of an agent message opens under its marker as the sender's message, with a quote of the
+   * request it answers. Its attachments stay under the marker, so the row draws none.
+   */
+  const agentMessageText = (messageId: string) => {
+    const message = () => agentMessagesByExchangeId().get(messageId);
+    const request = () => exchangeRequest(message()?.exchange?.replyToMessageId);
+    const quoted = (): AgentMessage | undefined => {
+      const current = request();
+      return (
+        current && { id: current.id, author: current.author, body: current.body, time: current.time, kind: "text" }
+      );
+    };
+    const quotedAuthorName = () => {
+      const current = request();
+      return current && requestAuthorName(current);
+    };
+    return (
+      <Show when={message()}>
+        {(current) => (
+          <ChatMessageRow
+            message={{
+              id: current().id,
+              author: "agent",
+              body: current().body,
+              time: current().time,
+              ...(current().createdAt === undefined ? {} : { createdAt: current().createdAt }),
+              kind: "text",
+            }}
+            author={exchangeAuthor(current())}
+            showAuthor
+            showTime
+            agents={props.agents}
+            referencedMessage={quoted()}
+            referencedAuthorName={quotedAuthorName()}
+            onSelectAgent={props.onSelectAgent}
+            onOpenLink={(url) => void openExternalMessageUrl(url)}
+            onPreview={(attachment) => void previewAttachment(attachment)}
+            onAttachmentAction={attachmentAction}
+            onOpenQuote={openQuote}
+          />
+        )}
+      </Show>
+    );
   };
   // A run of one sender breaks where another person starts to write, and in a channel where another
   // agent starts to write.
@@ -718,6 +789,8 @@ export function ConversationTimeline() {
                                                 onOpenRoutine={openRoutineSettings}
                                                 onOpenHostedSite={(url) => void openExternalMessageUrl(url)}
                                                 onToggleRoutineRun={toggleRoutineRun}
+                                                onToggleAgentMessage={toggleAgentMessage}
+                                                agentMessageText={agentMessageText}
                                               />
                                             }
                                           >
