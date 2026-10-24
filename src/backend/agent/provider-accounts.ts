@@ -68,6 +68,8 @@ export interface ProviderAccountsHost {
   stopClient(client: AgentClient): Effect.Effect<void>;
   /** The running process of an agent on this account, if there is one. */
   agentClient(provider: AgentProviderId, accountId: string): AgentClient | null;
+  /** Whether an agent on this account runs a turn. */
+  isAccountBusy(provider: AgentProviderId, accountId: string): boolean;
   stopAgentClients(provider: AgentProviderId, accountId: string): Effect.Effect<void>;
   readUsage(client: AgentClient, model?: string): Effect.Effect<AccountUsage, ProviderAccountFailed>;
   /** The usage reset credits that the client's last usage reading counted; undefined for a provider with none. */
@@ -184,10 +186,16 @@ export class ProviderAccounts {
       if (!stored) return yield* accountFailure(sourceText("error.provider.accountNotFound", { provider: name }));
       account = stored;
     }
+    const command = support.signIn;
+    if (!added && "kind" in command) {
+      // The sign-out removes the token that the account's processes use.
+      if (this.#host.isAccountBusy(provider, account.id))
+        return yield* accountFailure(sourceText("error.provider.cliBusyReconnect", { provider: name }));
+      yield* this.#host.stopAgentClients(provider, account.id);
+    }
     yield* this.#interrupt(account.id);
     if (added) this.#added.add(account.id);
     this.#setState(account.id, { state: "connecting", message: null });
-    const command = support.signIn;
     const signIn = Effect.scoped(
       Effect.gen({ self: this }, function* () {
         if ("kind" in command) {

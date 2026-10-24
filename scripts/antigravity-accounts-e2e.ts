@@ -109,7 +109,8 @@ interface Report {
   oldRuntime?: { accounts: boolean; connectError: string };
   signIn?: { pageOpened: string[]; accountState: string | undefined; tokenInAccount: boolean };
   processes?: { firstAccountHasKey: boolean; accountProcesses: number; accountProcessesWithKey: number };
-  reconnect?: { logoutFirst: boolean; accountState: string | undefined };
+  busyReconnect?: { error: string; loggedOut: boolean; agentProcessKept: boolean };
+  reconnect?: { logoutFirst: boolean; agentProcessStopped: boolean; accountState: string | undefined };
   remove?: { folderLeft: boolean; rows: number };
 }
 
@@ -151,6 +152,9 @@ async function server(version: string): Promise<string> {
 const database = new OpenBotDatabase(join(root, "profile"));
 const agents = new AgentStore(join(root, "profile"), join(root, "home"), database);
 
+/** The agents that run a turn now. */
+const busyAgents = new Set<string>();
+
 function createRuntime(executable: string, accounts: ProviderAccountStore): ProviderRuntime {
   return new ProviderRuntime({
     offProviders: BUILT_IN_PROVIDER_DRIVERS.map((driver) => driver.id).filter((id) => id !== "antigravity"),
@@ -166,7 +170,7 @@ function createRuntime(executable: string, accounts: ProviderAccountStore): Prov
       onClientStopped: () => Effect.void,
       isStopping: () => false,
       isProviderBusy: () => false,
-      isAgentBusy: () => false,
+      isAgentBusy: (agentId) => busyAgents.has(agentId),
       isProviderAssigned: () => true,
       onAgentClientLost: () => Effect.void,
       sharedRoot: () => join(root, "shared"),
@@ -262,17 +266,42 @@ try {
     "an account process never authenticates with the key",
   );
 
-  // 4. A Reconnect signs the account out before it opens Google's page again.
+  // 4. A Reconnect signs the account out, so it waits while an agent on the account runs a turn.
+  await runCauseEffect(agents.initialize());
+  const created = await runCauseEffect(
+    agents.createAgent({ name: "Second", description: "", avatarSeed: "second", avatarHue: null }),
+  );
+  const agent = { ...created, provider: "antigravity" as const, providerAccountId: account.id };
+  await runCauseEffect(runtime.ensureAgentClient(agent));
+  assert.ok(runtime.runsOnOwnProcess(agent.id), "the agent runs on the account's own process");
   await rm(log, { force: true });
+  busyAgents.add(agent.id);
+  const busyExit = await Effect.runPromiseExit(
+    runtime.signInProviderAccountOnHost("antigravity", account.id, openPage),
+  );
+  busyAgents.delete(agent.id);
+  const busyError = Exit.isFailure(busyExit) ? Cause.squash(busyExit.cause) : null;
+  report.busyReconnect = {
+    error: busyError instanceof Error && busyError.cause instanceof Error ? busyError.cause.message : "",
+    loggedOut: (await entries()).some((entry) => entry.event === "logout"),
+    agentProcessKept: runtime.runsOnOwnProcess(agent.id),
+  };
+  assert.equal(report.busyReconnect.error, sourceText("error.provider.cliBusyReconnect", { provider: "Gemini" }));
+  assert.equal(report.busyReconnect.loggedOut, false);
+  assert.ok(report.busyReconnect.agentProcessKept);
+
+  // When no turn runs, it stops the agent's process, which kept the old token, and signs out first.
   await runCauseEffect(runtime.signInProviderAccountOnHost("antigravity", account.id, openPage));
   const reconnect = (await entries()).filter(
     (entry) => entry.home === accountHome && (entry.event === "logout" || entry.event === "authenticate"),
   );
   report.reconnect = {
     logoutFirst: reconnect[0]?.event === "logout" && reconnect[1]?.methodId === "oauth-personal",
+    agentProcessStopped: !runtime.runsOnOwnProcess(agent.id),
     accountState: accountRows(runtime)?.[1]?.state,
   };
   assert.ok(report.reconnect.logoutFirst);
+  assert.ok(report.reconnect.agentProcessStopped);
   assert.equal(report.reconnect.accountState, "connected");
   assert.equal(pageOpened.length, 2);
 

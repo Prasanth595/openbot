@@ -446,7 +446,8 @@ Gemini can hold more than one account: each account after the first gets `GEMINI
 own folder (`antigravityReadsGeminiHome` gates it), and `antigravityStatePaths` confines its process
 to that folder. The sandbox cannot create folders in a new account's home, so OpenBot makes them.
 The account sign-in is the same ACP `authenticate` call as the first account's; a Reconnect calls
-`logout` first. A saved Gemini API key belongs to the first account: an account process never gets
+`logout` first. So a Reconnect refuses while an agent on the account runs a turn, and it stops the
+account's idle agent processes, which keep the old token. A saved Gemini API key belongs to the first account: an account process never gets
 `GEMINI_API_KEY`. The server reports no email and the token file holds none, so OpenBot cannot see
 that two accounts are the same Google account. A joined server signs the account in through the
 live view, because `provider-account-relay-v1` names Codex and Claude only.

@@ -557,6 +557,13 @@ export class ProviderRuntime implements ProviderPort {
             [...this.#confined.values()].find(
               (confined) => confined.client.provider === provider && confined.accountId === accountId,
             )?.client ?? null,
+          isAccountBusy: (provider, accountId) =>
+            [...this.#confined].some(
+              ([agentId, confined]) =>
+                confined.client.provider === provider &&
+                confined.accountId === accountId &&
+                this.#hooks.isAgentBusy(agentId),
+            ),
           stopAgentClients: (provider, accountId) =>
             Effect.forEach(
               [...this.#confined].filter(
