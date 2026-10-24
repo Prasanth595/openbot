@@ -1727,10 +1727,11 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         yield* Effect.result(providerCall(() => this.#requireConnection().prompt({ sessionId: thread.id, prompt }))),
       );
       if (thread.activeTurn !== turn || turn.completing) return;
+      // `promptId` names this result: a delivery that runs again keeps its turn ID.
       if (response.usage)
         this.emit("notification", {
           method: "openbot/usage",
-          params: { threadId: thread.id, turnId: turn.id, usage: response.usage },
+          params: { threadId: thread.id, turnId: turn.id, promptId: randomUUID(), usage: response.usage },
         });
       // A flavor can fail a turn that ended with no answer (OpenCode). A turn told not to answer ends
       // empty on purpose, and an error there costs no answer the user waits for.

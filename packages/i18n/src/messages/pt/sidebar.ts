@@ -62,6 +62,8 @@ export const messages = {
   "sidebar.agentMenu.hide": "Ocultar agente",
   "sidebar.agentMenu.restore": "Restaurar",
   "sidebar.agentMenu.restoreTo": "Restaurar em {section}",
+  "sidebar.agentMenu.openWindow": "Abrir em nova janela",
+  "sidebar.agentMenu.inWindow": "Aberto em uma janela própria",
   "sidebar.channelMenu.label": "Ações do canal",
   "sidebar.channelMenu.edit": "Editar canal",
   "sidebar.channelMenu.delete": "Excluir canal",

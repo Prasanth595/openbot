@@ -205,7 +205,7 @@ export function createStableConversationState(
       };
     },
   );
-  if (storedDrafts)
+  if (storedDrafts && persistDrafts)
     writeComposerDraftsOnChange({
       drafts,
       channelDrafts,
@@ -321,6 +321,7 @@ export function createStableConversationState(
     setEditingOriginalAttachmentIds,
     editingPendingSave,
     setEditingPendingSave,
+    persistDrafts,
     composerFocusRequest,
     setComposerFocusRequest,
     pendingSends,

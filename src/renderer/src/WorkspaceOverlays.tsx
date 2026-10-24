@@ -780,6 +780,7 @@ function AppSettings(props: AccountProps) {
         preferencesLoadFailed={preferencesLoadFailed()}
         onRetryPreferencesLoad={reloadPreferences}
         appInfo={platform.appInfo()}
+        chatWindow={platform.chatWindow !== null}
         builtInDisplayGeometry={builtInDisplayGeometry()}
         servers={servers()}
         updateStatus={updates.status()}

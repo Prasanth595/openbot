@@ -48,7 +48,7 @@ import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
 import { SettingsGeneralTab } from "./SettingsGeneralTab";
 import { SettingsNotificationsTab } from "./SettingsNotificationsTab";
 import { SettingsVoiceTab } from "./SettingsVoiceTab";
-import { navItem, navItems, type SettingsTab, settingsTabShown } from "./settings-tabs";
+import { dynamicIslandSettingsShown, navItem, navItems, type SettingsTab, settingsTabShown } from "./settings-tabs";
 import { createSettingsVoiceStore } from "./settings-voice-store";
 
 export interface SettingsModalProps {
@@ -60,6 +60,8 @@ export interface SettingsModalProps {
   /** Reads the saved preferences again. */
   onRetryPreferencesLoad?: () => void;
   appInfo: AppInfo | null;
+  /** True in a window that shows one chat (#2964). It has no Dynamic Island tab: the main window owns the island. */
+  chatWindow?: boolean;
   /** The built-in display's notch, null when it has none, or undefined before main answers. */
   builtInDisplayGeometry?: DynamicIslandGeometry | undefined;
   /** The servers that the Dynamic Island tab lists. */
@@ -150,8 +152,7 @@ export function SettingsModal(props: SettingsModalProps) {
     },
   );
 
-  // The Dynamic Island exists only on macOS, so other platforms get no tab for it.
-  const isMac = () => props.appInfo?.platform === "darwin";
+  const dynamicIslandShown = () => dynamicIslandSettingsShown(props.appInfo?.platform, props.chatWindow === true);
   createEffect(
     () => {
       const tab = props.open ? props.openTab : undefined;
@@ -161,7 +162,7 @@ export function SettingsModal(props: SettingsModalProps) {
       if (tab) setActiveTab(tab);
     },
   );
-  const visibleNavItems = () => navItems.filter((item) => settingsTabShown(item.value, props.appInfo?.platform));
+  const visibleNavItems = () => navItems.filter((item) => settingsTabShown(item.value, dynamicIslandShown()));
 
   const title = () => i18n.t(navItem(activeTab()).titleKey);
   const description = () => i18n.t(navItem(activeTab()).descriptionKey);
@@ -175,7 +176,7 @@ export function SettingsModal(props: SettingsModalProps) {
         value === "general" ||
         value === "notifications" ||
         value === "voice" ||
-        (value === "dynamic-island" && isMac()) ||
+        (value === "dynamic-island" && dynamicIslandShown()) ||
         value === "computer-use" ||
         value === "profile" ||
         value === "billing" ||
@@ -280,7 +281,7 @@ export function SettingsModal(props: SettingsModalProps) {
           <SettingsVoiceTab store={voice} selectMount={modalElement} />
         </Tabs.Content>
 
-        <Show when={isMac()}>
+        <Show when={dynamicIslandShown()}>
           <Tabs.Content value="dynamic-island" class="settings-modal-tab-panel" data-tab="dynamic-island">
             {preferencesLoadError()}
             <SettingsDynamicIslandTab

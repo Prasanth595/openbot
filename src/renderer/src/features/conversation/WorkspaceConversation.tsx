@@ -533,10 +533,15 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
             onOwnComputer: activeServer()?.kind === "local",
           });
         }}
-        browserEnabled={!platform.landingPreview && activeServerSupportsCapability("browser-control")}
+        // The browser and the remote desktop show in the main window only.
+        browserEnabled={
+          !platform.landingPreview && !platform.chatWindow && activeServerSupportsCapability("browser-control")
+        }
         remoteDesktopSessionActive={Boolean(activeRemoteDesktopSession())}
         remoteDesktopVisible={remoteDesktopWorkspaceVisible()}
-        remoteDesktopEnabled={!platform.landingPreview && activeServerSupportsCapability("remote-desktop")}
+        remoteDesktopEnabled={
+          !platform.landingPreview && !platform.chatWindow && activeServerSupportsCapability("remote-desktop")
+        }
         prompt={activePrompt()}
         promptUiBlock={activePromptUiBlock()}
         approval={activeApproval()}

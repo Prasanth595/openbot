@@ -32,6 +32,7 @@ import {
   type CentralAuthIssue,
   type CentralAuthState,
   type CentralAuthUser,
+  type ChatWindowTarget,
   type CustomAgentCheckResult,
   type CustomAgentResult,
   type CustomAgentSummary,
@@ -183,6 +184,15 @@ export function decodeAppInterfaceSizePreference(value: unknown): AppInterfaceSi
   const preference = decodeRecord(value, "interface size preference");
   if (!isAppInterfaceSize(preference.percent)) throw new Error("Invalid interface size.");
   return { percent: preference.percent };
+}
+
+export function decodeChatWindowTargets(value: unknown): ChatWindowTarget[] {
+  if (!Array.isArray(value)) throw new Error("Invalid chat windows.");
+  return value.map((item) => {
+    const target = decodeRecord(item, "chat window");
+    if (!isString(target.serverId) || !isString(target.agentId)) throw new Error("Invalid chat window.");
+    return { serverId: target.serverId, agentId: target.agentId };
+  });
 }
 
 export function decodeCentralAuthState(value: unknown): CentralAuthState {

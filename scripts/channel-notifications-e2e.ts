@@ -410,6 +410,7 @@ try {
   assert.ok(channels);
   const forwarders = createRendererForwarders({
     getMainWindow: () => mainWindow,
+    getChatWindows: () => [],
     getAgentService: () => agents ?? null,
     getHostService: () => host,
     getHostAnalytics: () => null,

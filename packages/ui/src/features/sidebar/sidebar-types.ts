@@ -109,6 +109,10 @@ export interface SidebarProps {
   onHideAgent?: ((agentId: string) => void) | undefined;
   /** Puts a hidden agent back in its section. Without it, a hidden agent's menu shows no restore item. */
   onRestoreAgent?: ((agentId: string) => void) | undefined;
+  /** Opens the agent's chat in a window of its own. Without it, the agent menu shows no window item. */
+  onOpenAgentWindow?: ((agentId: string) => void) | undefined;
+  /** The agents whose chat is open in a window of its own. Their rows show a window mark. */
+  windowAgentIds?: ReadonlySet<string> | undefined;
   compact: boolean;
   /** A card under the chat list, such as an announcement. The compact sidebar has no room for it. */
   footer?: JSX.Element;

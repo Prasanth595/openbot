@@ -62,8 +62,16 @@ const Navigation = createSimpleContext({
       nonce: number;
     } | null>(null);
 
-    function selectAgent(agentId: string) {
-      if (agentSetupOpen() && creatingAgent()) return;
+    /** False when the chat opens in another window. */
+    function selectAgent(agentId: string): boolean {
+      if (agentSetupOpen() && creatingAgent()) return false;
+      // A chat window shows its one chat, and main marks that chat in the sidebar. Another agent
+      // opens in its own chat window, from search, a schedule or the Dynamic Island.
+      const chatWindow = platform.chatWindow;
+      if (chatWindow && agentId !== chatWindow.agentId) {
+        void appPort().openChatWindow({ serverId: chatWindow.serverId, agentId });
+        return false;
+      }
       // The rail and the sidebar sit outside the markup the report covers, so a
       // conversation is one click away while the report hides where it opens. Opening
       // one that stays hidden also reads it: `requestConversationRead` below is the
@@ -85,6 +93,7 @@ const Navigation = createSimpleContext({
       setExplicitlyOpenedAgentChatId(agentId);
       setActiveAgentId(agentId);
       requestConversationRead(agentId, true);
+      return true;
     }
 
     async function selectDirectMember(memberId: string): Promise<void> {
@@ -145,7 +154,8 @@ const Navigation = createSimpleContext({
     }
 
     function selectGlobalSearchMessage(agentId: string, messageId: string): void {
-      selectAgent(agentId);
+      // The other window reads the chat when it opens. This one does not mark its messages read.
+      if (!selectAgent(agentId) && platform.chatWindow) return;
       void openAgentMessage(agentId, messageId);
     }
 

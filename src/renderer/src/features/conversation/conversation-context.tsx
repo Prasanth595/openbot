@@ -111,7 +111,7 @@ const Conversation = createSimpleContext({
   name: "Conversation",
   init: () => {
     const windowPage = useWindowPage();
-    const { appFocused } = usePlatform();
+    const { appFocused, chatWindow } = usePlatform();
     const { activeServerId, activeServer } = useServers();
     const { agentChatsToMarkRead, agentChatsToRetryRead, autoReadAgentMessages } = useAgentReadTracking();
     const scopeIsCurrent = createScopeGuard();
@@ -1007,7 +1007,8 @@ const Conversation = createSimpleContext({
       markAgentMessagesRead,
       markAllAgentMessagesRead,
       presentPromptResolution,
-      setTeamTyping: notifyTeamTyping,
+      // See `AppProviders`: a chat window sends no typing state.
+      setTeamTyping: chatWindow ? () => undefined : notifyTeamTyping,
     };
   },
 });

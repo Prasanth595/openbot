@@ -61,6 +61,8 @@ export const messages = defineMessages("sidebar", {
   "sidebar.agentMenu.hide": "Hide agent",
   "sidebar.agentMenu.restore": "Restore",
   "sidebar.agentMenu.restoreTo": "Restore to {section}",
+  "sidebar.agentMenu.openWindow": "Open in new window",
+  "sidebar.agentMenu.inWindow": "Open in its own window",
   "sidebar.channelMenu.label": "Channel actions",
   "sidebar.channelMenu.edit": "Edit channel",
   "sidebar.channelMenu.delete": "Delete channel",

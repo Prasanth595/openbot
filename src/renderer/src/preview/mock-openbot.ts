@@ -925,6 +925,10 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       return () => interfaceSizeListeners.delete(listener);
     },
     onOpenSettings: () => () => undefined,
+    // The preview is one page, so a chat cannot open in a window of its own.
+    openChatWindow: async () => undefined,
+    getChatWindows: async () => [],
+    onChatWindows: () => () => undefined,
     // The preview has no native page, so the overlay is never on screen and the DOM dock stays.
     browserDock: {
       publishPresentation: async () => undefined,

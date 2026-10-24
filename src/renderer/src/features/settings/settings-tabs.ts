@@ -185,10 +185,18 @@ export function navItem(tab: SettingsTab): SettingsNavItem {
 }
 
 /**
- * Whether the settings panel and its search show the tab: no Dynamic Island off macOS. Hosted servers
- * opens from its own entry, not from this panel.
+ * Whether the settings panel and its search show the tab. Hosted servers opens from its own entry, not
+ * from this panel.
  */
-export function settingsTabShown(tab: SettingsTab, platform: AppInfo["platform"] | undefined): boolean {
+export function settingsTabShown(tab: SettingsTab, dynamicIslandShown: boolean): boolean {
   if (tab === "hosted-servers") return false;
-  return tab !== "dynamic-island" || platform === "darwin";
+  return tab !== "dynamic-island" || dynamicIslandShown;
+}
+
+/**
+ * The Dynamic Island exists only on macOS, and only the main window owns it: main rejects its calls
+ * from a chat window.
+ */
+export function dynamicIslandSettingsShown(platform: AppInfo["platform"] | undefined, chatWindow: boolean): boolean {
+  return platform === "darwin" && !chatWindow;
 }

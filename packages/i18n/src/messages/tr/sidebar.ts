@@ -62,6 +62,8 @@ export const messages = {
   "sidebar.agentMenu.hide": "Ajanı gizle",
   "sidebar.agentMenu.restore": "Geri yükle",
   "sidebar.agentMenu.restoreTo": "{section} bölümüne geri yükle",
+  "sidebar.agentMenu.openWindow": "Yeni pencerede aç",
+  "sidebar.agentMenu.inWindow": "Kendi penceresinde açık",
   "sidebar.channelMenu.label": "Kanal işlemleri",
   "sidebar.channelMenu.edit": "Kanalı düzenle",
   "sidebar.channelMenu.delete": "Kanalı sil",
