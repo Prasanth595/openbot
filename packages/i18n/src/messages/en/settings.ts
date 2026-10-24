@@ -39,7 +39,7 @@ export const messages = defineMessages("settings", {
   "settings.keepRunning.description": "Keep active tasks running after you close the window.",
   "settings.keepAwake.title": "Keep this computer awake",
   "settings.keepAwake.description":
-    "Routines run on time while the computer is connected to power. The display can still turn off.",
+    "Routines run on time while the computer is connected to power. On battery, it sleeps as usual. The display can still turn off.",
   "settings.restoreWorkspace.title": "Restore the last workspace on launch",
   "settings.restoreWorkspace.description": "Open the workspace and tasks from your previous session.",
   "settings.externalLinks.title": "Open external links in",

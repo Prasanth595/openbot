@@ -42,7 +42,7 @@ export const messages = {
   "settings.keepRunning.description": "Poursuivre les tâches en cours après la fermeture de la fenêtre.",
   "settings.keepAwake.title": "Empêcher la mise en veille",
   "settings.keepAwake.description":
-    "Les routines s’exécutent à l’heure tant que l’ordinateur est branché. L’écran peut quand même s’éteindre.",
+    "Les routines s’exécutent à l’heure tant que l’ordinateur est branché. Sur batterie, il se met en veille comme d’habitude. L’écran peut quand même s’éteindre.",
   "settings.restoreWorkspace.title": "Restaurer le dernier espace de travail au lancement",
   "settings.restoreWorkspace.description": "Rouvrir l’espace de travail et les tâches de votre session précédente.",
   "settings.externalLinks.title": "Ouvrir les liens externes dans",

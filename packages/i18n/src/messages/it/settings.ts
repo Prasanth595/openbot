@@ -38,7 +38,7 @@ export const messages = {
   "settings.keepRunning.description": "Le attività in corso continuano anche dopo aver chiuso la finestra.",
   "settings.keepAwake.title": "Mantieni attivo il computer",
   "settings.keepAwake.description":
-    "Le routine partono in orario finché il computer è collegato alla corrente. Lo schermo può comunque spegnersi.",
+    "Le routine partono in orario finché il computer è collegato alla corrente. A batteria, va in stop come al solito. Lo schermo può comunque spegnersi.",
   "settings.restoreWorkspace.title": "Ripristina l'ultimo workspace all'avvio",
   "settings.restoreWorkspace.description": "Apri il workspace e le attività della sessione precedente.",
   "settings.externalLinks.title": "Apri i link esterni in",

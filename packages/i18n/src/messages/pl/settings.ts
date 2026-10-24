@@ -37,7 +37,7 @@ export const messages = {
   "settings.keepRunning.description": "Aktywne zadania działają dalej po zamknięciu okna.",
   "settings.keepAwake.title": "Nie usypiaj komputera",
   "settings.keepAwake.description":
-    "Rutyny działają o czasie, gdy komputer jest podłączony do zasilania. Ekran nadal może się wyłączyć.",
+    "Rutyny działają o czasie, gdy komputer jest podłączony do zasilania. Na baterii komputer usypia jak zwykle. Ekran nadal może się wyłączyć.",
   "settings.restoreWorkspace.title": "Przywracaj ostatni obszar roboczy po uruchomieniu",
   "settings.restoreWorkspace.description": "Otwieraj obszar roboczy i zadania z poprzedniej sesji.",
   "settings.externalLinks.title": "Otwieraj linki zewnętrzne w",

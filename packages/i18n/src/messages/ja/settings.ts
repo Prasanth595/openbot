@@ -37,7 +37,7 @@ export const messages = {
   "settings.keepRunning.description": "ウィンドウを閉じたあとも実行中のタスクを続けます。",
   "settings.keepAwake.title": "このコンピュータをスリープさせない",
   "settings.keepAwake.description":
-    "電源に接続している間、ルーティンが予定どおりに実行されます。ディスプレイはオフになることがあります。",
+    "電源に接続している間、ルーティンが予定どおりに実行されます。バッテリー駆動中は通常どおりスリープします。ディスプレイはオフになることがあります。",
   "settings.restoreWorkspace.title": "起動時に前回のワークスペースを復元する",
   "settings.restoreWorkspace.description": "前回のセッションのワークスペースとタスクを開きます。",
   "settings.externalLinks.title": "外部リンクの開き方",
