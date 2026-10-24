@@ -2837,14 +2837,21 @@ export class RemoteControlPlane {
   });
 
   /**
-   * The active members that the host's plan allows, or the default for a host with no plan. A lower
-   * limit after a plan change removes no one: members who are active keep their seats.
+   * The active members that the host's custom limit allows, else its plan, else the default for a
+   * host with no plan. A lower limit removes no one: members who are active keep their seats.
    */
   readonly #memberLimit = Effect.fn("RemoteControlPlane.memberLimit")(function* (
     this: RemoteControlPlane,
     hostId: string,
   ): Effect.fn.Return<number, RemoteFailure, RemoteDependencies> {
     const dependencies = yield* RemoteDependencies;
+    const custom = yield* remoteCall(() =>
+      dependencies.database
+        .prepare("SELECT member_limit FROM server_member_limits WHERE server_id = ?")
+        .bind(hostId)
+        .first<{ member_limit: number }>(),
+    );
+    if (custom) return custom.member_limit;
     return memberLimitForPlan(
       (yield* getServerEntitlement(dependencies.database, hostId, dependencies.now()).pipe(
         Effect.mapError((error) => (error instanceof RemoteControlPlaneError ? error : new RemoteOperationError({}))),
