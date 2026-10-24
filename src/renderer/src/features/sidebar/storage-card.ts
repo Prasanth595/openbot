@@ -16,7 +16,7 @@ const DISMISSED_KEY_PREFIX = "openbot:storage-card-dismissed:";
  * "low" under 10% free, "full" under 2% free. A large disk uses 5 GB and 1 GB instead, so that a
  * 2 TB disk with 150 GB free does not show the card.
  */
-export function storageLevel(disk: StorageDisk): SidebarStorageLevel | null {
+function storageLevel(disk: StorageDisk): SidebarStorageLevel | null {
   const { freeBytes, totalBytes } = disk;
   if (freeBytes === null || totalBytes === null || totalBytes <= 0) return null;
   if (freeBytes < Math.min(totalBytes * 0.02, GB)) return "full";
