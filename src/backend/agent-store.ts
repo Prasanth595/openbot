@@ -23,6 +23,7 @@ import {
   AGENT_PROVIDERS,
   type AgentAccess,
   type AgentBackupModels,
+  type AgentDefaults,
   type AgentModelId,
   type AgentProviderId,
   type AgentReasoningEffort,
@@ -33,6 +34,7 @@ import {
   type BusyMessageMode,
   type CreateAgentInput,
   DEFAULT_AGENT_ACCESS,
+  DEFAULT_AGENT_DEFAULTS,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   type DuplicateAgentResult,
   decodeAgentProfileDraft,
@@ -80,11 +82,11 @@ type PersistedStoredAgent = Omit<StoredAgent, "avatarUrl" | "provider" | "access
   access?: AgentAccess;
   // Absent on every agent stored before the setting existed, which keeps Computer Use on.
   computerUse?: boolean;
-  // Absent on every agent stored before the setting existed, which keeps automation off.
+  // Absent means the account default, which is off until the user changes it in Settings › Agents.
   allowAutomation?: boolean;
-  // Absent on every agent stored before the setting existed, which keeps the agent from starting a new chat.
+  // Absent means the account default, which is off until the user changes it in Settings › Agents.
   allowNewChat?: boolean;
-  // Absent on every agent stored before the setting existed, which keeps the acknowledgement off.
+  // Absent means the account default, which is off until the user changes it in Settings › Agents.
   quickAcknowledgement?: boolean;
   // Absent on every agent stored before the setting existed, which keeps its tabs in the shared browser session.
   ownBrowserSession?: boolean;
@@ -184,7 +186,14 @@ export class AgentStore {
   readonly #avatarUpdateQueue = Semaphore.makeUnsafe(1);
   readonly #creationQueue = Semaphore.makeUnsafe(1);
 
-  constructor(userDataPath: string, homePath: string, database = new OpenBotDatabase(userDataPath)) {
+  readonly #agentDefaults: () => AgentDefaults;
+
+  constructor(
+    userDataPath: string,
+    homePath: string,
+    database = new OpenBotDatabase(userDataPath),
+    agentDefaults: () => AgentDefaults = () => DEFAULT_AGENT_DEFAULTS,
+  ) {
     const openbotRoot = join(homePath, "OpenBot");
     this.#statePath = join(userDataPath, LEGACY_AGENTS_STATE_FILE);
     this.#agentsRoot = join(openbotRoot, "Agents");
@@ -195,10 +204,16 @@ export class AgentStore {
     this.#duplicationsRoot = join(userDataPath, "agent-duplications");
     this.#automationRoot = automationRoot(userDataPath);
     this.#database = database;
+    this.#agentDefaults = agentDefaults;
     this.#profileCreationRecovery = new ProfileCreationRecovery(
       join(userDataPath, "agent-profile-creations"),
       this.#agentsRoot,
     );
+  }
+
+  /** The account defaults that an agent with no value of its own follows; see `AGENT_DEFAULT_KEYS`. */
+  agentDefaults(): AgentDefaults {
+    return this.#agentDefaults();
   }
 
   get database(): OpenBotDatabase {
@@ -692,15 +707,18 @@ export class AgentStore {
         if (!isBoolean(input.computerUse)) throw new Error("Invalid Computer Use value.");
         next.computerUse = input.computerUse;
       }
-      if (input.allowAutomation !== undefined) {
+      if (input.allowAutomation === null) delete next.allowAutomation;
+      else if (input.allowAutomation !== undefined) {
         if (!isBoolean(input.allowAutomation)) throw new Error("Invalid automation value.");
         next.allowAutomation = input.allowAutomation;
       }
-      if (input.allowNewChat !== undefined) {
+      if (input.allowNewChat === null) delete next.allowNewChat;
+      else if (input.allowNewChat !== undefined) {
         if (!isBoolean(input.allowNewChat)) throw new Error("Invalid new chat value.");
         next.allowNewChat = input.allowNewChat;
       }
-      if (input.quickAcknowledgement !== undefined) {
+      if (input.quickAcknowledgement === null) delete next.quickAcknowledgement;
+      else if (input.quickAcknowledgement !== undefined) {
         if (!isBoolean(input.quickAcknowledgement)) throw new Error("Invalid quick acknowledgement value.");
         next.quickAcknowledgement = input.quickAcknowledgement;
       }
@@ -784,13 +802,16 @@ export class AgentStore {
           : undefined;
       Object.assign(agent, next);
       // A copy cannot remove a field, and `null` above returned the agent to the app default or to
-      // the provider's own sign-in.
+      // the provider's own sign-in, and an agent flag to the account default.
       if (next.busyMessageMode === undefined) delete agent.busyMessageMode;
       if (next.taskLimit === undefined) delete agent.taskLimit;
       if (next.providerAccountId === undefined) delete agent.providerAccountId;
       if (next.backupModels === undefined) delete agent.backupModels;
       if (next.usageLimitReturn === undefined) delete agent.usageLimitReturn;
       if (next.browserProfileId === undefined) delete agent.browserProfileId;
+      if (next.allowAutomation === undefined) delete agent.allowAutomation;
+      if (next.allowNewChat === undefined) delete agent.allowNewChat;
+      if (next.quickAcknowledgement === undefined) delete agent.quickAcknowledgement;
       try {
         this.#persist(modelChange ? "agent.model-changed" : "agent.updated", modelChange);
       } catch (error) {
@@ -801,6 +822,9 @@ export class AgentStore {
         if (previous.backupModels === undefined) delete agent.backupModels;
         if (previous.usageLimitReturn === undefined) delete agent.usageLimitReturn;
         if (previous.browserProfileId === undefined) delete agent.browserProfileId;
+        if (previous.allowAutomation === undefined) delete agent.allowAutomation;
+        if (previous.allowNewChat === undefined) delete agent.allowNewChat;
+        if (previous.quickAcknowledgement === undefined) delete agent.quickAcknowledgement;
         throw error;
       }
       return { ...agent };

@@ -1,4 +1,5 @@
 import {
+  AGENT_DEFAULT_KEYS,
   type ApprovalAutomationPreference,
   agentAutoApprovalEnabled,
   type DynamicIslandGeometry,
@@ -131,6 +132,7 @@ const Settings = createSimpleContext({
     let autoInstallUpdatesChanged = false;
     let notificationPreferenceChanged = false;
     let busyMessageModeChanged = false;
+    let agentDefaultsChanged = false;
     let agentMemoryLimitChanged = false;
     let keepRemoteSessionsChanged = false;
     let launchAtLoginChanged = false;
@@ -265,6 +267,10 @@ const Settings = createSimpleContext({
           settingsPort().setBusyMessageModePreference({ mode: value.busyMessageMode }),
           (preference) => preference.mode,
         );
+      }
+      if (AGENT_DEFAULT_KEYS.some((key) => previous.agentDefaults[key] !== value.agentDefaults[key])) {
+        agentDefaultsChanged = true;
+        persistField("agentDefaults", settingsPort().setAgentDefaults({ ...value.agentDefaults }), (saved) => saved);
       }
       // A hidden switch is null and cannot change.
       if (value.launchAtLogin !== null && previous.launchAtLogin !== value.launchAtLogin) {
@@ -449,6 +455,12 @@ const Settings = createSimpleContext({
           .then((preference) => {
             if (busyMessageModeChanged) return;
             setGeneralSettings((current) => ({ ...current, busyMessageMode: preference.mode }));
+          }),
+        settingsPort()
+          .getAgentDefaults()
+          .then((defaults) => {
+            if (agentDefaultsChanged) return;
+            setGeneralSettings((current) => ({ ...current, agentDefaults: defaults }));
           }),
         settingsPort()
           .getAgentMemoryLimitPreference()

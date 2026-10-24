@@ -270,6 +270,8 @@ export async function updateRemoteAgent(
 ): Promise<void> {
   const { access, allowAutomation, backupModels, taskLimit, agentId, ...fields } = input;
   if (access !== undefined) await admin.update({ agentId, access });
+  // A joined server's host keeps one value for each agent: it has no account default to return to.
+  if (allowAutomation === null) throw new Error("A joined server has no default for Local scripts.");
   if (allowAutomation !== undefined) await admin.updateAutomation(agentId, allowAutomation);
   if (backupModels !== undefined) await admin.updateBackupModels(agentId, backupModels);
   if (taskLimit !== undefined) await admin.updateTaskLimit(agentId, taskLimit);

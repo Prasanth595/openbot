@@ -5,6 +5,7 @@ import {
   AGENT_TASK_LIMIT_MAX,
   type AgentBackupModels,
   type AgentBrowserProfile,
+  type AgentDefaults,
   type AgentModelChoice,
   type AgentModelId,
   type AgentPermissionLevel,
@@ -27,6 +28,7 @@ import {
   type CustomAgentSummary,
   type CustomProviderSummary,
   DEFAULT_AGENT_ACCESS,
+  DEFAULT_AGENT_DEFAULTS,
   DEFAULT_BUSY_MESSAGE_MODE,
   type ProviderRuntimeStatus,
   type UpdateAgentAdminSettingsInput,
@@ -133,6 +135,8 @@ export interface AgentSettingsPanelProps {
   usageLimited?: ((choice: AgentModelChoice) => boolean) | undefined;
   /** The app default an agent without its own busy-message setting follows. */
   defaultBusyMessageMode?: BusyMessageMode | undefined;
+  /** The account defaults an agent without its own value follows. Absent for a remote agent. */
+  agentDefaults?: AgentDefaults | undefined;
   providerRuntimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
   /** The caller supplies providers available on the selected host. */
   customProviders?: readonly CustomProviderSummary[] | undefined;
@@ -260,6 +264,7 @@ interface TextSaveRequest {
 
 export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const { t, errorMessage, format } = useText();
+  const agentDefaults = () => props.agentDefaults ?? DEFAULT_AGENT_DEFAULTS;
   const [newChatOpen, setNewChatOpen] = createSignal(false);
   const [draft, setDraft] = createStore<AgentSettingsDraft>({
     avatar: {
@@ -397,9 +402,9 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           String(agent.notifications),
           currentPermission(),
           String(agentComputerUseEnabled(agent)),
-          String(agentAutomationAllowed(agent)),
-          String(agentNewChatAllowed(agent)),
-          String(agentQuickAcknowledgementEnabled(agent)),
+          String(agentAutomationAllowed(agent, agentDefaults())),
+          String(agentNewChatAllowed(agent, agentDefaults())),
+          String(agentQuickAcknowledgementEnabled(agent, agentDefaults())),
           browserProfileChoice(props.browserProfiles?.current ?? agentBrowserProfile(agent)),
           agent.busyMessageMode ?? "default",
           String(agent.taskLimit ?? "default"),
@@ -442,9 +447,9 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.notifications = agent.notifications;
           state.permission = currentPermission();
           state.computerUse = agentComputerUseEnabled(agent);
-          state.allowAutomation = agentAutomationAllowed(agent);
-          state.allowNewChat = agentNewChatAllowed(agent);
-          state.quickAcknowledgement = agentQuickAcknowledgementEnabled(agent);
+          state.allowAutomation = agentAutomationAllowed(agent, agentDefaults());
+          state.allowNewChat = agentNewChatAllowed(agent, agentDefaults());
+          state.quickAcknowledgement = agentQuickAcknowledgementEnabled(agent, agentDefaults());
           state.browserProfile = browserProfileChoice(props.browserProfiles?.current ?? agentBrowserProfile(agent));
           state.busyMessage = agent.busyMessageMode ?? "default";
           state.taskLimit = taskLimitChoice(agent.taskLimit);

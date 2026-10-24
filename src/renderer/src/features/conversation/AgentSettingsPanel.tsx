@@ -1,4 +1,9 @@
-import { type AgentBrowserProfile, agentAutomationAllowed, type FilePreview } from "@openbot/contracts/ipc";
+import {
+  type AgentBrowserProfile,
+  agentAutomationAllowed,
+  DEFAULT_AGENT_DEFAULTS,
+  type FilePreview,
+} from "@openbot/contracts/ipc";
 import { BookMarked, CalendarClock, Folder, Gauge, Puzzle, Table2, Upload } from "@openbot/ui";
 import { SettingsLinkGroup, SettingsLinkRow } from "@openbot/ui/components/SettingsPanel";
 import type { AgentProfile } from "@openbot/ui/data";
@@ -160,7 +165,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const legacyRoutinesPort = createMemo(() =>
     agentRoutinesPort(
       props.agent.id,
-      props.localHost === true && agentAutomationAllowed(props.agent),
+      props.localHost === true && agentAutomationAllowed(props.agent, props.agentDefaults ?? DEFAULT_AGENT_DEFAULTS),
       // Set only for the host on this computer, the one place the policy is kept.
       props.localHost === true,
     ),

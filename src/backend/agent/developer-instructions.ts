@@ -4,7 +4,7 @@ import {
   serializeEssentialMemories,
 } from "@openbot/contracts/agent-memory-context";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { AgentMemory, AgentSummary } from "@openbot/contracts/ipc";
+import type { AgentDefaults, AgentMemory, AgentSummary } from "@openbot/contracts/ipc";
 import {
   agentAutomationAllowed,
   agentComputerUseEnabled,
@@ -134,6 +134,7 @@ export function developerInstructions(
   sharedRoot: string,
   memories: AgentMemory[],
   automationRoot: string,
+  agentDefaults: AgentDefaults,
   options: DeveloperInstructionOptions = {},
 ): string {
   const profile = tagSafe(
@@ -200,8 +201,8 @@ export function developerInstructions(
       : options.computerUseInOwnChat
         ? "This conversation is a task that runs next to your own chat. Computer Use stays in your own chat, so that only one conversation drives the screen: do not control desktop applications outside the embedded browser here, and do not use another desktop-control plugin. When the task needs desktop control, say so in your answer, so that the user can continue that step in your own chat."
         : "The user turned Computer Use off for you. Do not control desktop applications outside the embedded browser, and do not use Codex Computer Use, the Sky computer use service, or another desktop-control plugin. When a task needs one, delegate it to a teammate that has Computer Use on, which openbot.read_agent reports; when no teammate has it, say so, because the user can turn Computer Use on in your settings.",
-    ...(agentAutomationAllowed(agent) ? [automationInstructions(agent.id, automationRoot)] : []),
-    ...(agentQuickAcknowledgementEnabled(agent)
+    ...(agentAutomationAllowed(agent, agentDefaults) ? [automationInstructions(agent.id, automationRoot)] : []),
+    ...(agentQuickAcknowledgementEnabled(agent, agentDefaults)
       ? [
           "Before a long task, such as a fix, a build, research, or a change in many files, describe and call openbot.acknowledge_request first. It shows the user one short acknowledgement line and your plan, and the work starts after 10 s or when the user presses start. Do not call it for a quick answer, a question, a small change, a routine run, or a Slack, Discord or Telegram chat. After the card, do not repeat the plan as prose.",
         ]

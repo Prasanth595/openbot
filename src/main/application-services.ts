@@ -113,12 +113,17 @@ import { discordDriver } from "../backend/messaging/discord/discord-driver";
 import { MessagingOperationFailed, MessagingService } from "../backend/messaging/messaging-service";
 import { slackDriver } from "../backend/messaging/slack/slack-driver";
 import { telegramDriver } from "../backend/messaging/telegram/telegram-driver";
+import { OpenBotDatabase } from "../backend/openbot-database";
 import { passwordVaultRouter } from "../backend/password-vault-router";
 import { sweepProviderTemp } from "../backend/provider-temp";
 import { SidebarLayoutStore } from "../backend/sidebar-layout-store";
 import { StorageUsageScanner, StorageUsageService } from "../backend/storage-usage";
 import { TeamChatStore } from "../backend/team-chat-store";
 import { AGENT_ACCESS_FILE, AgentAccessStore } from "./agent-access-store";
+import {
+  type AgentDefaultsPreferenceStore,
+  createAgentDefaultsPreferenceStore,
+} from "./agent-defaults-preference-store";
 import { AgentImportService } from "./agent-import-service";
 import { AgentInitializationGate } from "./agent-initialization";
 import { AgentMarketplaceService } from "./agent-marketplace-service";
@@ -321,6 +326,7 @@ const UPDATE_PREFERENCE_FILE = "openbot-update-preference-v1.json";
 const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
 const PUSH_NOTIFICATION_FILE = "openbot-push-notifications-v1.json";
 const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
+const AGENT_DEFAULTS_PREFERENCE_FILE = "openbot-agent-defaults-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
@@ -516,6 +522,7 @@ export interface ApplicationServices {
   interfaceSize: InterfaceSizeService;
   notificationPreference: NotificationPreferenceStore;
   busyMessageMode: BusyMessageModePreferenceStore;
+  agentDefaults: AgentDefaultsPreferenceStore;
   agentMemoryLimit: AgentMemoryLimitSetting;
   agentAccess: AgentAccessStore;
   serverTimezone: ServerTimezonePreferenceStore;
@@ -916,7 +923,14 @@ export async function createApplicationServices({
     mainWindow.removeListener("blur", stopProfileTimer);
     centralAuth.stopProfileRefresh();
   });
-  const store = new AgentStore(app.getPath("userData"), homedir());
+  // Before the agents load, so the first check of an agent that follows a default reads the saved one.
+  const agentDefaults = createAgentDefaultsPreferenceStore(
+    join(app.getPath("userData"), AGENT_DEFAULTS_PREFERENCE_FILE),
+  );
+  await runCauseEffect(agentDefaults.load());
+  const store = new AgentStore(app.getPath("userData"), homedir(), new OpenBotDatabase(app.getPath("userData")), () =>
+    agentDefaults.get(),
+  );
   // Phase marks for `dev:bench`, so a slow start shows which group of awaits it waited on. They
   // change nothing.
   performance.mark("openbot:services.pre-store");
@@ -1628,6 +1642,7 @@ export async function createApplicationServices({
   const automation = new AutomationServer({
     root: store.automationRoot,
     listAgents: () => service.listAgents(),
+    agentDefaults: () => agentDefaults.get(),
     listModels: () => service.listModels(),
     listRoutines: (agentId) => service.listRoutines(agentId),
     runRoutine: (input) => service.runRoutineFromAutomation(input),
@@ -1929,7 +1944,7 @@ export async function createApplicationServices({
     }),
   );
   const agentAdminSettings = createAgentAdminSettings({ agents: service, approvalAutomation });
-  const agentHostSettings = createAgentHostSettings({ agents: service, busyMessageMode });
+  const agentHostSettings = createAgentHostSettings({ agents: service, busyMessageMode, agentDefaults });
   const browserProfiles = createBrowserProfileService({ store: browserProfileStore, agents: service, browser });
   const customProviderChanges = createCustomProviderChanges({ service, customProviders });
   const customAgentChanges = createCustomAgentChanges({ service, customAgents });
@@ -2811,6 +2826,7 @@ export async function createApplicationServices({
     interfaceSize,
     notificationPreference,
     busyMessageMode,
+    agentDefaults,
     agentMemoryLimit: agentMemoryLimitSetting,
     agentAccess,
     serverTimezone,

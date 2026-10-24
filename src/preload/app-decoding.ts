@@ -17,6 +17,8 @@ import {
 import { parseHostedSiteList, parseHostedSiteSummary } from "@openbot/contracts/hosted-sites";
 import {
   type AccountSession,
+  AGENT_DEFAULT_KEYS,
+  type AgentDefaults,
   type AgentMemoryLimitPreference,
   type AnalyticsPreference,
   type AppAppearancePreference,
@@ -37,6 +39,7 @@ import {
   type CustomAgentSummary,
   type CustomProviderResult,
   type CustomProviderSummary,
+  DEFAULT_AGENT_DEFAULTS,
   type DetectedAcpAgent,
   type DetectedModelServer,
   type DiscoverModelsResult,
@@ -152,6 +155,13 @@ export function decodeBusyMessageModePreference(value: unknown): BusyMessageMode
   const preference = decodeRecord(value, "busy message mode preference");
   if (!isBusyMessageMode(preference.mode)) throw new Error("Invalid busy message mode.");
   return { mode: preference.mode };
+}
+
+export function decodeAgentDefaults(value: unknown): AgentDefaults {
+  const defaults = decodeRecord(value, "agent defaults");
+  const decoded = { ...DEFAULT_AGENT_DEFAULTS };
+  for (const key of AGENT_DEFAULT_KEYS) decoded[key] = requiredBoolean(defaults, key);
+  return decoded;
 }
 
 export function decodeAgentMemoryLimitPreference(value: unknown): AgentMemoryLimitPreference {

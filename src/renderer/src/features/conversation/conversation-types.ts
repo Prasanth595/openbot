@@ -2,6 +2,7 @@ import type {
   AccountUsage,
   AgentApproval,
   AgentContextState,
+  AgentDefaults,
   AgentEvent,
   AgentModelChoice,
   AgentProviderId,
@@ -302,6 +303,8 @@ export interface ConversationProps {
   remoteTaskLimitLoaded?: boolean | undefined;
   /** The app default an agent without its own busy-message setting follows. Local agents only. */
   defaultBusyMessageMode?: BusyMessageMode | undefined;
+  /** The account defaults an agent without its own value follows. Local agents only. */
+  agentDefaults?: AgentDefaults | undefined;
   /** The app memory cap. Local agents only. */
   agentMemoryLimit?: number | undefined;
   /** Writes the agent's Permissions level. Absent where the user may not change it. */

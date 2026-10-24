@@ -582,7 +582,7 @@ export class OpenBotToolRouter {
     const refuse = (message: string) => client.respond(request.id, openBotToolFailure(message));
     const agentId = this.#conversation.agentForThread(params.threadId);
     const agent = agentId ? this.#store.list().find((candidate) => candidate.id === agentId) : undefined;
-    if (!agent || !agentQuickAcknowledgementEnabled(agent)) {
+    if (!agent || !agentQuickAcknowledgementEnabled(agent, this.#store.agentDefaults())) {
       refuse("The user has not turned on the plan card for you. Start the work without it.");
       return;
     }
@@ -882,7 +882,7 @@ export class OpenBotToolRouter {
 
     if (params.tool === "start_new_chat") {
       const agent = this.#store.list().find((candidate) => candidate.id === senderAgentId);
-      if (!agent || !agentNewChatAllowed(agent))
+      if (!agent || !agentNewChatAllowed(agent, this.#store.agentDefaults()))
         return openBotToolFailure(
           "The user has not allowed you to start a new chat. Ask the user to allow it in your settings, or to start a new chat there.",
         );

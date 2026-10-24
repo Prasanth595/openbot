@@ -16,6 +16,7 @@ import { version as developmentVersion } from "../../../package.json";
 import type { AgentService } from "../../backend/agent-service";
 import type { BrowserHost } from "../../backend/browser-host";
 import type { MailboxStore } from "../../backend/mailbox-store";
+import type { AgentDefaultsPreferenceStore } from "../agent-defaults-preference-store";
 import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import { readAnalyticsPreference, writeAnalyticsPreference } from "../analytics-preference-store";
 import type { AppBehaviorService } from "../app-behavior-service";
@@ -34,6 +35,7 @@ import type { RemoteSessionReusePreferenceStore } from "../remote-session-reuse-
 import { readSetupState, writeSetupState } from "../setup-store";
 import type { UpdateService } from "../update-service";
 import {
+  parseAgentDefaults,
   parseAnalyticsPreference,
   parseAppAppearancePreference,
   parseAppBehaviorPreferenceChange,
@@ -91,6 +93,7 @@ export interface AppIpcDependencies {
   analyticsPreferenceFile: string;
   approvalAutomation: ApprovalAutomation;
   busyMessageMode: BusyMessageModePreferenceStore;
+  agentDefaults: AgentDefaultsPreferenceStore;
   agentMemoryLimit: AgentMemoryLimitSetting;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
   remoteNetworkRoute: RemoteNetworkRoutePreferenceStore;
@@ -120,6 +123,7 @@ export function appIpcHandlers({
   analyticsPreferenceFile,
   approvalAutomation,
   busyMessageMode,
+  agentDefaults,
   agentMemoryLimit,
   remoteSessionReuse,
   remoteNetworkRoute,
@@ -174,6 +178,14 @@ export function appIpcHandlers({
       setBusyMessageModePreference: payloadHandler(parseBusyMessageModePreference, (parsed) =>
         runCauseEffect(busyMessageMode.set(parsed)),
       ),
+      getAgentDefaults: handler(() => agentDefaults.get()),
+      // The agents that follow a changed default get it at once: see `AgentService.agentDefaultsChanged`.
+      setAgentDefaults: payloadHandler(parseAgentDefaults, async (parsed) => {
+        const previous = agentDefaults.get();
+        const saved = await runCauseEffect(agentDefaults.set(parsed));
+        service.agentDefaultsChanged(previous);
+        return saved;
+      }),
       getAgentMemoryLimitPreference: handler(() => agentMemoryLimit.get()),
       getRemoteSessionReusePreference: handler(() => remoteSessionReuse.get()),
       // Off removes the kept sessions at once. The sessions of this run then end when the app quits.

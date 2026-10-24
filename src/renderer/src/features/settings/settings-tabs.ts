@@ -2,6 +2,7 @@ import type { AppInfo } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Bell,
+  Bot,
   CircleArrowDown,
   CreditCard,
   Mic,
@@ -15,6 +16,7 @@ import {
 
 export type SettingsTab =
   | "general"
+  | "agents"
   | "notifications"
   | "voice"
   | "dynamic-island"
@@ -59,13 +61,24 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
       { titleKey: "settings.logoColor.title", descriptionKey: "settings.logoColor.description" },
       { titleKey: "settings.sendShortcut.title", descriptionKey: "settings.sendShortcut.description" },
       { titleKey: "settings.showAgentSteps.title", descriptionKey: "settings.showAgentSteps.description" },
-      { titleKey: "settings.busyMessage.title", descriptionKey: "settings.busyMessage.description" },
       { titleKey: "settings.externalLinks.title", descriptionKey: "settings.externalLinks.description" },
       { titleKey: "settings.launchAtLogin.title", descriptionKey: "settings.launchAtLogin.description" },
       { titleKey: "settings.keepRemoteSessions.title", descriptionKey: "settings.keepRemoteSessions.description" },
       { titleKey: "settings.keepRunning.title", descriptionKey: "settings.keepRunning.description" },
       { titleKey: "settings.restoreWorkspace.title", descriptionKey: "settings.restoreWorkspace.description" },
       { titleKey: "settings.analytics.title", descriptionKey: "settings.analytics.description" },
+    ],
+  },
+  {
+    value: "agents",
+    titleKey: "settings.tab.agents.title",
+    descriptionKey: "settings.tab.agents.description",
+    icon: Bot,
+    rows: [
+      { titleKey: "agentSettings.automation.title" },
+      { titleKey: "agentSettings.agentNewChat.title" },
+      { titleKey: "agentSettings.quickAcknowledgement.title" },
+      { titleKey: "settings.busyMessage.title", descriptionKey: "settings.busyMessage.description" },
     ],
   },
   {

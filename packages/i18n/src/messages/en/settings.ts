@@ -56,6 +56,23 @@ export const messages = defineMessages("settings", {
   "settings.busyMessage.title": "Steer agents while they work",
   "settings.busyMessage.description":
     "New messages join the agent’s current work, not the queue. Works with ChatGPT and Claude.",
+  // The Agents tab: the defaults of the agents on this computer.
+  "settings.agentDefaults.title": "Defaults",
+  "settings.agentDefaults.description": "Agents follow these defaults, unless you change them for an agent.",
+  "settings.agentDefaults.value": "Default: {value}",
+  "settings.agentDefaults.on": "On",
+  "settings.agentDefaults.off": "Off",
+  "settings.agentDefaults.followDefault": "Default ({value})",
+  "settings.agentDefaults.count": "{on} of {total} on",
+  "settings.agentDefaults.open": "Open {name}",
+  "settings.agentDefaults.agentList": "On for {names}",
+  "settings.agentDefaults.defaultTitle": "Default",
+  "settings.agentDefaults.defaultDescription": "New agents use it. Agents on Default follow it.",
+  "settings.agentDefaults.agents": "Agents",
+  "settings.agentDefaults.setAll": "Set all",
+  "settings.agentDefaults.setAllLabel": "Set {setting} for all agents",
+  "settings.agentDefaults.agentLabel": "{setting} for {agent}",
+  "settings.agentDefaults.loadFailed": "The agents could not be read.",
   "settings.keepRemoteSessions.title": "Fast connection to servers",
   "settings.keepRemoteSessions.description":
     "Keep the connection to your joined servers between launches. OpenBot starts about a second faster. When you quit OpenBot, the OpenBot service does not close the connection.",
@@ -116,6 +133,9 @@ export const messages = defineMessages("settings", {
   // The Settings window shell: its tab list, headers and save bar.
   "settings.tab.general.title": "General",
   "settings.tab.general.description": "Control how OpenBot behaves on this computer.",
+  "settings.tab.agents.title": "Agents",
+  "settings.tab.agents.description":
+    "Choose what the agents on this computer can do when you do not set it for an agent.",
   "settings.tab.notifications.title": "Notifications",
   "settings.tab.notifications.description": "Choose how OpenBot alerts you.",
   "settings.tab.voice.title": "Voice",

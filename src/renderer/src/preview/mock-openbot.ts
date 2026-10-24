@@ -8,8 +8,10 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   type AccountUsage,
+  AGENT_DEFAULT_KEYS,
   type AgentAccessChange,
   type AgentBrowserProfile,
+  type AgentDefaults,
   type AgentEvent,
   type AgentMemory,
   type AgentMemoryLimitPreference,
@@ -52,6 +54,7 @@ import {
   composedCustomModelId,
   createMcpServerId,
   DEFAULT_AGENT_ACCESS,
+  DEFAULT_AGENT_DEFAULTS,
   DEFAULT_AGENT_MEMORY_LIMIT,
   DEFAULT_APP_APPEARANCE,
   DEFAULT_APP_INTERFACE_SIZE,
@@ -309,6 +312,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let analyticsPreference = clone<AnalyticsPreference>(options.analyticsPreference ?? { enabled: true });
   let approvalAutomation = clone<ApprovalAutomationPreference>(DEFAULT_APPROVAL_AUTOMATION_PREFERENCE);
   let busyMessageMode: BusyMessageModePreference = { mode: DEFAULT_BUSY_MESSAGE_MODE };
+  let agentDefaults: AgentDefaults = { ...DEFAULT_AGENT_DEFAULTS };
   let agentMemoryLimit: AgentMemoryLimitPreference = { limit: DEFAULT_AGENT_MEMORY_LIMIT };
   let agentAccess: AgentAccessChange = { revision: 0, everyone: {}, roles: [] };
   const agentMemoryLimitListeners = new Set<(preference: AgentMemoryLimitPreference) => void>();
@@ -869,6 +873,12 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
     setBusyMessageModePreference: async ({ mode }) => {
       busyMessageMode = { mode };
       return clone(busyMessageMode);
+    },
+    getAgentDefaults: async () => clone(agentDefaults),
+    setAgentDefaults: async (next) => {
+      agentDefaults = { ...next };
+      emitAgentEvent({ type: "agents-changed", agents });
+      return clone(agentDefaults);
     },
     getAgentMemoryLimitPreference: async () => clone(agentMemoryLimit),
     onAgentMemoryLimitPreference: (listener) => {
@@ -1596,7 +1606,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         if (!agent) throw new Error("Agent not found");
         return {
           computerUse: agentComputerUseEnabled(agent),
-          allowAutomation: agentAutomationAllowed(agent),
+          allowAutomation: agentAutomationAllowed(agent, agentDefaults),
           busyMessageMode: agent.busyMessageMode ?? null,
           defaultBusyMessageMode: busyMessageMode.mode,
         };
@@ -1901,9 +1911,19 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           providerAccountId,
           backupModels,
           leaveUsageLimit: _leaveUsageLimit,
+          allowAutomation,
+          allowNewChat,
+          quickAcknowledgement,
           ...updates
         } = input;
         const updated: ClientAgentSummary = { ...current, ...updates };
+        // `null` returns the agent to the account default, which an agent records by having no value.
+        const flags = { allowAutomation, allowNewChat, quickAcknowledgement };
+        for (const key of AGENT_DEFAULT_KEYS) {
+          const flag = flags[key];
+          if (flag === null) delete updated[key];
+          else if (flag !== undefined) updated[key] = flag;
+        }
         if (backupModels === null) delete updated.backupModels;
         else if (backupModels) updated.backupModels = backupModels;
         if (providerAccountId === null || (updates.provider && !providerAccountId)) delete updated.providerAccountId;

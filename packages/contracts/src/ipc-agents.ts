@@ -45,16 +45,38 @@ export function agentComputerUseEnabled(agent: { computerUse?: boolean | undefin
   return agent.computerUse !== false;
 }
 
-export function agentAutomationAllowed(agent: { allowAutomation?: boolean | undefined }): boolean {
-  return agent.allowAutomation === true;
+/** The agent settings that have an account default. An agent with no value of its own follows it. */
+export const AGENT_DEFAULT_KEYS = ["allowAutomation", "allowNewChat", "quickAcknowledgement"] as const;
+export type AgentDefaultKey = (typeof AGENT_DEFAULT_KEYS)[number];
+export type AgentDefaults = Record<AgentDefaultKey, boolean>;
+
+/** Off, which is what every agent had before the defaults existed. */
+export const DEFAULT_AGENT_DEFAULTS: AgentDefaults = {
+  allowAutomation: false,
+  allowNewChat: false,
+  quickAcknowledgement: false,
+};
+
+export function isAgentDefaults(value: unknown): value is AgentDefaults {
+  return isDynamicRecord(value) && AGENT_DEFAULT_KEYS.every((key) => isBoolean(value[key]));
 }
 
-export function agentNewChatAllowed(agent: { allowNewChat?: boolean | undefined }): boolean {
-  return agent.allowNewChat === true;
+export function agentAutomationAllowed(
+  agent: { allowAutomation?: boolean | undefined },
+  defaults: AgentDefaults,
+): boolean {
+  return agent.allowAutomation ?? defaults.allowAutomation;
 }
 
-export function agentQuickAcknowledgementEnabled(agent: { quickAcknowledgement?: boolean | undefined }): boolean {
-  return agent.quickAcknowledgement === true;
+export function agentNewChatAllowed(agent: { allowNewChat?: boolean | undefined }, defaults: AgentDefaults): boolean {
+  return agent.allowNewChat ?? defaults.allowNewChat;
+}
+
+export function agentQuickAcknowledgementEnabled(
+  agent: { quickAcknowledgement?: boolean | undefined },
+  defaults: AgentDefaults,
+): boolean {
+  return agent.quickAcknowledgement ?? defaults.quickAcknowledgement;
 }
 
 /**
@@ -179,17 +201,17 @@ export interface AgentSummary {
   computerUse?: boolean;
   /**
    * Whether a local script can run this agent's routines through the automation server. Local-only,
-   * like `access`. Absent means off; see `agentAutomationAllowed`.
+   * like `access`. Absent means the account default; see `agentAutomationAllowed`.
    */
   allowAutomation?: boolean;
   /**
    * Whether the agent can start a new chat with its `start_new_chat` tool. Local-only, like `access`.
-   * Absent means off; see `agentNewChatAllowed`.
+   * Absent means the account default; see `agentNewChatAllowed`.
    */
   allowNewChat?: boolean;
   /**
    * Whether the agent shows its plan with the `acknowledge_request` tool before a long task.
-   * Local-only, like `access`. Absent means off; see `agentQuickAcknowledgementEnabled`.
+   * Local-only, like `access`. Absent means the account default; see `agentQuickAcknowledgementEnabled`.
    */
   quickAcknowledgement?: boolean;
   /**
@@ -331,9 +353,10 @@ export interface UpdateAgentInput {
   reasoningEffort?: AgentReasoningEffort;
   access?: AgentAccess;
   computerUse?: boolean;
-  allowAutomation?: boolean;
-  allowNewChat?: boolean;
-  quickAcknowledgement?: boolean;
+  /** `null` returns the agent to the account default, as for `allowNewChat` and `quickAcknowledgement`. */
+  allowAutomation?: boolean | null;
+  allowNewChat?: boolean | null;
+  quickAcknowledgement?: boolean | null;
   fastMode?: boolean;
   /** `null` returns the agent to the app default. */
   busyMessageMode?: BusyMessageMode | null;

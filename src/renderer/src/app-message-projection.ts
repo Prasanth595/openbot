@@ -227,6 +227,14 @@ export function agentProfilesEqual(left: AgentProfile, right: AgentProfile): boo
     JSON.stringify(left.usageLimitReturn) === JSON.stringify(right.usageLimitReturn) &&
     left.access === right.access &&
     left.computerUse === right.computerUse &&
+    left.allowAutomation === right.allowAutomation &&
+    left.allowNewChat === right.allowNewChat &&
+    left.quickAcknowledgement === right.quickAcknowledgement &&
+    left.fastMode === right.fastMode &&
+    left.ownBrowserSession === right.ownBrowserSession &&
+    left.browserProfileId === right.browserProfileId &&
+    left.busyMessageMode === right.busyMessageMode &&
+    left.taskLimit === right.taskLimit &&
     left.threadId === right.threadId &&
     left.avatarSeed === right.avatarSeed &&
     left.avatarHue === right.avatarHue &&

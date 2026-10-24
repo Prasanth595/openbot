@@ -22,6 +22,7 @@ import {
   AlertDescription,
   AlertIcon,
   Button,
+  ChevronRight,
   Tabs,
   TriangleAlert,
 } from "@openbot/ui";
@@ -44,6 +45,7 @@ import { ComputerUseSetup } from "../computer-use/ComputerUseSetup";
 import { licenseContactUs, trackLicenseEvent } from "./license-analytics";
 import { createProfileActivityStore } from "./profile-activity-store";
 import { renderProfileShareImage } from "./profile-share-image";
+import { createSettingsAgentsSection } from "./SettingsAgentsSection";
 import { SettingsDynamicIslandTab } from "./SettingsDynamicIslandTab";
 import { SettingsGeneralTab } from "./SettingsGeneralTab";
 import { SettingsNotificationsTab } from "./SettingsNotificationsTab";
@@ -140,6 +142,11 @@ export function SettingsModal(props: SettingsModalProps) {
   );
   const hostedServers = createSettingsHostedServersStore(props, () => activeTab() === "billing");
   const voice = createSettingsVoiceStore(() => props.open && activeTab() === "voice");
+  const agents = createSettingsAgentsSection({
+    visible: () => props.open && activeTab() === "agents",
+    value: () => props.value,
+    onValueChange: (value) => props.onValueChange(value),
+  });
   let handledHostedServerDeleteNonce = 0;
   createEffect(
     () => (props.open ? props.hostedServerDeleteRequest : null),
@@ -158,7 +165,9 @@ export function SettingsModal(props: SettingsModalProps) {
       return tab === "hosted-servers" ? "billing" : tab;
     },
     (tab) => {
-      if (tab) setActiveTab(tab);
+      if (!tab) return;
+      setActiveTab(tab);
+      agents.showList();
     },
   );
   const visibleNavItems = () => navItems.filter((item) => settingsTabShown(item.value, props.appInfo?.platform));
@@ -173,6 +182,7 @@ export function SettingsModal(props: SettingsModalProps) {
     onChange(value: string) {
       if (
         value === "general" ||
+        value === "agents" ||
         value === "notifications" ||
         value === "voice" ||
         (value === "dynamic-island" && isMac()) ||
@@ -226,9 +236,21 @@ export function SettingsModal(props: SettingsModalProps) {
         class="app-settings-modal-shell"
         page={props.page}
         open={props.open}
-        title={title()}
+        title={
+          <Show when={activeTab() === "agents" && agents.crumb()} fallback={title()}>
+            {(detail) => (
+              <span class="settings-modal-crumbs">
+                <Button type="button" variant="ghost" class="settings-modal-crumb-parent" onClick={detail().back}>
+                  {title()}
+                </Button>
+                <ChevronRight class="settings-modal-crumb-separator" aria-hidden="true" />
+                <span class="settings-modal-crumb-current">{detail().title}</span>
+              </span>
+            )}
+          </Show>
+        }
         description={description()}
-        contentKey={activeTab()}
+        contentKey={`${activeTab()}:${agents.crumb()?.title ?? ""}`}
         restoreFocusTarget={props.restoreFocusTarget}
         onContentElement={(element) => (modalElement = element)}
         sidebar={
@@ -259,6 +281,11 @@ export function SettingsModal(props: SettingsModalProps) {
             onUpdateSettings={updateSettings}
             selectMount={modalElement}
           />
+        </Tabs.Content>
+
+        <Tabs.Content value="agents" class="settings-modal-tab-panel" data-tab="agents">
+          {preferencesLoadError()}
+          <agents.Panel menuMount={modalElement} />
         </Tabs.Content>
 
         <Tabs.Content value="notifications" class="settings-modal-tab-panel" data-tab="notifications">

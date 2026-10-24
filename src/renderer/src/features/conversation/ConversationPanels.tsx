@@ -137,6 +137,8 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
   );
   // This computer reads the skills of its own agents from the workspace. A joined host publishes its
   // own agents, for an owner or admin, when it serves `agent-publish-v1`.
+  // A remote agent's host resolves its settings, so the account defaults of this computer do not apply.
+  const localAgentDefaults = () => (props.server?.kind === "local" ? props.agentDefaults : undefined);
   const canPublish = () =>
     props.runtime
       ? props.runtime.admin !== undefined && serverCanAdminister(props.server, "agent-publish-v1")
@@ -509,6 +511,7 @@ export function ConversationPanels(panelProps: { onOpenUsage?: ((trigger: HTMLBu
               backupModelsEditable={props.server?.kind === "local" || props.remoteBackupModelsLoaded === true}
               usageLimited={props.usageLimited}
               defaultBusyMessageMode={props.defaultBusyMessageMode}
+              agentDefaults={localAgentDefaults()}
               memoryLimit={props.server?.kind === "local" ? props.agentMemoryLimit : undefined}
               agents={props.agents}
               onStartNewChat={props.onClearAgentContext}

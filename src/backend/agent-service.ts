@@ -101,6 +101,7 @@ import type {
   UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
 import {
+  type AgentDefaults,
   type AgentModelChoice,
   agentAutomationAllowed,
   agentBrowserProfile,
@@ -478,7 +479,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           sender,
         ).pipe(toProfileSaveFailed),
       changed: (agent, previous) => {
-        if (standingProfileChanged(previous, agent)) this.#conversation.unloadAgentThreads(agent.id);
+        if (standingProfileChanged(previous, agent, this.#store.agentDefaults()))
+          this.#conversation.unloadAgentThreads(agent.id);
         this.#emit({ type: "agents-changed", agents: this.listAgents() });
         this.#drain.scheduleDrain(agent.id);
       },
@@ -1382,6 +1384,20 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /**
+   * After the account defaults changed from `previous`: each agent that follows a changed one loads
+   * its sessions again before its next turn, so its instructions say what it may do now, as after a
+   * change of its own setting. The listeners of `agents-changed`, such as the automation server, read
+   * the new defaults.
+   */
+  agentDefaultsChanged(previous: AgentDefaults): void {
+    const defaults = this.#store.agentDefaults();
+    for (const agent of this.#store.list()) {
+      if (standingProfileChanged(agent, agent, defaults, previous)) this.#conversation.unloadAgentThreads(agent.id);
+    }
+    this.#emit({ type: "agents-changed", agents: this.listAgents() });
+  }
+
+  /**
    * The other agents in the agent's sidebar section, in sidebar order, for its instructions. Null when
    * the agent has no section of the user's, or is in the Integrations section: the orchestrators there
    * serve unrelated integrations and choose teammates by fit.
@@ -1652,7 +1668,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   #requireAutomationAllowed(agentId: string): void {
     const agent = this.listAgents().find((candidate) => candidate.id === agentId);
-    if (!agent || !agentAutomationAllowed(agent)) throw new Error(sourceText("error.agent.automationOff"));
+    if (!agent || !agentAutomationAllowed(agent, this.#store.agentDefaults()))
+      throw new Error(sourceText("error.agent.automationOff"));
   }
 
   /** `withSkipped` adds the skipped-run records, which only the local history shows. */
@@ -2495,7 +2512,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             ? "provider-error-ended"
             : "usage-limit-ended",
       );
-    const profileChanged = standingProfileChanged(previous, agent);
+    const profileChanged = standingProfileChanged(previous, agent, this.#store.agentDefaults());
     const activeSession = this.#store.activeProviderSession(agent.id);
     const providerChanged =
       (previous && requestedProvider && requestedProvider !== providerForAgent(previous)) || accountChanged;
@@ -2798,7 +2815,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   #startRequestedNewChat(agentId: string): Effect.Effect<void> {
     if (!this.#requestedNewChats.has(agentId)) return Effect.void;
     const agent = this.#store.list().find((candidate) => candidate.id === agentId);
-    if (!agent || !agentNewChatAllowed(agent)) {
+    if (!agent || !agentNewChatAllowed(agent, this.#store.agentDefaults())) {
       this.#requestedNewChats.delete(agentId);
       return Effect.void;
     }

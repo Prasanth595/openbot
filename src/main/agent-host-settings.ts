@@ -19,11 +19,13 @@ import { sourceText } from "@openbot/i18n/source";
 import type { AgentService } from "../backend/agent-service";
 import { causeHelpers } from "../backend/effect-boundary";
 import { AgentNotFoundError } from "./agent-admin-settings";
+import type { AgentDefaultsPreferenceStore } from "./agent-defaults-preference-store";
 import type { BusyMessageModePreferenceStore } from "./busy-message-mode-preference-store";
 
 export interface AgentHostSettingsDependencies {
   agents: Pick<AgentService, "listAgents" | "updateAgent">;
   busyMessageMode: Pick<BusyMessageModePreferenceStore, "get">;
+  agentDefaults: Pick<AgentDefaultsPreferenceStore, "get">;
 }
 
 export interface AgentHostSettingsService {
@@ -40,6 +42,7 @@ export interface AgentHostSettingsService {
 export function createAgentHostSettings({
   agents,
   busyMessageMode,
+  agentDefaults,
 }: AgentHostSettingsDependencies): AgentHostSettingsService {
   function requireAgent(agentId: string): AgentSummary {
     const agent = agents.listAgents().find((candidate) => candidate.id === agentId);
@@ -49,7 +52,7 @@ export function createAgentHostSettings({
   function settings(agent: AgentSummary): AgentHostSettings {
     return {
       computerUse: agentComputerUseEnabled(agent),
-      allowAutomation: agentAutomationAllowed(agent),
+      allowAutomation: agentAutomationAllowed(agent, agentDefaults.get()),
       busyMessageMode: agent.busyMessageMode ?? null,
       defaultBusyMessageMode: busyMessageMode.get().mode,
     };

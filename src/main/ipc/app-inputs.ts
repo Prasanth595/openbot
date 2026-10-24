@@ -1,5 +1,6 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
+  AgentDefaults,
   AgentMemoryLimitPreference,
   AgentProviderId,
   AppBehaviorPreferenceChange,
@@ -40,6 +41,7 @@ import type {
 } from "@openbot/contracts/ipc";
 import {
   IDLE_RESTART_TARGETS,
+  isAgentDefaults,
   isAgentMemoryLimit,
   isAgentModel,
   isAgentProvider,
@@ -94,6 +96,15 @@ export function parseAnalyticsPreference(input: unknown): SetAnalyticsPreference
 export function parseBusyMessageModePreference(input: unknown): BusyMessageModePreference {
   if (!isDynamicRecord(input) || !isBusyMessageMode(input.mode)) throw new Error("Busy message mode is required.");
   return { mode: input.mode };
+}
+
+export function parseAgentDefaults(input: unknown): AgentDefaults {
+  if (!isAgentDefaults(input)) throw new Error("Agent defaults are required.");
+  return {
+    allowAutomation: input.allowAutomation,
+    allowNewChat: input.allowNewChat,
+    quickAcknowledgement: input.quickAcknowledgement,
+  };
 }
 
 export function parseAgentMemoryLimitPreference(input: unknown): AgentMemoryLimitPreference {

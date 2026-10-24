@@ -840,8 +840,8 @@ export class ThreadLifecycle {
             agent.title,
             agent.description,
             ...(workspaceAccessEnforced(agent) ? ["workspace"] : []),
-            ...(agentAutomationAllowed(agent) ? ["automation"] : []),
-            ...(agentQuickAcknowledgementEnabled(agent) ? ["quick-acknowledgement"] : []),
+            ...(agentAutomationAllowed(agent, this.#store.agentDefaults()) ? ["automation"] : []),
+            ...(agentQuickAcknowledgementEnabled(agent, this.#store.agentDefaults()) ? ["quick-acknowledgement"] : []),
           ],
           ...(Object.keys(environment).length > 0 ? [Object.entries(environment).sort()] : []),
           ...(section ? [section.members.map((member) => member.id).sort()] : []),
@@ -943,6 +943,7 @@ export class ThreadLifecycle {
       this.#store.sharedRoot,
       memories,
       this.#store.automationRoot,
+      this.#store.agentDefaults(),
       options,
     );
     return options.memoriesInTurns

@@ -114,6 +114,7 @@ import type {
 } from "./ipc-agent-templates";
 import type { AgentWaitsSnapshot, CancelAgentWaitInput } from "./ipc-agent-waits";
 import type {
+  AgentDefaults,
   AvatarImageInput,
   ClientAgentSummary,
   CreateAgentInput,
@@ -577,6 +578,8 @@ export const IPC_ENDPOINTS = {
     setBusyMessageModePreference: request<BusyMessageModePreference, BusyMessageModePreference>()(
       "app:set-busy-message-mode",
     ),
+    getAgentDefaults: request<undefined, AgentDefaults>()("app:get-agent-defaults"),
+    setAgentDefaults: request<AgentDefaults, AgentDefaults>()("app:set-agent-defaults"),
     getAgentMemoryLimitPreference: request<undefined, AgentMemoryLimitPreference>()("app:get-agent-memory-limit"),
     // Server settings set the limit of this computer (`hostAdmin.setAgentMemoryLimit`), here or from a
     // joined admin, so main tells the window.

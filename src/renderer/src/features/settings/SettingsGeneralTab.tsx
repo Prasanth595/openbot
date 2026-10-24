@@ -155,13 +155,6 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             label={i18n.t("settings.showAgentSteps.title")}
             description={i18n.t("settings.showAgentSteps.description")}
           />
-          <SwitchField
-            data-settings-row="settings.busyMessage.title"
-            checked={props.value.busyMessageMode === "steer"}
-            onChange={(checked) => props.onUpdateSetting("busyMessageMode", checked ? "steer" : "queue")}
-            label={i18n.t("settings.busyMessage.title")}
-            description={i18n.t("settings.busyMessage.description")}
-          />
           <Item data-settings-row="settings.externalLinks.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.externalLinks.title")}</ItemTitle>
