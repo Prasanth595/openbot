@@ -64,13 +64,13 @@ export type StoredCard = typeof cardSchema.Type;
 export type StoredContact = typeof contactSchema.Type;
 export type VaultRecord = typeof recordSchema.Type;
 
-export const EMPTY_VAULT_RECORD: VaultRecord = { logins: [], cards: [], contacts: [] };
+const EMPTY_VAULT_RECORD: VaultRecord = { logins: [], cards: [], contacts: [] };
 
 /** `version` is checked: an envelope that this build cannot read is reported as unreadable. */
 const envelopeSchema = Schema.Struct({ version: Schema.Literal(1), record: Schema.String });
 
 /** Thousands of items fit; a larger file is not one that this app wrote. */
-export const MAX_VAULT_ENVELOPE_BYTES = 4 * 1024 * 1024;
+const MAX_VAULT_ENVELOPE_BYTES = 4 * 1024 * 1024;
 
 function unreadable() {
   return new PasswordVaultError({ cause: new Error(sourceText("error.vault.unreadable")) });

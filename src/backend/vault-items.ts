@@ -8,14 +8,14 @@ import type { Effect } from "effect";
 import type { PasswordVaultError } from "./password-vault";
 
 /** What an agent may see of a login: never the password or the notes. */
-export interface VaultLoginForAgent extends VaultItemOrigin {
+interface VaultLoginForAgent extends VaultItemOrigin {
   id: string;
   website: string;
   username: string;
 }
 
 /** What an agent may see of a card. The number and the security code are never in it. */
-export interface VaultCardForAgent extends VaultItemOrigin {
+interface VaultCardForAgent extends VaultItemOrigin {
   id: string;
   label: string;
   nameOnCard: string;
@@ -29,7 +29,7 @@ export interface VaultCardForAgent extends VaultItemOrigin {
 }
 
 /** Contact info is not secret: an agent sees every field and types them itself. */
-export interface VaultContactForAgent extends VaultContactFields, VaultItemOrigin {
+interface VaultContactForAgent extends VaultContactFields, VaultItemOrigin {
   id: string;
 }
 

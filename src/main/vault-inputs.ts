@@ -58,7 +58,7 @@ export function vaultWebsite(value: string): string | null {
 }
 
 /** Digits only, with spaces and dashes removed, or null when the number fails the Luhn check. */
-export function cardNumber(value: string): string | null {
+function cardNumber(value: string): string | null {
   const digits = value.replace(/[\s-]/gu, "");
   if (!/^\d{12,19}$/u.test(digits)) return null;
   let sum = 0;

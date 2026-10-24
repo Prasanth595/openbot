@@ -163,7 +163,7 @@ export function cardFieldText(
  * such as `MM/AA` or `MM/JJ`, or an example such as `12/28`. Then the length limit: 4 is `MMYY`, 5 is
  * `MM/YY`, 6 is `MMYYYY` and 7 is `MM/YYYY`. Otherwise `MM/YY`, the most common form.
  */
-export function expiryText(month: string, year: string, description: BrowserCardFieldDescription): string {
+function expiryText(month: string, year: string, description: BrowserCardFieldDescription): string {
   const short = year.slice(-2);
   const placeholder = description.placeholder.trim();
   const letters = /^mm(\s*[/\-.]?\s*)([a-z])\2(\2\2)?$/iu.exec(placeholder);
