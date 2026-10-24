@@ -84,34 +84,58 @@ export function collectProviderUsage(
     }
     return;
   }
+  const value = getRecord(params, "usage");
+  if (!value) return;
+  // A model chosen while the turn runs applies from the next turn, so the turn keeps its own.
+  const model = usage.turnModel(agent.id, session.id, turnId) ?? agent.model;
+  if (session.provider === "antigravity") {
+    // Antigravity 1.4.3 sends the tokens of this prompt only: `_extract_turn_usage` subtracts the
+    // session's total at the turn's start, and a restored session starts from its saved total. So
+    // each turn is its own counter. Gemini bills thinking as output, and Antigravity sends it apart.
+    const tokens = acpTokens(value);
+    const thought = count(value.thoughtTokens);
+    usage.record({
+      agentId: agent.id,
+      sessionId: session.id,
+      turnId,
+      provider: session.provider,
+      model,
+      counterId: `${session.id}:antigravity:${turnId}`,
+      baseline: false,
+      tokens: { ...tokens, output: tokens.output === null ? null : tokens.output + (thought ?? 0) },
+    });
+    return;
+  }
   // ACP `Usage` is session-cumulative by contract: its fields are documented as "Sum of all token
   // types across session" and "Total input tokens across all turns". So one counter per session,
   // like Codex, and the first report of a session that predates collection is a baseline: it
   // carries tokens spent before analytics existed.
-  const value = getRecord(params, "usage");
-  if (!value) return;
-  const input = count(value.inputTokens);
-  const cached = count(value.cachedReadTokens);
-  const creation = count(value.cachedWriteTokens);
   usage.record({
     agentId: agent.id,
     sessionId: session.id,
     turnId,
     provider: session.provider,
-    // A model chosen while the turn runs applies from the next turn, so the turn keeps its own.
-    model: usage.turnModel(agent.id, session.id, turnId) ?? agent.model,
+    model,
     counterId: `${session.id}:grok`,
     baseline: session.createdAt < usage.collectionStartedAt(),
-    tokens: {
-      uncachedInput:
-        input !== null && cached !== null && creation !== null && input >= cached + creation
-          ? input - cached - creation
-          : null,
-      cachedInput: cached,
-      cacheCreation: creation,
-      output: count(value.outputTokens),
-    },
+    tokens: acpTokens(value),
   });
+}
+
+/** An ACP `Usage`, whose `inputTokens` include the cache reads and writes. */
+function acpTokens(value: DynamicRecord): UsageTokens {
+  const input = count(value.inputTokens);
+  const cached = count(value.cachedReadTokens);
+  const creation = count(value.cachedWriteTokens);
+  return {
+    uncachedInput:
+      input !== null && cached !== null && creation !== null && input >= cached + creation
+        ? input - cached - creation
+        : null,
+    cachedInput: cached,
+    cacheCreation: creation,
+    output: count(value.outputTokens),
+  };
 }
 
 /**
