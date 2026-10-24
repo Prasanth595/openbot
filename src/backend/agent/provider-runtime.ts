@@ -1154,7 +1154,9 @@ export class ProviderRuntime implements ProviderPort {
                 provider: "acp",
                 message: error.cause instanceof Error ? this.#redactMcp(error.cause.message) : "unknown",
               });
-              return null;
+              // A failed read keeps the last answer to the same prompt on the rail.
+              const previous = this.#customAgentUsage.get(id);
+              return previous?.prompt === prompt ? previous.text : null;
             }),
           ),
           Effect.tap((text) =>
