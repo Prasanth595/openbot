@@ -51,6 +51,7 @@ import {
   type ConversationMessage,
   type ConversationReadState,
   type ConversationSnapshot,
+  type ConversationTurnTrace,
   type CustomAgentSummary,
   type CustomProviderSummary,
   composedCustomModelId,
@@ -237,6 +238,47 @@ export interface MockSentMessage {
   text: string;
   turnId: string;
   delivery: QueueDelivery;
+}
+
+/**
+ * The trace of a finished mock turn that ends at `endedAt`, as a host records it: a thought, three
+ * tool steps with the progress text that `turn-progress` sent (the web search failed), and the answer.
+ */
+function mockTurnTrace(turnId: string, endedAt: Date): ConversationTurnTrace {
+  const end = endedAt.getTime();
+  const at = (offsetMs: number) => new Date(end - 6_400 + offsetMs).toISOString();
+  return {
+    startedAt: at(0),
+    endedAt: endedAt.toISOString(),
+    steps: [
+      { id: `${turnId}:thought`, kind: "reasoning", startedAt: at(180), endedAt: at(1_420) },
+      {
+        id: `${turnId}:read`,
+        kind: "tool",
+        text: "Gathering the relevant information…",
+        startedAt: at(1_500),
+        endedAt: at(2_260),
+      },
+      {
+        id: `${turnId}:search`,
+        kind: "tool",
+        text: "Searching for current information…",
+        startedAt: at(2_340),
+        endedAt: at(3_910),
+        failed: true,
+      },
+      {
+        id: `${turnId}:edit`,
+        kind: "tool",
+        text: "Making the requested changes…",
+        startedAt: at(4_020),
+        endedAt: at(5_480),
+      },
+      { id: `${turnId}:answer`, kind: "message", startedAt: at(5_560), endedAt: at(6_400) },
+    ],
+    tokens: 18_342,
+    costUsd: 0.0427,
+  };
 }
 
 /** Custom models compose as `<provider>/<model>`; preview builds `listModels()` from these. */
@@ -2345,14 +2387,16 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         });
 
         schedule(() => {
+          const repliedAt = new Date();
           const assistantMessage: ConversationMessage = {
             id: `mock-reply-${messageCounter++}`,
             turnId,
             author: "assistant",
             source: "assistant",
             text: `Mock reply from ${agents.find((agent) => agent.id === input.agentId)?.name ?? "agent"}: I received “${input.text}” and added it to the working context.`,
-            createdAt: new Date().toISOString(),
+            createdAt: repliedAt.toISOString(),
             status: "completed",
+            trace: mockTurnTrace(turnId, repliedAt),
           };
           // A message that asks the agent to remember something commits one memory, as a real turn does.
           const memoryMessage: ConversationMessage[] = /\bremember\b/iu.test(input.text)

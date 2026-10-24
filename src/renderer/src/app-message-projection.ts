@@ -122,6 +122,7 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
     ...(plan ? { plan } : {}),
     ...(subagents?.length ? { subagents } : {}),
     ...(memoryChanges && message.memoryChanges ? { memoryChanges: message.memoryChanges } : {}),
+    ...(message.trace === undefined ? {} : { trace: message.trace }),
     ...(status === undefined ? {} : { status }),
   };
 }
@@ -188,6 +189,7 @@ export function toAgentMessages(
       existing.itemIds = [...(existing.itemIds ?? []), message.id];
       existing.itemCreatedAt = [...(existing.itemCreatedAt ?? []), message.createdAt];
       existing.streaming = existing.streaming || message.status === "streaming";
+      if (message.trace) existing.trace = message.trace;
       continue;
     }
 
@@ -205,6 +207,7 @@ export function toAgentMessages(
       items: [text],
       itemIds: [message.id],
       itemCreatedAt: [message.createdAt],
+      ...(message.trace === undefined ? {} : { trace: message.trace }),
     };
     thinkingByTurn.set(key, thinking);
     result.push(thinking);

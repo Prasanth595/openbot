@@ -1,10 +1,12 @@
 import type { ConversationMemoryChange } from "@openbot/contracts/ipc";
 import { countConversationMemoryChanges } from "@openbot/contracts/ipc";
 import type { JSX } from "@solidjs/web";
-import { createSignal, createUniqueId, For, onSettled, Show } from "solid-js";
+import { createEffect, createSignal, createUniqueId, For, onSettled, Show } from "solid-js";
 import { Button } from "../../button";
 import { Brain, ChevronDown, Puzzle, Sparkles } from "../../icons";
 import { type TextValue, useText } from "../../text";
+import { prefersReducedMotion } from "../../utils";
+import { type TraceKeyboard, type TraceSpan, TraceWaterfallDialog } from "./TraceWaterfall";
 
 /**
  * One step of an agent's turn: a thought, a progress line of the host, or a memory change that the
@@ -30,7 +32,13 @@ const MEMORY_ACTION_LABEL = {
  * The steps of a turn, in order. While the turn runs, `live` marks the newest step and the list
  * glides so that step stays at the bottom edge; after the turn the list scrolls.
  */
-export function AgentStepList(props: { steps: readonly AgentStep[]; live: boolean; id?: string }) {
+export function AgentStepList(props: {
+  steps: readonly AgentStep[];
+  live: boolean;
+  id?: string;
+  /** The step to scroll to and light up, such as the one that the user picked in the trace. */
+  focus?: { id: string } | null | undefined;
+}) {
   const { t } = useText();
   const [contentHeight, setContentHeight] = createSignal(0);
   let content: HTMLOListElement | undefined;
@@ -41,6 +49,14 @@ export function AgentStepList(props: { steps: readonly AgentStep[]; live: boolea
     observer.observe(element);
     return () => observer.disconnect();
   });
+  createEffect(
+    () => props.focus,
+    (focus) => {
+      if (!focus) return;
+      const step = content?.querySelector(`[data-step-id="${CSS.escape(focus.id)}"]`);
+      step?.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    },
+  );
   const capped = () => contentHeight() > STEPS_MAX_HEIGHT;
   const scrolls = () => !props.live && capped();
   const offset = () => (props.live && capped() ? STEPS_MAX_HEIGHT - contentHeight() : 0);
@@ -57,7 +73,12 @@ export function AgentStepList(props: { steps: readonly AgentStep[]; live: boolea
       <ol ref={content} class="agent-steps-list" style={{ transform: `translateY(${offset()}px)` }}>
         <For each={props.steps} keyed={(step) => step.id}>
           {(step, index) => (
-            <li class="agent-step" data-kind={step().kind}>
+            <li
+              class="agent-step"
+              data-kind={step().kind}
+              data-step-id={step().id}
+              data-focused={props.focus?.id === step().id ? "" : undefined}
+            >
               <StepIcon kind={step().kind} />
               <StepBody step={step()} newest={props.live && index() === props.steps.length - 1} />
             </li>
@@ -124,33 +145,104 @@ function stepsSummary(steps: readonly AgentStep[], text: TextValue): string {
     .join(" · ");
 }
 
+/** The trace of a turn, which its steps row opens in a dialog. */
+export interface AgentStepsTrace {
+  /** Read only while the dialog is open. */
+  spans: () => readonly TraceSpan[];
+  keyboard: TraceKeyboard;
+  /** The spans that are not steps of the list but that the chat can show, such as subagents. */
+  canSelectSpan?: (id: string) => boolean;
+  onSelectSpan?: (id: string) => void;
+}
+
 /**
- * The steps of a finished turn, above its answer: a closed summary row that opens the list. The
- * "Show agent steps" setting opens it at first.
+ * The steps of a finished turn, above its answer: a closed summary row that opens the list, or the
+ * trace when the turn has one. The "Show agent steps" setting opens the list at first. An open list,
+ * also one that a step picked in the trace opened, closes from the row.
  */
-export function AgentStepsDisclosure(props: { steps: readonly AgentStep[]; defaultOpen: boolean }) {
+export function AgentStepsDisclosure(props: {
+  steps: readonly AgentStep[];
+  defaultOpen: boolean;
+  trace?: AgentStepsTrace | undefined;
+}) {
   const text = useText();
   const panelId = createUniqueId();
   const [choice, setChoice] = createSignal<boolean>();
+  // The time the trace opened: a finished turn does not move, so its "now" stays at that time.
+  const [traceOpenedAt, setTraceOpenedAt] = createSignal<number | null>(null);
   const open = () => choice() ?? props.defaultOpen;
+  // The step that the user picked in the trace. A new object each time scrolls to it again.
+  const [focus, setFocus] = createSignal<{ id: string } | null>(null);
+  const isStep = (id: string) => props.steps.some((step) => step.id === id);
+  const canSelectSpan = (id: string) => isStep(id) || (props.trace?.canSelectSpan?.(id) ?? false);
+  /** Closes the trace and shows the step in the list, or lets the chat show it. */
+  const selectSpan = (id: string) => {
+    setTraceOpenedAt(null);
+    if (!isStep(id)) {
+      props.trace?.onSelectSpan?.(id);
+      return;
+    }
+    setChoice(true);
+    setFocus({ id });
+  };
+  /** The row opens the trace, unless it has none or its list is open. */
+  const opensTrace = () => props.trace !== undefined && !open();
+  const expanded = () => {
+    if (opensTrace()) return undefined;
+    return open() ? "true" : "false";
+  };
+  const controls = () => {
+    if (!open()) return undefined;
+    return panelId;
+  };
+  const popup = () => {
+    if (opensTrace()) return "dialog";
+    return undefined;
+  };
+  const activate = () => {
+    if (opensTrace()) {
+      setTraceOpenedAt(Date.now());
+      return;
+    }
+    setFocus(null);
+    setChoice(!open());
+  };
   return (
     <div class="agent-steps" data-open={open() ? "" : undefined}>
       <Button
         type="button"
         variant="ghost"
         class="agent-steps-header"
-        aria-expanded={open() ? "true" : "false"}
-        aria-controls={open() ? panelId : undefined}
-        onClick={() => setChoice(!open())}
+        aria-expanded={expanded()}
+        aria-controls={controls()}
+        aria-haspopup={popup()}
+        onClick={activate}
       >
         <Sparkles class="agent-steps-header-icon" aria-hidden="true" />
         <span class="agent-steps-summary">{stepsSummary(props.steps, text)}</span>
-        <ChevronDown class="agent-steps-chevron" aria-hidden="true" />
+        <Show when={!opensTrace()}>
+          <ChevronDown class="agent-steps-chevron" aria-hidden="true" />
+        </Show>
       </Button>
+      <Show when={props.trace}>
+        {(trace) => (
+          <TraceWaterfallDialog
+            open={traceOpenedAt() !== null}
+            onOpenChange={(next) => {
+              if (!next) setTraceOpenedAt(null);
+            }}
+            spans={trace().spans()}
+            now={traceOpenedAt() ?? 0}
+            keyboard={trace().keyboard}
+            canSelectSpan={canSelectSpan}
+            onSelectSpan={selectSpan}
+          />
+        )}
+      </Show>
       {/* A long chat has a row for each turn, so a closed row builds no list. */}
       <Show when={open()}>
         <div class="agent-steps-panel">
-          <AgentStepList id={panelId} steps={props.steps} live={false} />
+          <AgentStepList id={panelId} steps={props.steps} live={false} focus={focus()} />
         </div>
       </Show>
     </div>

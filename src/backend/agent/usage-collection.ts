@@ -60,6 +60,7 @@ export function collectProviderUsage(
     const turnModels = getRecord(params, "turnModelUsage");
     for (const [model, value] of Object.entries(models)) {
       if (!isDynamicRecord(value) || !isAgentModel(model)) continue;
+      const turnModel = turnModels && claudeTurnModel(turnModels, models, model);
       const tokens = {
         uncachedInput: count(value.inputTokens),
         cachedInput: count(value.cacheReadInputTokens),
@@ -76,7 +77,9 @@ export function collectProviderUsage(
         // `modelUsage` counts the whole session, and a resumed session starts from its saved
         // totals. The first report of a resumed process carries `turnModelUsage`: the totals
         // before this turn's requests are the baseline, so the turn books only its own requests.
-        previousTokens: turnModels && earlier(tokens, claudeTurnTokens(claudeTurnModel(turnModels, models, model))),
+        previousTokens: turnModels && earlier(tokens, claudeTurnTokens(turnModel ?? null)),
+        // Prices this turn from list rates when Claude gives no cost for it.
+        smallestRequestInputTokens: turnModel ? count(turnModel.smallestRequestInputTokens) : null,
         baseline: false,
         tokens,
         reportedCost: value.costBasis === "unknown" || value.costBasis === "managed" ? null : cost(value.costUSD),

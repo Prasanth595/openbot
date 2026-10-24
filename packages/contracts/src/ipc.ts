@@ -39,6 +39,7 @@ export * from "./ipc-conversation-memory-changes";
 export * from "./ipc-conversation-messages";
 export * from "./ipc-conversation-plan";
 export * from "./ipc-conversation-subagents";
+export * from "./ipc-conversation-trace";
 export * from "./ipc-conversations";
 export * from "./ipc-custom-agents";
 export * from "./ipc-custom-providers";

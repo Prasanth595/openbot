@@ -14,6 +14,7 @@ import type {
   ConversationQuestionPrompt,
   ConversationReaction,
   ConversationSubagent,
+  ConversationTurnTrace,
   HostedSiteConversationEvent,
   ImageGenerationInfo,
   InstalledSkill,
@@ -219,6 +220,11 @@ export interface AgentMessage {
    * that sends only the text, such as a Team API host.
    */
   memoryChanges?: ConversationMemoryChange[] | undefined;
+  /**
+   * The real times of the turn's steps, with its tokens and cost, on the one message of a finished
+   * turn that holds them. Absent on an older turn and from a Team API host.
+   */
+  trace?: ConversationTurnTrace | undefined;
 }
 
 export interface AgentProfile {

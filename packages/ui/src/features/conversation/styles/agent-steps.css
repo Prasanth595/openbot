@@ -134,6 +134,23 @@
   animation: message-in var(--openbot-duration-normal) var(--openbot-ease-out) both;
 }
 
+/* The step that the user picked in the trace lights up, then fades back. A colour change is not
+ * motion, so it stays with reduced motion. */
+.agent-step[data-focused] {
+  border-radius: var(--openbot-radius-xs);
+  animation: agent-step-picked calc(var(--openbot-duration-overlay) * 6) var(--openbot-ease-out) both;
+}
+
+@keyframes agent-step-picked {
+  from {
+    background: var(--openbot-hover);
+  }
+
+  to {
+    background: transparent;
+  }
+}
+
 .agent-step .agent-step-icon {
   margin-top: 2px;
 }
