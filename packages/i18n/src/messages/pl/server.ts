@@ -293,12 +293,6 @@ export const messages = {
   "server.settings.memoryLimit": "Wspomnienia na agenta",
   "server.settings.memoryLimitDescription": "Ile wspomnień może przechowywać każdy agent na tym serwerze.",
   "server.settings.memoryLimitLoadFailed": "Nie udało się wczytać limitu wspomnień tego serwera.",
-  "server.settings.promptCacheTtl": "Pamięć podręczna promptów Claude",
-  "server.settings.promptCacheTtlDescription":
-    "Jak długo Claude trzyma kontekst agenta w pamięci podręcznej między turami.",
-  "server.settings.promptCacheTtlHour": "1 godzina",
-  "server.settings.promptCacheTtlMinutes": "5 minut",
-  "server.settings.promptCacheTtlLoadFailed": "Nie udało się wczytać czasu pamięci podręcznej promptów tego serwera.",
   "server.settings.remoteOnline": "Host jest online. Publikacją zarządza jego właściciel.",
   "server.settings.remoteOffline": "Host jest offline. Publikacją zarządza jego właściciel.",
   "server.settings.reachable": "Dostępny online. Zalogować się mogą tylko zaproszone osoby.",

@@ -298,12 +298,6 @@ export const messages = {
   "server.settings.memoryLimit": "Ajan başına bellek",
   "server.settings.memoryLimitDescription": "Bu sunucudaki her ajanın tutabileceği bellek sayısı.",
   "server.settings.memoryLimitLoadFailed": "Bu sunucunun bellek sınırı yüklenemedi.",
-  "server.settings.promptCacheTtl": "Claude istem önbelleği",
-  "server.settings.promptCacheTtlDescription":
-    "Claude'un bir ajanın bağlamını turlar arasında önbellekte ne kadar tuttuğu.",
-  "server.settings.promptCacheTtlHour": "1 saat",
-  "server.settings.promptCacheTtlMinutes": "5 dakika",
-  "server.settings.promptCacheTtlLoadFailed": "Bu sunucunun istem önbelleği süresi yüklenemedi.",
   "server.settings.remoteOnline": "Ana makine çevrim içi. Yayımlama sahibi tarafından kontrol edilir.",
   "server.settings.remoteOffline": "Ana makine çevrim dışı. Yayımlama sahibi tarafından kontrol edilir.",
   "server.settings.reachable": "Çevrim içi erişilebilir. Yalnızca davet edilen kişiler oturum açabilir.",

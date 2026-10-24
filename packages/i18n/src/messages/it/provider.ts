@@ -186,4 +186,11 @@ export const messages = {
   "provider.account.resetUsageNoCredit": "{name} non ha più crediti di azzeramento dell'utilizzo.",
   "provider.account.resetUsageAlreadyRedeemed": "Questo credito di azzeramento di {name} è già stato usato.",
   "provider.account.resetUsageFailed": "Impossibile azzerare l'utilizzo di {name}.",
+  "provider.settings.cache": "Cache",
+  "provider.settings.promptCache": "Cache dei prompt",
+  "provider.settings.promptCacheDescription":
+    "Per quanto tempo Claude tiene in cache il contesto di un agente tra un turno e l'altro.",
+  "provider.settings.promptCacheHour": "1 ora",
+  "provider.settings.promptCacheMinutes": "5 minuti",
+  "provider.settings.promptCacheLoadFailed": "Impossibile caricare la durata della cache dei prompt di questo server.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -195,4 +195,11 @@ export const messages = {
   "provider.account.resetUsageNoCredit": "{name} n’a plus de crédits de réinitialisation d’usage.",
   "provider.account.resetUsageAlreadyRedeemed": "Ce crédit de réinitialisation de {name} a déjà été utilisé.",
   "provider.account.resetUsageFailed": "Impossible de réinitialiser l’usage de {name}.",
+  "provider.settings.cache": "Cache",
+  "provider.settings.promptCache": "Cache de prompt",
+  "provider.settings.promptCacheDescription":
+    "Durée pendant laquelle Claude garde le contexte d’un agent en cache entre les tours.",
+  "provider.settings.promptCacheHour": "1 heure",
+  "provider.settings.promptCacheMinutes": "5 minutes",
+  "provider.settings.promptCacheLoadFailed": "Impossible de charger la durée du cache de prompt de ce serveur.",
 } as const satisfies PartialTranslation<typeof source>;

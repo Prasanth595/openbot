@@ -186,4 +186,11 @@ export const messages = {
   "provider.account.resetUsageNoCredit": "{name} には使用量リセットのクレジットが残っていません。",
   "provider.account.resetUsageAlreadyRedeemed": "{name} のこのリセットのクレジットはすでに使われています。",
   "provider.account.resetUsageFailed": "{name} の使用量をリセットできませんでした。",
+  "provider.settings.cache": "キャッシュ",
+  "provider.settings.promptCache": "プロンプトキャッシュ",
+  "provider.settings.promptCacheDescription":
+    "ターンの間に Claude がエージェントのコンテキストをキャッシュに保持する時間。",
+  "provider.settings.promptCacheHour": "1 時間",
+  "provider.settings.promptCacheMinutes": "5 分",
+  "provider.settings.promptCacheLoadFailed": "このサーバーのプロンプトキャッシュ時間を読み込めませんでした。",
 } as const satisfies PartialTranslation<typeof source>;

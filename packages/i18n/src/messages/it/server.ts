@@ -291,12 +291,6 @@ export const messages = {
   "server.settings.memoryLimit": "Memorie per agente",
   "server.settings.memoryLimitDescription": "Quante memorie può conservare ogni agente su questo server.",
   "server.settings.memoryLimitLoadFailed": "Impossibile caricare il limite di memorie di questo server.",
-  "server.settings.promptCacheTtl": "Cache dei prompt di Claude",
-  "server.settings.promptCacheTtlDescription":
-    "Per quanto tempo Claude tiene in cache il contesto di un agente tra un turno e l'altro.",
-  "server.settings.promptCacheTtlHour": "1 ora",
-  "server.settings.promptCacheTtlMinutes": "5 minuti",
-  "server.settings.promptCacheTtlLoadFailed": "Impossibile caricare la durata della cache dei prompt di questo server.",
   "server.settings.remoteOnline": "L'host è online. La pubblicazione è controllata dal suo proprietario.",
   "server.settings.remoteOffline": "L'host è offline. La pubblicazione è controllata dal suo proprietario.",
   "server.settings.reachable": "Raggiungibile online. Solo le persone invitate possono accedere.",

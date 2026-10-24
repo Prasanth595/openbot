@@ -186,4 +186,11 @@ export const messages = {
   "provider.account.resetUsageNoCredit": "{name} hesabında kullanım sıfırlama kredisi kalmadı.",
   "provider.account.resetUsageAlreadyRedeemed": "{name} hesabının bu sıfırlama kredisi zaten kullanıldı.",
   "provider.account.resetUsageFailed": "{name} kullanımı sıfırlanamadı.",
+  "provider.settings.cache": "Önbellek",
+  "provider.settings.promptCache": "İstem önbelleği",
+  "provider.settings.promptCacheDescription":
+    "Claude'un bir ajanın bağlamını turlar arasında önbellekte ne kadar tuttuğu.",
+  "provider.settings.promptCacheHour": "1 saat",
+  "provider.settings.promptCacheMinutes": "5 dakika",
+  "provider.settings.promptCacheLoadFailed": "Bu sunucunun istem önbelleği süresi yüklenemedi.",
 } as const satisfies PartialTranslation<typeof source>;

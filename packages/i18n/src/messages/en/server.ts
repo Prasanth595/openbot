@@ -316,12 +316,6 @@ export const messages = defineMessages("server", {
   "server.settings.memoryLimit": "Memories per agent",
   "server.settings.memoryLimitDescription": "How many memories each agent on this server can keep.",
   "server.settings.memoryLimitLoadFailed": "Could not load the memory limit of this server.",
-  "server.settings.promptCacheTtl": "Claude prompt cache",
-  "server.settings.promptCacheTtlDescription":
-    "How long Claude keeps the context of an agent in the cache between turns.",
-  "server.settings.promptCacheTtlHour": "1 hour",
-  "server.settings.promptCacheTtlMinutes": "5 minutes",
-  "server.settings.promptCacheTtlLoadFailed": "Could not load the prompt cache time of this server.",
   "server.settings.rolesTitle": "Roles",
   "server.settings.rolesDescription":
     "Choose the agents that members can use. A member gets the highest access of Everyone and of their roles. Owners and admins can use all agents.",

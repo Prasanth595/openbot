@@ -191,4 +191,11 @@ export const messages = {
   "provider.account.resetUsageNoCredit": "{name} hat kein Guthaben zum Zurücksetzen der Nutzung mehr.",
   "provider.account.resetUsageAlreadyRedeemed": "Dieses Guthaben von {name} wurde bereits verwendet.",
   "provider.account.resetUsageFailed": "Die Nutzung von {name} konnte nicht zurückgesetzt werden.",
+  "provider.settings.cache": "Cache",
+  "provider.settings.promptCache": "Prompt-Cache",
+  "provider.settings.promptCacheDescription":
+    "Wie lange Claude den Kontext eines Agenten zwischen den Zügen im Cache behält.",
+  "provider.settings.promptCacheHour": "1 Stunde",
+  "provider.settings.promptCacheMinutes": "5 Minuten",
+  "provider.settings.promptCacheLoadFailed": "Die Prompt-Cache-Dauer dieses Servers konnte nicht geladen werden.",
 } as const satisfies PartialTranslation<typeof source>;

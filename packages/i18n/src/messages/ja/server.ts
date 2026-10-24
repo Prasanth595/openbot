@@ -289,12 +289,6 @@ export const messages = {
   "server.settings.memoryLimit": "エージェントごとのメモリー数",
   "server.settings.memoryLimitDescription": "このサーバーの各エージェントが保持できるメモリーの数です。",
   "server.settings.memoryLimitLoadFailed": "このサーバーのメモリー上限を読み込めませんでした。",
-  "server.settings.promptCacheTtl": "Claude のプロンプトキャッシュ",
-  "server.settings.promptCacheTtlDescription":
-    "ターンの間に Claude がエージェントのコンテキストをキャッシュに保持する時間。",
-  "server.settings.promptCacheTtlHour": "1 時間",
-  "server.settings.promptCacheTtlMinutes": "5 分",
-  "server.settings.promptCacheTtlLoadFailed": "このサーバーのプロンプトキャッシュ時間を読み込めませんでした。",
   "server.settings.remoteOnline": "ホストはオンラインです。公開設定はオーナーが管理しています。",
   "server.settings.remoteOffline": "ホストはオフラインです。公開設定はオーナーが管理しています。",
   "server.settings.reachable": "オンラインでアクセスできます。招待されたユーザーのみがサインインできます。",

@@ -10,6 +10,8 @@ import {
   type CustomProviderSummary,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   MAX_PROVIDER_ACCOUNTS,
+  PROMPT_CACHE_TTLS,
+  type PromptCacheTtl,
   type ProviderAccountState,
   type ProviderUsageResetOutcome,
   type ProviderUsageResets,
@@ -87,6 +89,15 @@ export interface ProviderSettingsDetail {
 /** The custom endpoints are one choice of the default select. */
 export type ProviderDefaultChoice = AgentProviderId | "custom";
 
+/** How long Claude keeps the prompt cache of the host's agents. `value` is null until the host answers. */
+export interface ProviderPromptCache {
+  value: PromptCacheTtl | null;
+  pending: boolean;
+  /** A load or a save that failed. */
+  error: string | null;
+  onChange: (ttl: PromptCacheTtl) => void;
+}
+
 export interface ProviderSettingsPageProps extends ProviderRowHost {
   options: ProviderPickerOption[];
   /** The default for new agents. A joined server has none: its default is not this computer's. */
@@ -117,6 +128,8 @@ export interface ProviderSettingsPageProps extends ProviderRowHost {
   onRemoveCustomProvider?: ((provider: CustomProviderSummary) => void) | undefined;
   removingCustomProvider?: string | null | undefined;
   onDetailChange?: ((detail: ProviderSettingsDetail | null) => void) | undefined;
+  /** On the Claude page. Only for a host with `prompt-cache-ttl-v1` that this account administers. */
+  promptCache?: ProviderPromptCache | undefined;
   /** Below the list: what the host found, and the other agents the user can add. */
   footer?: JSX.Element;
 }
@@ -493,6 +506,9 @@ function ProviderPage(props: PageProps) {
           <ApiKeySection {...props} row={row} />
         </Show>
         <RuntimeSection {...props} row={row} />
+        <Show when={props.option.id === "claude" && props.promptCache}>
+          {(cache) => <PromptCacheSection cache={cache()} disabled={props.disabled} menuMount={props.menuMount} />}
+        </Show>
       </Show>
       <UseSection {...props} row={row} />
     </>
@@ -1256,6 +1272,67 @@ function RuntimeSection(props: SectionProps) {
         </ItemGroup>
       </SettingsSection>
     </Show>
+  );
+}
+
+/* ---------------------------------------------- Prompt cache */
+
+/** Claude only: the other providers take no cache time. A change applies to the next Claude process. */
+function PromptCacheSection(props: {
+  cache: ProviderPromptCache;
+  disabled: boolean | undefined;
+  menuMount: HTMLElement | undefined;
+}) {
+  const { t } = useText();
+  const label = (ttl: PromptCacheTtl) =>
+    ttl === "1h" ? t("provider.settings.promptCacheHour") : t("provider.settings.promptCacheMinutes");
+  return (
+    <SettingsSection title={t("provider.settings.cache")}>
+      <ItemGroup class="settings-modal-card">
+        <Item class="settings-modal-row">
+          <ItemContent>
+            <ItemTitle id="provider-settings-prompt-cache-label">{t("provider.settings.promptCache")}</ItemTitle>
+            <Show
+              when={props.cache.error}
+              fallback={<ItemDescription>{t("provider.settings.promptCacheDescription")}</ItemDescription>}
+            >
+              {(message) => (
+                <ItemDescription class="provider-settings-error" role="alert">
+                  {message()}
+                </ItemDescription>
+              )}
+            </Show>
+          </ItemContent>
+          <Show when={props.cache.value}>
+            {(value) => (
+              <ItemActions>
+                <Select<PromptCacheTtl>
+                  options={[...PROMPT_CACHE_TTLS]}
+                  value={value()}
+                  disabled={Boolean(props.disabled || props.cache.pending)}
+                  placement="bottom-end"
+                  // The select also reports the value that it shows, which is not a choice of the user.
+                  onChange={(ttl) => {
+                    if (ttl && ttl !== props.cache.value) props.cache.onChange(ttl);
+                  }}
+                  itemComponent={(item) => <SelectItem item={item.item}>{label(item.item.rawValue)}</SelectItem>}
+                >
+                  <SelectTrigger size="sm" aria-labelledby="provider-settings-prompt-cache-label">
+                    <SelectValue<PromptCacheTtl>>
+                      {(state) => {
+                        const selected = state.selectedOption();
+                        return selected ? label(selected) : "";
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent mount={props.menuMount} />
+                </Select>
+              </ItemActions>
+            )}
+          </Show>
+        </Item>
+      </ItemGroup>
+    </SettingsSection>
   );
 }
 

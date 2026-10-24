@@ -188,4 +188,11 @@ export const messages = {
   "provider.account.resetUsageNoCredit": "{name} no tiene más créditos de restablecimiento de uso.",
   "provider.account.resetUsageAlreadyRedeemed": "Este crédito de restablecimiento de {name} ya se usó.",
   "provider.account.resetUsageFailed": "No se pudo restablecer el uso de {name}.",
+  "provider.settings.cache": "Caché",
+  "provider.settings.promptCache": "Caché de prompts",
+  "provider.settings.promptCacheDescription":
+    "Cuánto tiempo guarda Claude el contexto de un agente en la caché entre turnos.",
+  "provider.settings.promptCacheHour": "1 hora",
+  "provider.settings.promptCacheMinutes": "5 minutos",
+  "provider.settings.promptCacheLoadFailed": "No se pudo cargar la duración de la caché de prompts de este servidor.",
 } as const satisfies PartialTranslation<typeof source>;

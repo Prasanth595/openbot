@@ -179,4 +179,11 @@ export const messages = {
   "provider.account.resetUsageNoCredit": "{name} não tem mais créditos de redefinição de uso.",
   "provider.account.resetUsageAlreadyRedeemed": "Este crédito de redefinição de {name} já foi usado.",
   "provider.account.resetUsageFailed": "Não foi possível redefinir o uso de {name}.",
+  "provider.settings.cache": "Cache",
+  "provider.settings.promptCache": "Cache de prompts",
+  "provider.settings.promptCacheDescription":
+    "Por quanto tempo o Claude mantém o contexto de um agente no cache entre os turnos.",
+  "provider.settings.promptCacheHour": "1 hora",
+  "provider.settings.promptCacheMinutes": "5 minutos",
+  "provider.settings.promptCacheLoadFailed": "Não foi possível carregar a duração do cache de prompts deste servidor.",
 } as const satisfies PartialTranslation<typeof source>;

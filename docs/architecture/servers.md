@@ -401,7 +401,8 @@ Claude process with `ENABLE_PROMPT_CACHING_1H=1`. With `5m` it sets nothing, so 
 own choice: 5 minutes with an API key, 1 hour on a subscription within its limits. A `promptCacheTtl`
 in the Claude settings or `CLAUDE_CODE_PROMPT_CACHE_TTL` on the host still wins. A change applies to
 the next Claude process, not to a running one; an idle thread starts a new process when it resumes.
-Server settings → General → Agents sets it for this computer and for a joined server.
+The Cache section of the Claude page in Server settings → Providers sets it for this computer and
+for a joined server.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until

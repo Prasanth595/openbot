@@ -243,6 +243,13 @@ export const messages = defineMessages("provider", {
   "provider.settings.update": "Update",
   "provider.settings.downloadLabel": "Download of {name}",
   "provider.settings.diagnostics": "Diagnostics",
+  "provider.settings.cache": "Cache",
+  "provider.settings.promptCache": "Prompt cache",
+  "provider.settings.promptCacheDescription":
+    "How long Claude keeps the context of an agent in the cache between turns.",
+  "provider.settings.promptCacheHour": "1 hour",
+  "provider.settings.promptCacheMinutes": "5 minutes",
+  "provider.settings.promptCacheLoadFailed": "Could not load the prompt cache time of this server.",
   "provider.settings.use": "Use",
   "provider.settings.defaultForNew": "Default for new agents",
   "provider.settings.startsWith": "New agents start with {name}.",

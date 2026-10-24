@@ -1,6 +1,6 @@
 ### Added
 
-- Server settings › General › Agents has a "Claude prompt cache" setting: 1 hour or 5 minutes.
+- The Claude page in Server settings › Providers has a "Prompt cache" setting: 1 hour or 5 minutes.
   An owner or admin can set it for this computer and for a joined server.
 
 ### Changed

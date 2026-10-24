@@ -209,4 +209,11 @@ export const messages = {
   "provider.account.resetUsageNoCredit": "Konto {name} nie ma już kredytów resetu użycia.",
   "provider.account.resetUsageAlreadyRedeemed": "Ten kredyt resetu konta {name} został już użyty.",
   "provider.account.resetUsageFailed": "Nie udało się zresetować użycia konta {name}.",
+  "provider.settings.cache": "Pamięć podręczna",
+  "provider.settings.promptCache": "Pamięć podręczna promptów",
+  "provider.settings.promptCacheDescription":
+    "Jak długo Claude trzyma kontekst agenta w pamięci podręcznej między turami.",
+  "provider.settings.promptCacheHour": "1 godzina",
+  "provider.settings.promptCacheMinutes": "5 minut",
+  "provider.settings.promptCacheLoadFailed": "Nie udało się wczytać czasu pamięci podręcznej promptów tego serwera.",
 } as const satisfies PartialTranslation<typeof source>;
