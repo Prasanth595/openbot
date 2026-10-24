@@ -2518,3 +2518,12 @@ button.ui-bubble-content {
 .ui-toast-layer {
   pointer-events: auto;
 }
+
+/* The toasts float over the window headers and the sidebar top bar, which move the window. The window
+ * swallows mouse events over a `-webkit-app-region: drag` area, so a pointer on a toast left the stack
+ * and collapsed it, and only its buttons, which are `no-drag`, could be reached. The `::after` is the
+ * strip Sonner puts in the gap between expanded toasts, so the pointer can cross it. */
+.ui-toaster [data-sonner-toast],
+.ui-toaster [data-sonner-toast]::after {
+  -webkit-app-region: no-drag;
+}
