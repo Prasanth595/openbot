@@ -1,3 +1,4 @@
+import type { ChatWindowTarget } from "@openbot/contracts/ipc";
 import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { computeAgentAvatarMoods } from "@openbot/ui/features/agents/agent-avatar-mood";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
@@ -6,7 +7,7 @@ import { SidebarMobileAppCard } from "@openbot/ui/features/sidebar/SidebarMobile
 import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import { teamMemberName } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { useText } from "@openbot/ui/text";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onSettled, Show } from "solid-js";
 import { appPort } from "../../app-port";
 import { type ChatHistoryEntry, chatHistoryKeys } from "../../chat-history";
 import { useLayout } from "../../layout";
@@ -53,7 +54,20 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
   const tasksOpen = () => windowPage.page() === "tasks";
   const platform = usePlatform();
   const channels = useChannels();
-  const { activeServer, activeServerSupportsCapability } = useServers();
+  const { activeServer, activeServerId, activeServerSupportsCapability } = useServers();
+  // The chats that main shows in a window of their own. Main sends the list on each change.
+  const [chatWindows, setChatWindows] = createSignal<ChatWindowTarget[]>([]);
+  onSettled(() => {
+    const unsubscribe = appPort().onChatWindows(setChatWindows);
+    void appPort()
+      .getChatWindows()
+      .then(setChatWindows)
+      .catch(() => undefined);
+    return unsubscribe;
+  });
+  const windowAgentIds = createMemo(
+    () => new Set(chatWindows().flatMap((target) => (target.serverId === activeServerId() ? [target.agentId] : []))),
+  );
   const { openServerSettings } = useServerSettings();
   const serverActions = useServerActions();
   const { openAppSettings, setSkillsMarketplaceOpen } = useSettings();
@@ -252,6 +266,12 @@ export function WorkspaceSidebar(props: { peopleEnabled: boolean }) {
       userHiddenAgents={userHiddenAgents()}
       onHideAgent={hideAllowed() ? (agentId) => void setAgentHiddenByUser(agentId, true) : undefined}
       onRestoreAgent={hideAllowed() ? (agentId) => void setAgentHiddenByUser(agentId, false) : undefined}
+      onOpenAgentWindow={
+        platform.landingPreview
+          ? undefined
+          : (agentId) => void appPort().openChatWindow({ serverId: activeServerId(), agentId })
+      }
+      windowAgentIds={windowAgentIds()}
       compact={layout.leftPanelCompact()}
       onExpand={layout.expandSidebar}
       onOpenSearch={() => setGlobalSearchVisibility(true)}

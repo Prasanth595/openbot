@@ -8,6 +8,7 @@ import {
   type AppInfo,
   type AppSetupState,
   type AppVariant,
+  type ChatWindowTarget,
   type ExternalDestination,
   GROK_BOT_EXPORT_URL,
 } from "@openbot/contracts/ipc";
@@ -41,6 +42,7 @@ import {
   parseAppLanguagePreference,
   parseAppLogoColorPreference,
   parseBusyMessageModePreference,
+  parseChatWindowTarget,
   parseExternalDestination,
   parseRemoteNetworkRoutePreference,
   parseRemoteSessionReusePreference,
@@ -106,6 +108,8 @@ export interface AppIpcDependencies {
   appVariant: AppVariant;
   analyticsCaptureUrl: string | null;
   getMainWindow: () => BrowserWindow | null;
+  openChatWindow: (target: ChatWindowTarget) => void;
+  chatWindowTargets: () => ChatWindowTarget[];
   setAnalyticsTrackingEnabled: (enabled: boolean) => void;
   trace: TraceFile;
   resources: ResourceMonitor;
@@ -134,6 +138,8 @@ export function appIpcHandlers({
   appVariant,
   analyticsCaptureUrl,
   getMainWindow,
+  openChatWindow,
+  chatWindowTargets,
   setAnalyticsTrackingEnabled,
   trace,
   resources,
@@ -229,6 +235,8 @@ export function appIpcHandlers({
       openUrl: payloadHandler(stringPayload("URL", INPUT_LIMITS.browserUrl), (url) =>
         openHttpLink(url, (address) => shell.openExternal(address)),
       ),
+      openChatWindow: payloadHandler(parseChatWindowTarget, openChatWindow),
+      getChatWindows: handler(chatWindowTargets),
     },
     maintenance: {
       exportData: handler(() =>

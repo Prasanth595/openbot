@@ -308,6 +308,7 @@ try {
     turn += 1;
     createRendererForwarders({
       getMainWindow: () => mainWindow,
+      getChatWindows: () => [],
       getAgentService: () => agents ?? null,
       getHostService: () => null,
       getHostAnalytics: () => null,

@@ -162,7 +162,8 @@ const Settings = createSimpleContext({
             // Version attribution is optional and must not block startup.
           }
         }
-        if (analyticsOpened) return;
+        // A chat window is not another start of the app.
+        if (analyticsOpened || platform.chatWindow) return;
         analyticsOpened = true;
         desktopAnalytics.track("desktop_app_opened", {
           setup_completed: setup.completed,
@@ -483,21 +484,24 @@ const Settings = createSimpleContext({
               notificationPreview: preference.messagePreview,
             }));
           }),
-        settingsPort()
-          .dynamicIsland.getPreference()
-          .then((preference) =>
-            setGeneralSettings((current) => ({
-              ...current,
-              macBookNotch: preference.enabled,
-              macBookNotchHaptics: preference.hapticsEnabled,
-              macBookNotchIdle: preference.idleVisible,
-              macBookNotchAdditionalDisplays: preference.additionalDisplaysEnabled,
-              macBookNotchWidthPercent: preference.widthPercent,
-              macBookNotchHeightPercent: preference.heightPercent,
-              macBookNotchServers: preference.serverVisibility,
-              macBookNotchNewServers: preference.newServersVisible,
-            })),
-          ),
+        // Main accepts island calls only from the main window, which owns the island.
+        platform.chatWindow
+          ? Promise.resolve()
+          : settingsPort()
+              .dynamicIsland.getPreference()
+              .then((preference) =>
+                setGeneralSettings((current) => ({
+                  ...current,
+                  macBookNotch: preference.enabled,
+                  macBookNotchHaptics: preference.hapticsEnabled,
+                  macBookNotchIdle: preference.idleVisible,
+                  macBookNotchAdditionalDisplays: preference.additionalDisplaysEnabled,
+                  macBookNotchWidthPercent: preference.widthPercent,
+                  macBookNotchHeightPercent: preference.heightPercent,
+                  macBookNotchServers: preference.serverVisibility,
+                  macBookNotchNewServers: preference.newServersVisible,
+                })),
+              ),
       ]).then((results) => {
         setPreferencesLoad(results.some((result) => result.status === "rejected") ? "failed" : "loaded");
       });
@@ -509,6 +513,7 @@ const Settings = createSimpleContext({
         .getApprovalAutomation()
         .then(setApprovalAutomation)
         .catch(() => undefined);
+      if (platform.chatWindow) return;
       void settingsPort()
         .dynamicIsland.getBuiltInDisplayGeometry()
         .then((geometry) => setBuiltInDisplayGeometry(geometry))

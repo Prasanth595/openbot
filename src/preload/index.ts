@@ -121,6 +121,7 @@ import {
   decodeBitwardenConnectorStatus,
   decodeBusyMessageModePreference,
   decodeCentralAuthState,
+  decodeChatWindowTargets,
   decodeCustomAgentCheckResult,
   decodeCustomAgentResult,
   decodeCustomAgents,
@@ -271,7 +272,15 @@ import {
 } from "./team-decoding";
 
 const attachmentImportListeners = new Set<(event: AttachmentImportEvent) => void>();
-let selectedServerId: string = LOCAL_SERVER_ID;
+/**
+ * The server of a window that main opened for one chat (#2964), from its `?window=chat&server=<id>`
+ * URL. The window never selects a server, so it keeps this one while the main window selects others.
+ */
+const chatWindowServerId = (() => {
+  const query = new URLSearchParams(window.location.search);
+  return query.get("window") === "chat" ? query.get("server") : null;
+})();
+let selectedServerId: string = chatWindowServerId ?? LOCAL_SERVER_ID;
 
 function invokeAgentForServer<Input, Result>(
   serverId: string,
@@ -368,7 +377,13 @@ function scopedRequest(scope: ServerScope, args: readonly unknown[]): AgentIpcRe
   return { serverId: typeof server === "string" ? server : selectedServerId, payload };
 }
 
-function rememberActiveServer<T extends { id: string; active: boolean }[]>(servers: T): T {
+// A chat window shows its own server as the active one, so the renderer scopes everything to it.
+function rememberActiveServer(servers: ServerSummary[]): ServerSummary[] {
+  const pinned = chatWindowServerId;
+  if (pinned !== null && servers.some((server) => server.id === pinned)) {
+    selectedServerId = pinned;
+    return servers.map((server) => ({ ...server, active: server.id === pinned }));
+  }
   selectedServerId = servers.find((server) => server.active)?.id ?? LOCAL_SERVER_ID;
   return servers;
 }
@@ -585,6 +600,9 @@ const openbotApi: OpenBotDesktopApi = {
     openSettings: decodeVoid,
     openExternal: decodeVoid,
     openUrl: decodeVoid,
+    openChatWindow: decodeVoid,
+    getChatWindows: decodeChatWindowTargets,
+    chatWindows: decodeChatWindowTargets,
   }),
   ...bridgeGroup(IPC_ENDPOINTS.providers, {
     connectProvider: decodeAgentStatusFromMain,

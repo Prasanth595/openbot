@@ -205,7 +205,7 @@ export function createStableConversationState(
       };
     },
   );
-  if (storedDrafts)
+  if (storedDrafts && persistDrafts)
     writeComposerDraftsOnChange({
       drafts,
       channelDrafts,

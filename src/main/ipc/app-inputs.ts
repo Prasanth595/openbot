@@ -7,6 +7,7 @@ import type {
   BrowserDockFrame,
   BrowserDockPresentation,
   BusyMessageModePreference,
+  ChatWindowTarget,
   DeleteHostedSiteInput,
   DynamicIslandAction,
   DynamicIslandPreference,
@@ -99,6 +100,11 @@ export function parseBusyMessageModePreference(input: unknown): BusyMessageModeP
 export function parseAgentMemoryLimitPreference(input: unknown): AgentMemoryLimitPreference {
   if (!isDynamicRecord(input) || !isAgentMemoryLimit(input.limit)) throw new Error("Agent memory limit is required.");
   return { limit: input.limit };
+}
+
+export function parseChatWindowTarget(input: unknown): ChatWindowTarget {
+  if (!isDynamicRecord(input)) throw new Error("A chat is required.");
+  return { serverId: requireString(input.serverId, "Server"), agentId: requireString(input.agentId, "Agent") };
 }
 
 export function parseRemoteSessionReusePreference(input: unknown): RemoteSessionReusePreference {

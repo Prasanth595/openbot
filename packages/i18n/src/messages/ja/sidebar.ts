@@ -62,6 +62,8 @@ export const messages = {
   "sidebar.agentMenu.hide": "エージェントを非表示",
   "sidebar.agentMenu.restore": "復元",
   "sidebar.agentMenu.restoreTo": "{section} に復元",
+  "sidebar.agentMenu.openWindow": "新しいウインドウで開く",
+  "sidebar.agentMenu.inWindow": "別のウインドウで開いています",
   "sidebar.channelMenu.label": "チャンネルの操作",
   "sidebar.channelMenu.edit": "チャンネルを編集",
   "sidebar.channelMenu.delete": "チャンネルを削除",

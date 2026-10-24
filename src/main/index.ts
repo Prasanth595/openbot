@@ -356,6 +356,8 @@ const {
   forwardDirectTyping,
 } = createRendererForwarders({
   getMainWindow: () => windowHolder.current,
+  // A function: the window controller is made after the forwarders, and no event comes before it.
+  getChatWindows: () => windows.getChatWindows(),
   getAgentService: () => services?.service ?? null,
   getHostService: () => services?.host ?? null,
   getHostAnalytics: () => services?.analytics ?? null,
@@ -603,6 +605,8 @@ function registerIpcHandlers({
       appVariant,
       analyticsCaptureUrl,
       getMainWindow,
+      openChatWindow: windows.openChatWindow,
+      chatWindowTargets: windows.chatWindowTargets,
       setAnalyticsTrackingEnabled: (enabled) => analytics.setTrackingEnabled(enabled),
       trace,
       resources: resourceMonitor,
@@ -847,6 +851,8 @@ function forwardCentralAuth(state: CentralAuthState): void {
   ).catch((error) => {
     logger.error("Unable to synchronize the signed-in account:", toLogValue(error));
   });
+  // A chat window shows the workspace only while the account is signed in, as the main window does.
+  for (const chatWindow of windows.getChatWindows()) sendToRenderer(chatWindow, IPC_ENDPOINTS.auth.event, state);
   const window = windowHolder.current;
   if (!window || window.isDestroyed()) return;
   sendToRenderer(window, IPC_ENDPOINTS.auth.event, state);
@@ -1237,6 +1243,8 @@ if (!hasSingleInstanceLock) {
       });
       interfaceSize.subscribe((preference) => {
         windows.getMainWindow()?.webContents.setZoomFactor(interfaceSize.zoomFactor);
+        for (const chatWindow of windows.getChatWindows())
+          chatWindow.webContents.setZoomFactor(interfaceSize.zoomFactor);
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appInterfaceSizePreference, preference);
         }

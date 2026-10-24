@@ -126,6 +126,7 @@ import type {
   AppInfo,
   AppSetupState,
   CentralAuthState,
+  ChatWindowTarget,
   ComputerUseHighlightPlacement,
   ComputerUsePermissionApp,
   ComputerUseState,
@@ -629,6 +630,12 @@ export const IPC_ENDPOINTS = {
     openSettings: event<undefined>()("app:open-settings"),
     openExternal: request<ExternalDestination, void>()("app:open-external"),
     openUrl: request<string, void>()("app:open-url"),
+    // A chat in a window of its own, for a second display. A chat that has a window already brings
+    // that window to the front.
+    openChatWindow: request<ChatWindowTarget, void>()("app:open-chat-window"),
+    getChatWindows: request<undefined, ChatWindowTarget[]>()("app:get-chat-windows"),
+    // The main window marks each chat that has a window, so main tells it when one opens or closes.
+    chatWindows: event<ChatWindowTarget[]>()("app:chat-windows"),
   },
   maintenance: {
     exportData: request<undefined, ExportResult>()("maintenance:export-data"),

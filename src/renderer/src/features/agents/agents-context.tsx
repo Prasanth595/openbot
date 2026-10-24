@@ -86,7 +86,9 @@ const Agents = createSimpleContext({
     const [modelOptions, setModelOptions] = createSignal<ClientAgentModelOption[]>([]);
     const selectionServerId = untrack(activeServerId);
     const scopeIsCurrent = createScopeGuard();
-    let savedAgentId = readAgentSelection(AGENT_SELECTION_STORAGE_KEY)[selectionServerId] ?? "";
+    // A chat window shows its one agent, and keeps the choice of the main window as it is.
+    const chatWindowAgentId = usePlatform().chatWindow?.agentId;
+    let savedAgentId = chatWindowAgentId ?? readAgentSelection(AGENT_SELECTION_STORAGE_KEY)[selectionServerId] ?? "";
     const [activeAgentId, updateActiveAgentId] = createSignal("");
     const [agentChatOpenRevision, setAgentChatOpenRevision] = createSignal(0);
     const [agentSetupOpen, setAgentSetupOpen] = createSignal(false);
@@ -188,7 +190,7 @@ const Agents = createSimpleContext({
       updateActiveAgentId((current) => {
         const next = typeof value === "function" ? value(current) : value;
         savedAgentId = "";
-        writeAgentSelection(AGENT_SELECTION_STORAGE_KEY, selectionServerId, next);
+        if (!chatWindowAgentId) writeAgentSelection(AGENT_SELECTION_STORAGE_KEY, selectionServerId, next);
         return next;
       });
     }

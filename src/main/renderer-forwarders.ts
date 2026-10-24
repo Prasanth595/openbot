@@ -64,6 +64,8 @@ import { sendToRenderer } from "./renderer-ipc";
 
 export interface RendererForwarderDependencies {
   getMainWindow: () => BrowserWindow | null;
+  /** Each chat window shows a live chat, so it gets the chat, server and provider events too. */
+  getChatWindows: () => BrowserWindow[];
   getAgentService: () => Pick<AgentService, "listAgents"> | null;
   getHostService: () => HostService | null;
   getHostAnalytics: () => HostAnalytics | null;
@@ -88,6 +90,7 @@ const ANSWER_LOOKUP_LIMIT = 20;
  */
 export function createRendererForwarders({
   getMainWindow,
+  getChatWindows,
   getAgentService,
   getHostService,
   getHostAnalytics,
@@ -98,15 +101,19 @@ export function createRendererForwarders({
   desktopNotificationsEnabled,
   notificationPreviewEnabled,
 }: RendererForwarderDependencies) {
+  // The user looks at the app when the main window or one of its chat windows has focus.
+  function appFocused(window: BrowserWindow): boolean {
+    return window.isFocused() || getChatWindows().some((chatWindow) => chatWindow.isFocused());
+  }
+
   function forwardAgentEvent(serverId: string, event: AgentEvent, bufferedLive = false): void {
     if (serverId === LOCAL_SERVER_ID) getHostAnalytics()?.handleAgentEvent(event);
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
-    sendToRenderer(
-      window,
-      IPC_ENDPOINTS.agent.scopedEvent,
-      bufferedLive ? { serverId, event, bufferedLive } : { serverId, event },
-    );
+    const scoped = bufferedLive ? { serverId, event, bufferedLive } : { serverId, event };
+    sendToRenderer(window, IPC_ENDPOINTS.agent.scopedEvent, scoped);
+    for (const chatWindow of getChatWindows()) sendToRenderer(chatWindow, IPC_ENDPOINTS.agent.scopedEvent, scoped);
+    // Once for the app, not once for each window.
     void notifyAgentEvent(serverId, event).catch(() => undefined);
     if (event.type === "channels-changed") refreshChannels(serverId);
   }
@@ -178,7 +185,7 @@ export function createRendererForwarders({
     if (!previous || !Notification.isSupported()) return;
     const level = () => {
       const window = getMainWindow();
-      if (!window || window.isDestroyed() || window.isFocused()) return null;
+      if (!window || window.isDestroyed() || appFocused(window)) return null;
       return replyLevel(serverId);
     };
     // Only "all" notifies a reply. The agent lookup is skipped at the other levels, and while a
@@ -274,7 +281,7 @@ export function createRendererForwarders({
       const server = getRemoteServerManager()
         ?.list()
         .find((candidate) => candidate.id === serverId);
-      if (!window || window.isDestroyed() || window.isFocused() || !server) return null;
+      if (!window || window.isDestroyed() || appFocused(window) || !server) return null;
       return desktopShowsAgentEvent(event, server, desktopNotificationsEnabled()) ? server.notificationLevel : null;
     };
     // The level also rules out an event before the remote agent lookup.
@@ -420,6 +427,8 @@ export function createRendererForwarders({
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
     sendToRenderer(window, IPC_ENDPOINTS.providerRuntimes.event, snapshot);
+    for (const chatWindow of getChatWindows())
+      sendToRenderer(chatWindow, IPC_ENDPOINTS.providerRuntimes.event, snapshot);
   }
 
   function forwardGitHubConnectorStatus(status: import("@openbot/contracts/ipc").GitHubConnectorStatus): void {
@@ -445,10 +454,11 @@ export function createRendererForwarders({
   function forwardHostStatus(status: import("@openbot/contracts/ipc").HostStatus): void {
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.host.event, status);
     const remoteServers = getRemoteServerManager();
-    if (remoteServers) {
-      sendToRenderer(window, IPC_ENDPOINTS.servers.event, withLocalHostSummary(remoteServers.list(), status));
+    const servers = remoteServers ? withLocalHostSummary(remoteServers.list(), status) : null;
+    for (const target of [window, ...getChatWindows()]) {
+      sendToRenderer(target, IPC_ENDPOINTS.host.event, status);
+      if (servers) sendToRenderer(target, IPC_ENDPOINTS.servers.event, servers);
     }
   }
 
@@ -462,11 +472,8 @@ export function createRendererForwarders({
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
     const host = getHostService();
-    sendToRenderer(
-      window,
-      IPC_ENDPOINTS.servers.event,
-      host ? withLocalHostSummary(servers, host.getStatus()) : servers,
-    );
+    const summaries = host ? withLocalHostSummary(servers, host.getStatus()) : servers;
+    for (const target of [window, ...getChatWindows()]) sendToRenderer(target, IPC_ENDPOINTS.servers.event, summaries);
   }
 
   function forwardTeamPresence(
@@ -475,7 +482,9 @@ export function createRendererForwarders({
   ): void {
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
-    sendToRenderer(window, IPC_ENDPOINTS.servers.scopedPresence, { serverId, snapshot });
+    for (const target of [window, ...getChatWindows()]) {
+      sendToRenderer(target, IPC_ENDPOINTS.servers.scopedPresence, { serverId, snapshot });
+    }
   }
 
   function forwardDirectMessage(

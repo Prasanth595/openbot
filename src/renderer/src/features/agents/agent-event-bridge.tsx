@@ -246,7 +246,7 @@ export function AgentEventBridge() {
         );
         if (event.status === "completed") {
           markReplyCompleted(event.agentId);
-          if (soundLevel() === "all") playCompletionSoundForAgentEvent(event, agentList());
+          if (soundLevel() === "all" && !platform.chatWindow) playCompletionSoundForAgentEvent(event, agentList());
         }
         return;
       case "prompt":
@@ -386,6 +386,8 @@ export function AgentEventBridge() {
         return;
       }
       flush(() => handleAgentEvent(event));
+      // The main window also gets each event, so a chat window does not play or read it a second time.
+      if (platform.chatWindow) return;
       playAgentEventSound(event);
       readDictatedReplies(event, activeServerId());
     });

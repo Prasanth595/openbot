@@ -767,3 +767,17 @@
     padding-bottom: var(--openbot-space-2);
   }
 }
+
+/* A window that shows one chat has no sidebar and no resizer, so the chat takes the whole
+ * frame. Its header starts after the macOS window buttons. */
+.app-window > .app-frame.app-frame-chat-window {
+  grid-template-columns: 0 0 minmax(0, 1fr);
+}
+
+.app-frame-chat-window > .left-panel-resizer {
+  display: none;
+}
+
+.app-frame-chat-window.app-frame-platform-darwin .conversation-header {
+  padding-left: 76px;
+}
