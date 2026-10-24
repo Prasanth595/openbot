@@ -1290,6 +1290,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
             args: [],
             envNames: [],
             resolvedCommand: "/preview/example-acp",
+            usagePrompt: null,
           });
         return { agents: clone(customAgents), restart: "not-running" };
       },
@@ -1308,6 +1309,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
           args: [...input.args],
           envNames: input.env.map((entry) => entry.name),
           resolvedCommand: input.command.startsWith("/") ? input.command : `/usr/local/bin/${input.command}`,
+          usagePrompt: input.usagePrompt,
         };
         customAgents = customAgents.some((agent) => agent.id === input.id)
           ? customAgents.map((agent) => (agent.id === input.id ? summary : agent))
@@ -1327,6 +1329,11 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         capabilities: ["loadSession"],
         models: ["Default", "Fast"],
       }),
+      // Preview starts no agent, so each usage prompt gets an answer that names it.
+      usage: async () =>
+        customAgents.flatMap((agent) =>
+          agent.usagePrompt ? [{ id: agent.id, text: `Preview answer to ${agent.usagePrompt}` }] : [],
+        ),
     },
     // Preview reaches no local server, so a scan finds nothing and a model list is empty.
     providerDetection: {

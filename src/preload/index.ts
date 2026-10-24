@@ -128,6 +128,7 @@ import {
   decodeCustomAgentCheckResult,
   decodeCustomAgentResult,
   decodeCustomAgents,
+  decodeCustomAgentUsage,
   decodeCustomProviderResult,
   decodeCustomProviders,
   decodeDetectedAcpAgents,
@@ -848,6 +849,7 @@ const openbotApi: OpenBotDesktopApi = {
     save: decodeCustomAgentResult,
     delete: decodeCustomAgentResult,
     check: decodeCustomAgentCheckResult,
+    usage: decodeCustomAgentUsage,
   }),
   providerDetection: bridgeGroup(IPC_ENDPOINTS.providerDetection, {
     scanModelServers: decodeDetectedModelServers,

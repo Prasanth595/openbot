@@ -76,6 +76,8 @@ export interface ProviderAccountsHost {
   resetCredits(client: AgentClient): number | null | undefined;
   consumeUsageReset(client: AgentClient): Effect.Effect<ProviderUsageResetOutcome, ProviderAccountFailed>;
   changed(): void;
+  /** Sends the reading of an account check: after a sign-in, and when the provider's own sign-in connects. */
+  usageChanged(limit: AccountUsageLimit): void;
   redact(text: string): string;
 }
 
@@ -499,13 +501,13 @@ export class ProviderAccounts {
             return yield* accountFailure(
               sourceText("error.provider.accountAlreadyAdded", { provider: providerLabel(provider) }),
             );
+          // The reading comes first: a usage request for a connected account uses it and starts no client.
+          const limit = agentProviderDescriptor(provider).reportsUsage
+            ? yield* this.#storeUsage(account, client, yield* this.#host.readUsage(client, defaultUsageModel(provider)))
+            : null;
           this.#setState(account.id, { state: "connected", email, message: null });
-          if (agentProviderDescriptor(provider).reportsUsage)
-            yield* this.#storeUsage(
-              account,
-              client,
-              yield* this.#host.readUsage(client, defaultUsageModel(provider)),
-            ).pipe(Effect.ignore);
+          // The rail shows an account only with a reading, and no usage request follows a sign-in.
+          if (limit) this.#host.usageChanged(limit);
         }),
       ({ client }) => this.#host.stopClient(client),
     );

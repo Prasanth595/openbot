@@ -64,6 +64,7 @@ export const messages = {
   "app.help.guides": "Guias",
   "app.help.discord": "Entrar no Discord",
   "app.rail.usageRings": "Uso de {name}: {windows}. Abrir uso",
+  "app.rail.customAgentUsage": "Uso de {name}. Abrir uso",
   "app.settingsPage.title": "Configurações",
   "app.settingsPage.search": "Pesquisar configurações",
   "app.settingsPage.searchPlaceholder": "Pesquisar configurações…",

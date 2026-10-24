@@ -230,6 +230,7 @@ import type {
   CustomAgentCheckResult,
   CustomAgentResult,
   CustomAgentSummary,
+  CustomAgentUsage,
   DeleteCustomAgentInput,
   DetectedAcpAgent,
   SaveCustomAgentInput,
@@ -864,6 +865,8 @@ export const IPC_ENDPOINTS = {
     save: request<SaveCustomAgentInput, CustomAgentResult>()("custom-agents:save"),
     delete: request<DeleteCustomAgentInput, CustomAgentResult>()("custom-agents:delete"),
     check: request<CheckCustomAgentInput, CustomAgentCheckResult>()("custom-agents:check"),
+    // The answers of the agents that have a usage prompt. An agent with no answer is not listed.
+    usage: request<undefined, CustomAgentUsage[]>()("custom-agents:usage"),
   },
   // The providers of the computer that runs the agents. `providers`, `providerRuntimes` and
   // `customProviders` reach this computer only; these take the server, so a remote admin reaches the

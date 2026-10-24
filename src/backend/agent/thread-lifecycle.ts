@@ -929,7 +929,8 @@ export class ThreadLifecycle {
 
   /**
    * The developer instructions of a session start or resume, with what is connected now. Claude
-   * gets the memories apart, and its client sends them with the turns: see `memoriesInTurns`.
+   * gets the memories and the section-mates apart, and its client sends them with the turns: see
+   * `memoriesInTurns`. A change in the system prompt writes the full conversation to the cache again.
    */
   #instructions(
     agent: AgentSummary,
@@ -946,6 +947,7 @@ export class ThreadLifecycle {
       memoryLimit: this.#memories.limit(),
       storedMemoryCount: this.#memories.listFor(agent.id).length,
       memoriesInTurns: client.provider === "claude",
+      teammatesInTurns: client.provider === "claude",
       sectionTeammates: section,
     };
     const instructions = developerInstructions(
@@ -957,7 +959,11 @@ export class ThreadLifecycle {
       options,
     );
     return options.memoriesInTurns
-      ? { developerInstructions: instructions, memoryContext: memoryContext(memories, options) }
+      ? {
+          developerInstructions: instructions,
+          memoryContext: memoryContext(memories, options),
+          sectionTeammates: section,
+        }
       : { developerInstructions: instructions };
   }
 

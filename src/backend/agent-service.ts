@@ -755,6 +755,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
       scheduleDrain: (agentId) => this.#drain.scheduleDrain(agentId),
       rotateSession: (agentId, client, threadId) => this.#threads.rotateProviderSession(agentId, client, threadId),
+      compacted: (threadId) => this.channels.contextCompacted(threadId),
     });
     this.#attention = new AttentionRegistry({
       conversation: this.#conversation,
@@ -961,6 +962,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         const agent = this.#store.list().find((item) => item.id === agentId);
         const session = agent ? this.#store.database.activeProviderSession(threadId, agent.provider) : null;
         return session ? this.#compaction.contextInputCharacters(session.externalSessionId) : 120_000;
+      },
+      // Claude and the app-server providers report each compaction. An ACP agent or Pi can compact
+      // on its own with no report, so its next packet would leave out what the summary dropped.
+      reportsCompactions: (agentId) => {
+        const agent = this.#store.list().find((item) => item.id === agentId);
+        const mode = agent ? this.#providers.clientForAgent(agent)?.contextCompaction : undefined;
+        return mode === "native" || mode === "events";
       },
       forgetThread: (threadId) => this.#forgetExecutionThread(threadId).pipe(toChannelOperationError),
       loadedSnapshot: (threadId) => this.#conversation.loadedExecutionSnapshot(threadId),
@@ -3289,6 +3297,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           (failure) => new AgentLifecycleFailed({ operation: "removeCustomAgentRuntime", cause: failure.cause }),
         ),
       );
+  }
+
+  /** See `ProviderRuntime.customAgentUsage`. */
+  customAgentUsage() {
+    return this.#providers.customAgentUsage();
   }
 
   /** See `CustomEndpoints.saveCustomAgent`. */
