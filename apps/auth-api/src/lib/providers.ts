@@ -14,7 +14,7 @@ export const PROVIDERS_COLLECTION: ContentCollection<"providers"> = {
   name: "Providers",
   indexTitle: "AI coding agents that OpenBot runs",
   indexDescription:
-    "Claude Code, Codex, Gemini, Grok, Cursor, OpenCode, Cline and local models in one desktop app: how to set each one up, and what OpenBot adds to it.",
+    "Claude Code, Codex, Gemini, Grok, Cursor, OpenCode, Cline, Muse Code, Pi, Inception, ACP agents and local models in one desktop app: how to set each one up, and what OpenBot adds to it.",
   feedTitle: "OpenBot providers",
   backLabel: "All providers",
   moreTitle: "More providers",
@@ -82,6 +82,38 @@ export const PROVIDERS_COLLECTION: ContentCollection<"providers"> = {
       description:
         "Run a coding agent on a model from Ollama or LM Studio, in OpenBot on macOS, Windows or Linux. The model and your files stay on your computer.",
       publishedAt: "2026-10-03",
+      author: NEWS_AUTHOR,
+    },
+    {
+      slug: "muse-code",
+      title: "Muse Code GUI: Run Meta's Coding Agent in OpenBot",
+      description:
+        "Run Muse Code in OpenBot on macOS, Windows or Linux. Sign in with your Meta account, then give it a team, shared channels and an app on your phone.",
+      publishedAt: "2026-10-24",
+      author: NEWS_AUTHOR,
+    },
+    {
+      slug: "pi",
+      title: "Pi Coding Agent GUI: Run Pi in OpenBot",
+      description:
+        "Run the Pi coding agent in OpenBot on macOS, Windows or Linux, with the providers you sign in to. Give it a team, shared channels and an app on your phone.",
+      publishedAt: "2026-10-24",
+      author: NEWS_AUTHOR,
+    },
+    {
+      slug: "inception",
+      title: "Mercury Agent App: Run Inception's Mercury Models in OpenBot",
+      description:
+        "Run a coding agent on Inception's Mercury diffusion models, in OpenBot on macOS, Windows or Linux. Give it a team, shared channels and an app on your phone.",
+      publishedAt: "2026-10-24",
+      author: NEWS_AUTHOR,
+    },
+    {
+      slug: "custom-agents",
+      title: "ACP Agent GUI: Run Goose, Qwen Code and GitHub Copilot CLI in OpenBot",
+      description:
+        "Run any Agent Client Protocol agent in OpenBot on macOS, Windows or Linux, such as Goose, Qwen Code or GitHub Copilot CLI. Give it a team and an app on your phone.",
+      publishedAt: "2026-10-24",
       author: NEWS_AUTHOR,
     },
   ]),

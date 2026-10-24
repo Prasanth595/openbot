@@ -60,7 +60,7 @@ export const OPENBOT_ADDS: readonly ProviderAdd[] = [
   {
     icon: "blocks",
     title: "Change the provider, keep the work",
-    text: "Move an agent to a different provider and it keeps its role, workspace and conversation. Agents on different providers work in the same channel.",
+    text: "Move an agent to a different provider and it keeps its role, workspace and conversation. Agents on different providers work in the same channel. When a plan reaches its limit, an agent can move to a backup model.",
   },
   {
     icon: "lock",
