@@ -35,10 +35,6 @@
   color: var(--openbot-text-muted);
 }
 
-.composer-wrap:has(.composer-attachment) .awaiting-replies:last-child {
-  margin-bottom: 0;
-}
-
 .awaiting-replies-item {
   align-items: center;
 }

@@ -1,7 +1,3 @@
-.composer-wrap:has(.composer-attachment) .agent-queue-panel {
-  margin-bottom: 0;
-}
-
 .agent-queue-panel-list {
   /* Seven rows, then the list scrolls. */
   max-height: calc(7 * var(--queue-row-height) + 2 * var(--queue-row-gutter));
