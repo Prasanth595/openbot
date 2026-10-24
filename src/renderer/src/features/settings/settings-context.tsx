@@ -135,6 +135,7 @@ const Settings = createSimpleContext({
     let keepRemoteSessionsChanged = false;
     let launchAtLoginChanged = false;
     let keepRunningInBackgroundChanged = false;
+    let keepAwakeChanged = false;
 
     createEffect(
       () => ({
@@ -284,6 +285,14 @@ const Settings = createSimpleContext({
           "keepRunningInBackground",
           settingsPort().setAppBehaviorPreference({ keepRunningInBackground: value.keepRunningInBackground }),
           (preference) => preference.keepRunningInBackground,
+        );
+      }
+      if (value.keepAwake !== null && previous.keepAwake !== value.keepAwake) {
+        keepAwakeChanged = true;
+        persistField(
+          "keepAwake",
+          settingsPort().setAppBehaviorPreference({ keepAwake: value.keepAwake }),
+          (preference) => preference.keepAwake,
         );
       }
       if (previous.keepRemoteSessions !== value.keepRemoteSessions) {
@@ -465,6 +474,7 @@ const Settings = createSimpleContext({
               keepRunningInBackground: keepRunningInBackgroundChanged
                 ? current.keepRunningInBackground
                 : preference.keepRunningInBackground,
+              keepAwake: keepAwakeChanged ? current.keepAwake : preference.keepAwake,
             }));
           }),
         settingsPort()

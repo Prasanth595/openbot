@@ -217,6 +217,15 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
               description={i18n.t("settings.keepRunning.description")}
             />
           </Show>
+          <Show when={props.value.keepAwake !== null}>
+            <SwitchField
+              data-settings-row="settings.keepAwake.title"
+              checked={props.value.keepAwake === true}
+              onChange={(checked) => props.onUpdateSetting("keepAwake", checked)}
+              label={i18n.t("settings.keepAwake.title")}
+              description={i18n.t("settings.keepAwake.description")}
+            />
+          </Show>
           <SwitchField
             data-settings-row="settings.restoreWorkspace.title"
             checked={props.value.restoreLastWorkspace}

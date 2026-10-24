@@ -36,6 +36,9 @@ export const messages = {
   "settings.launchAtLogin.description": "Abrir la aplicación al iniciar sesión en este equipo.",
   "settings.keepRunning.title": "Mantener OpenBot en segundo plano",
   "settings.keepRunning.description": "Mantener las tareas activas al cerrar la ventana.",
+  "settings.keepAwake.title": "Mantener el ordenador activo",
+  "settings.keepAwake.description":
+    "Las rutinas se ejecutan a tiempo mientras el ordenador está conectado a la corriente. La pantalla puede apagarse.",
   "settings.restoreWorkspace.title": "Restaurar el último espacio de trabajo al iniciar",
   "settings.restoreWorkspace.description": "Abrir el espacio de trabajo y las tareas de la sesión anterior.",
   "settings.externalLinks.title": "Abrir enlaces externos en",
