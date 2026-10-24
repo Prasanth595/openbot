@@ -263,6 +263,8 @@ export interface AgentProfile {
   backupModels?: ClientAgentSummary["backupModels"];
   /** Set while the agent works on a backup model for a usage limit: the model it goes back to. */
   usageLimitReturn?: ClientAgentSummary["usageLimitReturn"];
+  /** Set while a turn or task still runs on the previous provider. The next turn uses this runtime. */
+  pendingRuntime?: ClientAgentSummary["pendingRuntime"];
   threadId: string | null;
   /** The agent's working directory. Absent for profiles built before it was tracked. */
   workspacePath?: string;

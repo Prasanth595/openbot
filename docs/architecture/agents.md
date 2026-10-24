@@ -311,9 +311,12 @@ server that the provider starts, so OpenBot cannot queue its calls; `ThreadLifec
 session without it, and the instructions send desktop work to the agent's own chat. Tasks share the
 workspace, and OpenBot does not lock files; the `start_task` guidance warns the agent about this.
 
-A provider change is refused with `error.agent.waitForTasksBeforeProviderChange` while a task turn
-runs. After the change, `AgentService` retires the provider sessions of the chat and of each task
-thread, so each one gets a handoff on the new provider. The channel threads of the agent
+A provider, account or custom-agent change while a turn or a task still runs is stored on the agent
+as `pendingRuntime`. The running work keeps its sessions. After that work ends, `AgentService`
+applies the queued runtime, then retires the provider sessions of the chat and of each task
+thread, so each one gets a handoff on the new provider. Automatic usage-limit and provider-error
+moves still wait for idle work (`error.agent.waitForTasksBeforeProviderChange` /
+`error.agent.waitBeforeProviderChange`). The channel threads of the agent
 (`ChannelStore.contextThreadsForAgent`) are retired too, and their work steps are saved. A channel
 turn also carries its own self-contained context packet. The instance transfer file keeps `taskLimit`.
 

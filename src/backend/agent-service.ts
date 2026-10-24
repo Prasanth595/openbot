@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
+import { agentProviderDescriptor, customAgentIdOfModel } from "@openbot/contracts/agent-providers";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
 import { developmentStartingModel } from "@openbot/contracts/development-defaults";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
@@ -12,6 +12,7 @@ import type {
   AgentMemorySelectionState,
   AgentModelId,
   AgentModelOption,
+  AgentPendingRuntime,
   AgentReasoningEffort,
   AgentRuntimeSnapshot,
   AgentSessionSettings,
@@ -1171,6 +1172,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             logger.info(`Agent ${agentId} dropped its new chat request: a turn in its chat started first.`);
         },
         followUsageLimit: (agentId) => {
+          if (this.#pendingRuntimeDue(agentId)) {
+            Effect.runFork(
+              this.#followPendingRuntime(agentId).pipe(
+                Effect.andThen((moved) => Effect.sync(() => this.#drain.scheduleDrain(agentId, moved))),
+                Effect.forkIn(this.#scope, { startImmediately: true }),
+              ),
+            );
+            return true;
+          }
           if (!this.#usageLimitMove(agentId)) return false;
           Effect.runFork(
             this.#followUsageLimit(agentId).pipe(
@@ -2529,7 +2539,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           if (!input.model || !input.provider) {
             throw new Error("Changing provider requires an atomic provider and model selection.");
           }
-          requireIdle(previous);
+          // A user change while work runs is queued as pendingRuntime. Automatic moves wait.
+          if (move !== null) requireIdle(previous);
         }
         // An account belongs to one provider, so a provider change without one returns the agent to
         // the new provider's own sign-in.
@@ -2553,15 +2564,98 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             }),
           );
         // The sessions of one account are not in the folder of another, so an account change is
-        // handed over like a provider change.
-        if (previous && requestedAccount !== previousAccount) requireIdle(previous);
+        // handed over like a provider change. A user change while work runs is queued as pendingRuntime.
+        if (previous && requestedAccount !== previousAccount && move !== null) requireIdle(previous);
         return { previous, requestedModel, requestedProvider, previousAccount, requestedAccount };
       },
     );
+    const accountChanged = previous !== undefined && requestedAccount !== previousAccount;
+    const nextModelId = requestedModel?.id ?? previous?.model;
+    const customAgentChanged = Boolean(
+      previous &&
+        requestedProvider === "acp" &&
+        providerForAgent(previous) === "acp" &&
+        nextModelId !== undefined &&
+        customAgentIdOfModel(nextModelId) !== customAgentIdOfModel(previous.model),
+    );
+    const handoverNeeded = Boolean(
+      previous &&
+        requestedProvider &&
+        (requestedProvider !== providerForAgent(previous) || accountChanged || customAgentChanged),
+    );
+    const runtimeFields =
+      input.provider !== undefined ||
+      input.model !== undefined ||
+      input.reasoningEffort !== undefined ||
+      input.providerAccountId !== undefined;
+    if (
+      move === null &&
+      previous &&
+      requestedProvider &&
+      runtimeFields &&
+      handoverNeeded &&
+      this.#runtimeHandoverBusy(previous.id)
+    ) {
+      yield* this.#providers.ensureProvider(requestedProvider);
+      if (input.provider || input.model)
+        yield* lifecycleStep("check provider switch", () => this.#providers.requireProviderOn(requestedProvider));
+      const pendingEffort =
+        input.reasoningEffort ??
+        (requestedModel && !requestedModel.supportedReasoningEfforts.includes(previous.reasoningEffort)
+          ? requestedModel.defaultReasoningEffort
+          : (previous.pendingRuntime?.reasoningEffort ?? previous.reasoningEffort));
+      const pending: AgentPendingRuntime = {
+        provider: requestedProvider,
+        model: requestedModel?.id ?? previous.model,
+        reasoningEffort: pendingEffort,
+        ...(requestedAccount ? { providerAccountId: requestedAccount } : {}),
+      };
+      const sameAsCurrent =
+        pending.provider === providerForAgent(previous) &&
+        pending.model === previous.model &&
+        pending.reasoningEffort === previous.reasoningEffort &&
+        agentProviderAccount(pending) === agentProviderAccount(previous);
+      const {
+        provider: _queuedProvider,
+        model: _queuedModel,
+        reasoningEffort: _queuedEffort,
+        providerAccountId: _queuedAccount,
+        leaveUsageLimit: _queuedLeave,
+        ...rest
+      } = input;
+      const agent = yield* this.#store.updateAgent({
+        ...rest,
+        pendingRuntime: sameAsCurrent ? null : pending,
+      });
+      this.#emit({ type: "agents-changed", agents: this.listAgents() });
+      this.#drain.scheduleDrain(agent.id);
+      return agent;
+    }
+    if (
+      move === null &&
+      previous?.pendingRuntime &&
+      runtimeFields &&
+      !handoverNeeded &&
+      this.#runtimeHandoverBusy(previous.id) &&
+      input.provider === undefined &&
+      input.providerAccountId === undefined
+    ) {
+      const pending: AgentPendingRuntime = {
+        ...previous.pendingRuntime,
+        ...(requestedModel ? { model: requestedModel.id } : {}),
+        ...(input.reasoningEffort !== undefined ? { reasoningEffort: input.reasoningEffort } : {}),
+      };
+      const { model: _pendingModel, reasoningEffort: _pendingEffort, ...rest } = input;
+      const agent = yield* this.#store.updateAgent({
+        ...rest,
+        pendingRuntime: pending,
+      });
+      this.#emit({ type: "agents-changed", agents: this.listAgents() });
+      return agent;
+    }
     const wasHeld = !this.#usageLimits.mayDrain(input.agentId);
     const captures: Array<readonly [ProviderSession, string]> = [];
-    const accountChanged = previous !== undefined && requestedAccount !== previousAccount;
-    if (requestedProvider && previous && (requestedProvider !== providerForAgent(previous) || accountChanged)) {
+    if (handoverNeeded && requestedProvider && previous) {
       yield* this.#providers.ensureProvider(requestedProvider);
       // Before the sessions are retired below, while the previous provider still holds them. The
       // steps are saved only once the switch is stored: a switch that fails keeps the session.
@@ -2609,6 +2703,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           ? { providerAccountId: requestedAccount }
           : {}),
         ...(usageLimitReturn !== undefined ? { usageLimitReturn } : {}),
+        ...(runtimeFields ? { pendingRuntime: null } : {}),
       },
       initiatingAgentId,
     );
@@ -2628,8 +2723,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
     const profileChanged = standingProfileChanged(previous, agent, this.#store.agentDefaults());
     const activeSession = this.#store.activeProviderSession(agent.id);
-    const providerChanged =
-      (previous && requestedProvider && requestedProvider !== providerForAgent(previous)) || accountChanged;
+    const providerChanged = handoverNeeded;
     if (previous && providerChanged) {
       // Retire first, with no wait after the update: a turn that starts while a file is written
       // binds a session of the new provider, and a later retirement would close that one too.
@@ -2764,6 +2858,52 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       this.#endpoints.available().some((model) => model.provider === choice.provider && model.id === choice.model)
     );
   }
+
+  /** True while a provider handover would break a running turn, task, or started delivery. */
+  #runtimeHandoverBusy(agentId: string): boolean {
+    return (
+      this.#runsTurn(agentId) ||
+      this.#mailbox.hasStartedDelivery(agentId) ||
+      this.#conversation.workingTaskSnapshots(agentId).length > 0
+    );
+  }
+
+  /** A queued provider change is ready to apply: the agent is idle. */
+  #pendingRuntimeDue(agentId: string): boolean {
+    const agent = this.#store.list().find((candidate) => candidate.id === agentId);
+    return Boolean(agent?.pendingRuntime) && !this.#runtimeHandoverBusy(agentId);
+  }
+
+  /** Applies `pendingRuntime` once the agent is idle. True when the agent moved. */
+  readonly #followPendingRuntime = Effect.fn("AgentService.followPendingRuntime")(function* (
+    this: AgentService,
+    agentId: string,
+  ) {
+    return yield* this.#endpoints
+      .runExclusive(() =>
+        Effect.gen({ self: this }, function* () {
+          const agent = this.#store.list().find((candidate) => candidate.id === agentId);
+          const pending = agent?.pendingRuntime;
+          if (!pending || this.#runtimeHandoverBusy(agentId)) return false;
+          yield* this.#applyAgentUpdate({
+            agentId,
+            provider: pending.provider,
+            model: pending.model,
+            reasoningEffort: pending.reasoningEffort,
+            providerAccountId: pending.providerAccountId ?? null,
+          });
+          return true;
+        }),
+      )
+      .pipe(
+        Effect.catch((failure) =>
+          Effect.sync(() => {
+            this.#emitError("pending_runtime_switch_failed", failure, agentId);
+            return false;
+          }),
+        ),
+      );
+  });
 
   /** Makes the move of `#usageLimitMove`, if one is due. True when the agent moved. */
   readonly #followUsageLimit = Effect.fn("AgentService.followUsageLimit")(function* (
