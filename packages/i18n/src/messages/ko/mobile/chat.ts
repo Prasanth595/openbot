@@ -231,7 +231,7 @@ export const messages = {
   "mobile.chat.exchange.messaged": "메시지 보냄",
   "mobile.chat.exchange.messageFrom": "메시지 보낸 사람",
   "mobile.chat.exchange.agentCount": { other: "에이전트 {count}개" },
-  "mobile.chat.exchange.group": { other: "메시지 {count}개, 상대:" },
+  "mobile.chat.exchange.group": { other: "메시지 {count}개:" },
   "mobile.chat.exchange.showMessages": {
     other: "{agents}과(와)의 메시지 {count}개 보기",
   },

@@ -120,7 +120,7 @@ export const messages = {
   "chat.marker.skill.created": "스킬을 만듦",
   "chat.marker.skill.revised": "스킬을 수정함",
   "chat.marker.skill.installed": "스킬을 설치함",
-  "chat.marker.messageGroup": { other: "메시지 {count}개, 상대:" },
+  "chat.marker.messageGroup": { other: "메시지 {count}개:" },
   "chat.marker.showMessages": {
     other: "{agents}과(와)의 메시지 {count}개 보기",
   },
