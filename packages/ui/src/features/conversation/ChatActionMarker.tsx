@@ -564,8 +564,9 @@ function SingleChatActionMarker(
             />
           )}
         </Show>
-        <Show when={openTextMessage()}>
-          {(marker) => <div class="chat-action-message-text">{props.agentMessageText?.(marker().messageId)}</div>}
+        {/* Keyed on the id: each timeline update makes a new marker, which would build the text again. */}
+        <Show when={openTextMessage()?.messageId}>
+          {(messageId) => <div class="chat-action-message-text">{props.agentMessageText?.(messageId())}</div>}
         </Show>
       </div>
     </Marker>
