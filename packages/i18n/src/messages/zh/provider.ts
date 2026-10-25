@@ -242,7 +242,7 @@ export const messages = {
   "provider.settings.promptCache": "提示缓存",
   "provider.settings.promptCacheDescription": "Claude 在两轮对话之间把助手的上下文保留在缓存中的时长。",
   "provider.settings.promptCacheHour": "1 小时",
-  "provider.settings.promptCacheMinutes": "5 分钟",
+  "provider.settings.promptCacheDefault": "Claude Code 默认",
   "provider.settings.promptCacheLoadFailed": "无法加载该服务器的提示缓存时长。",
   "provider.settings.use": "使用",
   "provider.settings.defaultForNew": "新助手的默认选项",

@@ -201,6 +201,6 @@ export const messages = {
   "provider.settings.promptCacheDescription":
     "Wie lange Claude den Kontext eines Agenten zwischen den Zügen im Cache behält.",
   "provider.settings.promptCacheHour": "1 Stunde",
-  "provider.settings.promptCacheMinutes": "5 Minuten",
+  "provider.settings.promptCacheDefault": "Claude Code-Standard",
   "provider.settings.promptCacheLoadFailed": "Die Prompt-Cache-Dauer dieses Servers konnte nicht geladen werden.",
 } as const satisfies PartialTranslation<typeof source>;

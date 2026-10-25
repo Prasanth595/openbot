@@ -11,15 +11,15 @@ import { isDynamicRecord, isOneOf } from "./runtime-values";
  * usage. `5m` leaves Claude Code's own choice: five minutes with an API key, one hour for the main
  * thread of a Claude subscription within its limits.
  */
-export const PROMPT_CACHE_TTLS = ["1h", "5m"] as const;
+export const PROMPT_CACHE_TTLS = ["5m", "1h"] as const;
 export type PromptCacheTtl = (typeof PROMPT_CACHE_TTLS)[number];
 
 export interface PromptCacheTtlSetting {
   ttl: PromptCacheTtl;
 }
 
-/** One hour: with five minutes, an agent whose turns are further apart paid for its full context each turn. */
-export const DEFAULT_PROMPT_CACHE_TTL: PromptCacheTtlSetting = { ttl: "1h" };
+/** Claude Code's own choice, so that a server pays for a one-hour cache write only when its owner asks. */
+export const DEFAULT_PROMPT_CACHE_TTL: PromptCacheTtlSetting = { ttl: "5m" };
 
 export function isPromptCacheTtl(value: unknown): value is PromptCacheTtl {
   return isOneOf(PROMPT_CACHE_TTLS, value);

@@ -1296,7 +1296,7 @@ function PromptCacheSection(props: {
 }) {
   const { t } = useText();
   const label = (ttl: PromptCacheTtl) =>
-    ttl === "1h" ? t("provider.settings.promptCacheHour") : t("provider.settings.promptCacheMinutes");
+    ttl === "1h" ? t("provider.settings.promptCacheHour") : t("provider.settings.promptCacheDefault");
   return (
     <SettingsSection title={t("provider.settings.cache")}>
       <ItemGroup class="settings-modal-card">

@@ -217,6 +217,6 @@ export const messages = {
   "provider.settings.promptCache": "Кэш промптов",
   "provider.settings.promptCacheDescription": "Как долго Claude хранит контекст агента в кэше между ходами.",
   "provider.settings.promptCacheHour": "1 час",
-  "provider.settings.promptCacheMinutes": "5 минут",
+  "provider.settings.promptCacheDefault": "По умолчанию Claude Code",
   "provider.settings.promptCacheLoadFailed": "Не удалось загрузить время кэша промптов этого сервера.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -196,6 +196,6 @@ export const messages = {
   "provider.settings.promptCacheDescription":
     "Claude'un bir ajanın bağlamını turlar arasında önbellekte ne kadar tuttuğu.",
   "provider.settings.promptCacheHour": "1 saat",
-  "provider.settings.promptCacheMinutes": "5 dakika",
+  "provider.settings.promptCacheDefault": "Claude Code varsayılanı",
   "provider.settings.promptCacheLoadFailed": "Bu sunucunun istem önbelleği süresi yüklenemedi.",
 } as const satisfies PartialTranslation<typeof source>;

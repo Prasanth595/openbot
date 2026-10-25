@@ -205,6 +205,6 @@ export const messages = {
   "provider.settings.promptCacheDescription":
     "Durée pendant laquelle Claude garde le contexte d’un agent en cache entre les tours.",
   "provider.settings.promptCacheHour": "1 heure",
-  "provider.settings.promptCacheMinutes": "5 minutes",
+  "provider.settings.promptCacheDefault": "Défaut de Claude Code",
   "provider.settings.promptCacheLoadFailed": "Impossible de charger la durée du cache de prompt de ce serveur.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -219,6 +219,6 @@ export const messages = {
   "provider.settings.promptCacheDescription":
     "Jak długo Claude trzyma kontekst agenta w pamięci podręcznej między turami.",
   "provider.settings.promptCacheHour": "1 godzina",
-  "provider.settings.promptCacheMinutes": "5 minut",
+  "provider.settings.promptCacheDefault": "Domyślne Claude Code",
   "provider.settings.promptCacheLoadFailed": "Nie udało się wczytać czasu pamięci podręcznej promptów tego serwera.",
 } as const satisfies PartialTranslation<typeof source>;

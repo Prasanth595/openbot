@@ -255,7 +255,7 @@ export const messages = defineMessages("provider", {
   "provider.settings.promptCacheDescription":
     "How long Claude keeps the context of an agent in the cache between turns.",
   "provider.settings.promptCacheHour": "1 hour",
-  "provider.settings.promptCacheMinutes": "5 minutes",
+  "provider.settings.promptCacheDefault": "Claude Code default",
   "provider.settings.promptCacheLoadFailed": "Could not load the prompt cache time of this server.",
   "provider.settings.use": "Use",
   "provider.settings.defaultForNew": "Default for new agents",

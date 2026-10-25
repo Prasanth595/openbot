@@ -189,6 +189,6 @@ export const messages = {
   "provider.settings.promptCacheDescription":
     "Por quanto tempo o Claude mantém o contexto de um agente no cache entre os turnos.",
   "provider.settings.promptCacheHour": "1 hora",
-  "provider.settings.promptCacheMinutes": "5 minutos",
+  "provider.settings.promptCacheDefault": "Padrão do Claude Code",
   "provider.settings.promptCacheLoadFailed": "Não foi possível carregar a duração do cache de prompts deste servidor.",
 } as const satisfies PartialTranslation<typeof source>;
