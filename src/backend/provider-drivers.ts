@@ -372,7 +372,7 @@ export interface ProviderClientContext {
   readonly customAgents?: CustomAgentSource;
   /**
    * How long this server asks Claude to keep the prompt cache, read at each spawn. Optional for the
-   * same reason as `reportMcpDrops`: without it the cache time is one hour.
+   * same reason as `reportMcpDrops`: without it the CLI uses its own cache time.
    */
   readonly promptCacheTtl?: () => PromptCacheTtl;
 }
