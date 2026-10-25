@@ -682,10 +682,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           }),
         sharedRoot: () => this.#store.sharedRoot,
         isStopping: () => this.#stopping,
-        isProviderBusy: (provider) =>
-          this.#profileClients.usesProvider(provider) ||
-          this.#drain.hasStartingDeliveries(provider) ||
-          this.#store.list().some((agent) => providerForAgent(agent) === provider && this.#runsTurn(agent.id)),
+        isProviderBusy: (provider) => this.#isProviderBusy(provider),
         isAgentBusy: (agentId) => this.#runsTurn(agentId),
         isProviderAssigned: (provider) => this.#store.list().some((agent) => providerForAgent(agent) === provider),
         captureConfigRevision: () => this.#endpoints.committedRevision(),
@@ -3283,17 +3280,25 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   /**
    * `changeProviderCredential` for a removed key. Claude's key account goes first, with the idle check
    * of any removed account, so that a refusal keeps the key: an agent left on the account without its
-   * key could not run a turn.
+   * key could not run a turn. The key change refuses while the provider is busy, so that is checked
+   * before the account goes too.
    */
   clearProviderCredential(
     provider: AgentProvider,
     clear: () => Effect.Effect<void, AgentLifecycleFailed>,
   ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
-    return Effect.suspend(() =>
-      provider === "claude" && this.#providers.hasProviderAccount(provider, CLAUDE_API_KEY_ACCOUNT_ID)
-        ? this.removeProviderAccount(provider, CLAUDE_API_KEY_ACCOUNT_ID)
-        : Effect.void,
-    ).pipe(Effect.andThen(this.changeProviderCredential(provider, clear)));
+    return Effect.suspend(() => {
+      if (provider !== "claude" || !this.#providers.hasProviderAccount(provider, CLAUDE_API_KEY_ACCOUNT_ID))
+        return Effect.void;
+      if (this.#isProviderBusy(provider))
+        return Effect.fail(
+          new AgentLifecycleFailed({
+            operation: "changeProviderCredential",
+            cause: new Error(sourceText("error.provider.cliBusyRetry", { provider: providerLabel(provider) })),
+          }),
+        );
+      return this.removeProviderAccount(provider, CLAUDE_API_KEY_ACCOUNT_ID);
+    }).pipe(Effect.andThen(this.changeProviderCredential(provider, clear)));
   }
 
   readonly #claudeKeyChanged = Effect.fn("AgentService.claudeKeyChanged")(function* (this: AgentService) {
@@ -3431,6 +3436,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
    * belongs to the compaction, not to the agent, so `claimTurn` takes it away. Only its own guard
    * reports the turn the CLI is running.
    */
+  #isProviderBusy(provider: AgentProvider): boolean {
+    return (
+      this.#profileClients.usesProvider(provider) ||
+      this.#drain.hasStartingDeliveries(provider) ||
+      this.#store.list().some((agent) => providerForAgent(agent) === provider && this.#runsTurn(agent.id))
+    );
+  }
+
   #runsTurn(agentId: string): boolean {
     return this.#conversation.anyWorkingSnapshot(agentId) != null || !this.#compaction.mayDrain(agentId);
   }
