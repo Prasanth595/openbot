@@ -195,6 +195,8 @@ export const messages = {
     "OpenCode'un model sağlayıcısı geçersiz bir yükleme isteği bildirdi. Başka bir model seçin ve devam edin. Kayıtlı rutinleri yeniden oluşturmadan önce denetleyin.\n{detail}",
   "error.provider.opencodeUnreadableContent":
     "Bu model, bu sohbetteki bir dosyayı veya görseli okuyamıyor. Dosya okuyabilen bir model seçin, ardından mesajınızı yeniden gönderin.",
+  "error.provider.opencodeFreeLimit":
+    "Ücretsiz OpenCode modelleri kullanım sınırına ulaştı. Tüm ücretsiz modeller bu sınırı paylaşır. Devam etmek için OpenCode ayarlarına bir OpenCode Go anahtarı yapıştırın veya başka bir sağlayıcının modelini seçin.",
   "error.provider.opencodeProviderFailed":
     "Model sağlayıcısı kendi tarafında başarısız oldu. Bağlantınız bunun nedeni değildir. Daha sonra tekrar deneyin veya başka bir model seçin.\n{detail}",
   "error.provider.opencodeNetwork":

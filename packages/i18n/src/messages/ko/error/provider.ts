@@ -191,6 +191,8 @@ export const messages = {
     "OpenCode의 모델 제공자가 올바르지 않은 업로드 요청이라고 알렸어요. 다른 모델을 선택해 계속하세요. 저장된 루틴을 다시 만들기 전에 확인하세요.\n{detail}",
   "error.provider.opencodeUnreadableContent":
     "이 모델은 이 채팅의 파일이나 이미지를 읽을 수 없어요. 파일을 읽을 수 있는 모델을 선택한 후 메시지를 다시 보내세요.",
+  "error.provider.opencodeFreeLimit":
+    "OpenCode 무료 모델이 사용 한도에 도달했어요. 모든 무료 모델이 이 한도를 함께 사용해요. 계속하려면 OpenCode 설정에 OpenCode Go 키를 붙여넣거나 다른 제공자의 모델을 선택하세요.",
   "error.provider.opencodeProviderFailed":
     "모델 제공자 쪽에서 오류가 났어요. 회원님의 연결 문제가 아니에요. 나중에 다시 시도하거나 다른 모델을 선택하세요.\n{detail}",
   "error.provider.opencodeNetwork":

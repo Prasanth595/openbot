@@ -172,6 +172,8 @@ export const messages = {
     "OpenCode 的模型服务商报告上传请求无效。请改用其他模型继续；重新创建自动化任务前请先检查已保存的自动化任务。\n{detail}",
   "error.provider.opencodeUnreadableContent":
     "该模型无法读取该对话中的文件或图片。请选择能读取文件的模型，然后重新发送消息。",
+  "error.provider.opencodeFreeLimit":
+    "OpenCode 免费模型已达到使用上限。所有免费模型共用这一上限。要继续，请在 OpenCode 设置中粘贴 OpenCode Go 密钥，或选择其他提供商的模型。",
   "error.provider.opencodeProviderFailed":
     "模型服务商一侧发生故障，不是你的网络问题。请稍后重试或改用其他模型。\n{detail}",
   "error.provider.opencodeNetwork":
