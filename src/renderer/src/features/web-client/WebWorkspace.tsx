@@ -504,6 +504,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (server()?.id !== serverId) {
       const host = workspace.state.hosts.find((item) => item.hostId === serverId);
       if (!host) return;
+      chatHistory.userOpensServer(serverId);
       await workspace.connect(host);
       if (server()?.id !== serverId) return;
     }
@@ -996,6 +997,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (server()?.id !== serverId || workspace.state.status !== "online") {
       const host = workspace.state.hosts.find((item) => item.hostId === serverId);
       if (!host) return;
+      if (server()?.id !== serverId) chatHistory.userOpensServer(serverId);
       await workspace.connect(host);
       if (server()?.id !== serverId || workspace.state.status !== "online") return;
     }
@@ -1166,6 +1168,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     },
     open: openHistoryChat,
   });
+  /** Gives the chat that the user opens on the connected server its own history entry. */
+  function userOpensChat(kind: WebChatHistoryEntry["kind"], id: string): void {
+    const hostId = workspace.state.host?.hostId;
+    if (hostId) chatHistory.userOpens({ hostId, kind, id });
+  }
   const webhookRoutines = webEventRoutinesApi(
     (...args) => hostRequest()(...args),
     routineRecoveryEnabled,
@@ -1369,8 +1376,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   );
   /** Opens the agent chat that the user picked. Browser Back goes to the chat before it. */
   function select(id: string) {
-    const hostId = workspace.state.host?.hostId;
-    if (hostId) chatHistory.userOpens({ hostId, kind: "agent", id });
+    userOpensChat("agent", id);
     return openAgentChat(id);
   }
   async function openAgentChat(id: string) {
@@ -1386,8 +1392,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
    * in the conversation pane. The automatic open after a host connects goes through `beforeOpen` only.
    */
   function openChannel(id: string, edit = false) {
-    const hostId = workspace.state.host?.hostId;
-    if (hostId) chatHistory.userOpens({ hostId, kind: "channel", id });
+    userOpensChat("channel", id);
     setMobilePane("conversation");
     showAgents();
     void (edit ? channels.editChannel(id) : channels.open(id));
@@ -1508,8 +1513,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       // An open channel does not open again, so its settings would stay under the page.
       showAgents();
       // The channel settings hold its routines one step down.
-      const hostId = workspace.state.host?.hostId;
-      if (hostId) chatHistory.userOpens({ hostId, kind: "channel", id: routine.owner.channelId });
+      userOpensChat("channel", routine.owner.channelId);
       void channels.editChannel(routine.owner.channelId);
       return;
     }
@@ -1896,8 +1900,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     if (agentId !== workspace.state.selectedId) void select(agentId);
                     else {
                       // The agent is already loaded; only what covers its conversation closes.
-                      const hostId = workspace.state.host?.hostId;
-                      if (hostId) chatHistory.userOpens({ hostId, kind: "agent", id: agentId });
+                      userOpensChat("agent", agentId);
                       setCreating(false);
                       showAgents();
                       channels.close();
