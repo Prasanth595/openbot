@@ -1294,6 +1294,18 @@
   backdrop-filter: none;
 }
 
+/* The buttons of the top row have the size of the buttons in the other pages' top rows, such as Run now in Routines. */
+.wfn-canvas[data-frame="window"] .wfn-hud-top .wfn-hud-button {
+  height: var(--openbot-control-xs);
+  padding-inline: var(--openbot-space-2);
+  font-size: var(--openbot-text-lg);
+}
+
+.wfn-canvas[data-frame="window"] .wfn-hud-top .wfn-hud-button svg {
+  width: var(--openbot-icon-xs);
+  height: var(--openbot-icon-xs);
+}
+
 /* The window's top row stays when the interface is hidden: only the bars on the canvas go. */
 .wfn-canvas[data-frame="window"][data-hud-hidden] .wfn-hud-top,
 .wfn-canvas[data-frame="window"][data-hud-hidden] .wfn-hud-top .wfn-hud {
