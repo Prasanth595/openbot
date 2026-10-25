@@ -1,4 +1,5 @@
 import { execFile, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import {
   DEFAULT_EXTERNAL_LINK_PREFERENCE,
   decodeExternalLinkTarget,
@@ -30,7 +31,7 @@ export function createExternalLinkPreferenceStore(path: string): ExternalLinkPre
   });
 }
 
-export class ExternalLinkFailure extends Schema.TaggedError<ExternalLinkFailure>()("ExternalLinkFailure", {
+class ExternalLinkFailure extends Schema.TaggedError<ExternalLinkFailure>()("ExternalLinkFailure", {
   cause: Schema.Defect(),
 }) {}
 
@@ -93,10 +94,12 @@ function webPage(url: string): string | null {
 }
 
 /**
- * The words of a Linux or Windows command, split at spaces. Double quotes keep a path with spaces
- * in one word. A backslash is a plain character, as in a Windows path. No shell reads the words.
+ * The words of a Linux or Windows command, split at spaces. A value that names a file, such as
+ * `C:\Program Files\Mozilla Firefox\firefox.exe`, is one word. Double quotes keep a path with
+ * spaces in one word. A backslash is a plain character, as in a Windows path. No shell reads the words.
  */
 function commandWords(command: string): string[] {
+  if (existsSync(command)) return [command];
   return Array.from(command.matchAll(/"([^"]*)"|[^\s"]+/g), (match) => match[1] ?? match[0]);
 }
 

@@ -40,6 +40,8 @@ const config: KnipConfig = {
     "pgrep",
     // Captures the transparent main window in the appearance E2E script on macOS.
     "screencapture",
+    // Lists the browsers that macOS knows for the external link setting.
+    "osascript",
   ],
   workspaces: {
     ".": {
