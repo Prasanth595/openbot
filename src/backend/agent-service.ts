@@ -118,6 +118,7 @@ import {
   type QueueSteerFallback,
   sameAgentBrowserProfile,
   sameAgentModelChoice,
+  WORKFLOWS_USAGE_ID,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
 import { ContextResetBusyError } from "@openbot/contracts/team-protocol/context-reset-v1";
@@ -197,7 +198,9 @@ import {
 import { ThreadLifecycle } from "./agent/thread-lifecycle";
 import { toToolOperationFailed } from "./agent/tool-operation";
 import { type AgentBrowserHost, TurnLifecycle } from "./agent/turn-lifecycle";
+import { workflowUsageObserver } from "./agent/usage-collection";
 import { toUsageReadFailed, UsageLimitGate, type UsageLimitKey } from "./agent/usage-limit-gate";
+import { WarmGenerations } from "./agent/warm-generations";
 import type { WebhookRoutineWriter } from "./agent/webhook-routine-tool";
 import type { AgentApiKeys } from "./agent-api-keys";
 import type { AgentProvider } from "./agent-client";
@@ -383,6 +386,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly messaging: MessagingThreads;
   readonly #profileSave: ProfileSave;
   readonly #profileClients = new ProfileClients();
+  readonly #warmGenerations = new WarmGenerations({
+    ownerFor: (provider) => this.#providers.currentClient(provider),
+    createClient: (provider) => this.#providers.createProfileClient(provider),
+    profileClients: this.#profileClients,
+  });
   #scope = Scope.makeUnsafe();
   /** User sends still before their mailbox write, by idempotency key: a retry joins the first call. */
   readonly #pendingUserSends = new Map<string, Deferred.Deferred<QueuedMessageReceipt, AgentLifecycleFailed>>();
@@ -655,6 +663,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             this.#attention.clearBrowserTakeovers(client);
             this.#attention.clearApprovals(client);
             this.#compaction.clientEnded(client);
+            yield* this.#warmGenerations.ownerStopped(client);
             yield* this.#turn.interruptTurnsOf(client);
           }),
         onAgentClientLost: (agentId, client) =>
@@ -752,7 +761,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         // The model list reaches the renderer by pull, refreshed on a status event, and an exclusion
         // changes what that pull answers while no provider state moves.
         modelsChanged: () => this.#emit({ type: "status", status: this.getStatus() }),
-        stopProfileClients: () => this.#profileClients.stopOpenCode(),
+        stopProfileClients: () =>
+          this.#profileClients.stopOpenCode().pipe(Effect.andThen(this.#warmGenerations.stopIdle("opencode"))),
         emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
         providerAvailable: (provider) => this.#providerAvailable(provider),
         preference: () => this.#preference(),
@@ -1375,7 +1385,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   getHostAnalytics(input: HostAnalyticsInput) {
-    if (input.agentId && !this.listAgents().some((agent) => agent.id === input.agentId))
+    if (
+      input.agentId &&
+      input.agentId !== WORKFLOWS_USAGE_ID &&
+      !this.listAgents().some((agent) => agent.id === input.agentId)
+    )
       throw new Error(sourceText("error.team.agentNotFound"));
     return this.#store.database.usage.readHost(input);
   }
@@ -2073,15 +2087,12 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       if (!model) return yield* failed(sourceText("error.provider.noModel"));
       if (this.#stopping) return yield* failed(sourceText("error.backend.shuttingDown"));
       if (this.#profileClients.busy()) return yield* failed(sourceText("error.workflow.modelBusy"));
-      const client = this.#providers.createProfileClient(provider);
-      return yield* this.#profileClients
-        .run(client, (cancelled) =>
-          generateTextWithoutTools(
-            client,
-            { ...model, defaultReasoningEffort: input.effort ?? model.defaultReasoningEffort },
-            input.prompt,
-            cancelled,
-          ),
+      return yield* this.#warmGenerations
+        .generate(
+          provider,
+          { ...model, defaultReasoningEffort: input.effort ?? model.defaultReasoningEffort },
+          input.prompt,
+          workflowUsageObserver(this.#store.database.usage, provider, model.id),
         )
         .pipe(
           Effect.tapError((failure) =>
@@ -3507,6 +3518,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       concurrency: "unbounded",
       discard: true,
     });
+    yield* this.#warmGenerations.dispose();
     yield* Fiber.join(channelStop);
     // After the clients: a provider that still runs would see its MCP servers fail.
     yield* this.#mcp.close();

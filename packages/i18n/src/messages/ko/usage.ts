@@ -63,6 +63,7 @@ export const messages = {
   "usage.panel.label": "에이전트 사용량",
   "usage.panel.title": "사용량",
   "usage.panel.allAgents": "모든 에이전트",
+  "usage.panel.workflows": "워크플로",
   "usage.panel.agents": "사용량 에이전트",
   "usage.panel.metric": "사용량 지표",
   "usage.panel.period": "사용량 기간",

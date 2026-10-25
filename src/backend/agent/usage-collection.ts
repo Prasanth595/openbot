@@ -1,8 +1,12 @@
-import { type AgentSummary, isAgentModel, type UsageTokens } from "@openbot/contracts/ipc";
+import { randomUUID } from "node:crypto";
+import { type AgentSummary, isAgentModel, type UsageTokens, WORKFLOWS_USAGE_ID } from "@openbot/contracts/ipc";
 import { type DynamicRecord, isDynamicRecord } from "@openbot/contracts/runtime-values";
+import { createOpenBotLogger } from "@openbot/logging";
 import type { AgentUsage } from "../database/agent-usage";
 import type { ProviderSession } from "../database/provider-sessions";
 import { getRecord, getString } from "../protocol";
+
+const logger = createOpenBotLogger("usage-collection");
 
 function count(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
@@ -124,6 +128,25 @@ export function collectProviderUsage(
     baseline: session.createdAt < usage.collectionStartedAt(),
     tokens: acpTokens(value),
   });
+}
+
+/**
+ * Collects the usage of one workflow model or condition step under the reserved Workflows row. The
+ * step is its own session, so its counters never meet those of another step on the same process.
+ */
+export function workflowUsageObserver(
+  usage: AgentUsage,
+  provider: ProviderSession["provider"],
+  model: AgentSummary["model"],
+): (notification: { method: string; params?: unknown }) => void {
+  const session = { id: `workflow:${randomUUID()}`, provider, createdAt: new Date().toISOString() };
+  return ({ method, params }) => {
+    try {
+      collectProviderUsage(usage, { id: WORKFLOWS_USAGE_ID, model }, session, method, params);
+    } catch (error) {
+      logger.warn("Could not save the usage of a workflow step.", { provider, error });
+    }
+  };
 }
 
 /** An ACP `Usage`, whose `inputTokens` include the cache reads and writes. */

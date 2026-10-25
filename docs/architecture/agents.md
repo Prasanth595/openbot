@@ -205,8 +205,13 @@ changed, on this computer and on a joined host.
   input. A loop has no pass limit. It ends when a condition takes the other branch, a step fails or
   is rejected, or the user stops the run. The canvas marks a loop with no condition as endless.
 - An agent step is a routine handoff (`AgentService.enqueueRoutineHandoff`, with the workflow as the
-  routine) and ends when its delivery ends. A model step and a condition run in the process without
-  tools; a condition must answer yes or no, and only the edges of that branch stay active. An
+  routine) and ends when its delivery ends. Its tokens count under the agent. A model step and a
+  condition run in a process without tools; a condition must answer yes or no, and only the edges of
+  that branch stay active. That process (`warm-generations.ts`) stays for 5 idle minutes, so the
+  next step does not start the provider again. Each step still starts a new ephemeral thread, so no
+  step sees the text of another. The process stops when the provider's main client stops or
+  changes, after a failed step, and at shutdown. The tokens of these steps count under one reserved
+  usage row, `WORKFLOWS_USAGE_ID`, beside the agents. An
   approval waits for the user; a rejection stops the run. An output shows a desktop notification or
   posts to a messaging place.
 - `WorkflowTriggers` (`workflow-triggers.ts`) gives schedule triggers to the routine timer as an

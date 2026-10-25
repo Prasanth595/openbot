@@ -783,6 +783,11 @@ export class ProviderRuntime implements ProviderPort {
     );
   }
 
+  /** The provider's main client, without counting a use, so the idle release still applies. */
+  currentClient(provider: AgentProvider): AgentClient | null {
+    return this.#clients.get(provider) ?? null;
+  }
+
   clientFor(provider: AgentProvider): AgentClient | null {
     const client = this.#clients.get(provider) ?? null;
     if (client) this.#lastUsed.set(provider, Date.now());

@@ -23,7 +23,7 @@ import { hiddenProviderAgentIds, isPeerHiddenProvider } from "./provider-visibil
 import { readFile } from "node:fs/promises";
 import { isAvatarMimeType } from "@openbot/contracts/avatar-images";
 import { AVATAR_IMAGE_LIMITS, INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { CreateAgentInput, DuplicateAgentResult } from "@openbot/contracts/ipc";
+import { type CreateAgentInput, type DuplicateAgentResult, WORKFLOWS_USAGE_ID } from "@openbot/contracts/ipc";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { V5_AGENT_MODEL } from "@openbot/contracts/team-protocol/v5-adapter";
 import { V6_AGENT_MODEL } from "@openbot/contracts/team-protocol/v6-adapter";
@@ -112,7 +112,11 @@ export async function routeAgents(
       endDate: url.searchParams.get("endDate"),
       timeZone: url.searchParams.get("timeZone"),
     });
-    if (input.agentId && !agents.listAgents().some((agent) => agent.id === input.agentId))
+    if (
+      input.agentId &&
+      input.agentId !== WORKFLOWS_USAGE_ID &&
+      !agents.listAgents().some((agent) => agent.id === input.agentId)
+    )
       throw new HttpError(404, sourceText("error.team.agentNotFound"));
     return json(200, agents.getHostAnalytics(input));
   }
