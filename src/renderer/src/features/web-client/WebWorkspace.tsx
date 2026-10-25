@@ -193,6 +193,7 @@ import { openWebLink } from "./web-attachments";
 import { createWebBillingCalls, createWebLicenseCalls } from "./web-billing";
 import { webBitwardenConnectorPort } from "./web-bitwarden-connector";
 import { createWebChannelsPort } from "./web-channels-runtime";
+import { createWebChatHistory, type WebChatHistoryEntry } from "./web-chat-history";
 import { createWebWorkspace, type WebRuntimeFactory } from "./web-client-context";
 import { createWebConversationRuntime } from "./web-conversation-runtime";
 import { createWebConversationView } from "./web-conversation-view";
@@ -1151,6 +1152,17 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   createEffect(firstAgent, (first) => {
     if (first && !untrack(channelOpen)) setCreating(true);
   });
+  const chatHistory = createWebChatHistory({
+    current: () => {
+      const hostId = workspace.state.host?.hostId;
+      if (!hostId || page() !== "agents" || agentFormOpen()) return null;
+      const channelId = channels.state.selectedId;
+      if (channelId) return { hostId, kind: "channel", id: channelId };
+      const agentId = workspace.state.selectedId;
+      return agentId ? { hostId, kind: "agent", id: agentId } : null;
+    },
+    open: openHistoryChat,
+  });
   const webhookRoutines = webEventRoutinesApi(
     (...args) => hostRequest()(...args),
     routineRecoveryEnabled,
@@ -1352,7 +1364,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       showModels(++modelsRequest, value.models);
     },
   );
-  async function select(id: string) {
+  /** Opens the agent chat that the user picked. Browser Back goes to the chat before it. */
+  function select(id: string) {
+    const hostId = workspace.state.host?.hostId;
+    if (hostId) chatHistory.userOpens({ hostId, kind: "agent", id });
+    return openAgentChat(id);
+  }
+  async function openAgentChat(id: string) {
     setCreating(false);
     showAgents();
     // A remounted conversation must not scroll again to a message that was picked before.
@@ -1365,6 +1383,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
    * in the conversation pane. The automatic open after a host connects goes through `beforeOpen` only.
    */
   function openChannel(id: string, edit = false) {
+    const hostId = workspace.state.host?.hostId;
+    if (hostId) chatHistory.userOpens({ hostId, kind: "channel", id });
     setMobilePane("conversation");
     showAgents();
     void (edit ? channels.editChannel(id) : channels.open(id));
@@ -1379,11 +1399,35 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   /** The host a switch left, so the provider step of a new server can go back to it. */
   const [previousHostId, setPreviousHostId] = createSignal<string | null>(null);
   function selectServer(id: string) {
+    if (workspace.state.host?.hostId !== id) chatHistory.userOpensServer(id);
+    void connectServer(id);
+  }
+  async function connectServer(id: string): Promise<void> {
     const host = workspace.state.hosts.find((item) => item.hostId === id);
     if (!host) return;
     const current = workspace.state.host?.hostId;
     if (current && current !== id) setPreviousHostId(current);
-    void workspace.connect(host);
+    await workspace.connect(host);
+  }
+  /** Opens the chat of a browser history entry. A chat that was deleted since then does not open. */
+  function openHistoryChat(entry: WebChatHistoryEntry): void {
+    setMobilePane("conversation");
+    if (entry.hostId !== workspace.state.host?.hostId) {
+      // The server opens the chat of the entry, not the channel that it saved.
+      writeChannelSelection(props.accountId, entry.hostId, entry.kind === "channel" ? entry.id : null);
+      showAgents();
+      void connectServer(entry.hostId).then(() => {
+        if (entry.kind === "agent" && workspace.state.host?.hostId === entry.hostId) openHistoryChat(entry);
+      });
+      return;
+    }
+    if (entry.kind === "channel") {
+      if (!channels.state.channels.some((channel) => channel.id === entry.id && !channel.archived)) return;
+      showAgents();
+      void channels.open(entry.id);
+      return;
+    }
+    if (workspace.state.agents.some((agent) => agent.id === entry.id)) void openAgentChat(entry.id);
   }
   /** The server the provider step goes back to: the one open before, else any other on the rail. */
   const returnHostId = () => {
