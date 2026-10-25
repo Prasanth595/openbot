@@ -67,6 +67,9 @@ export interface AppServerRequest {
   signal?: AbortSignal;
 }
 
+/** The account type of Claude's own sign-in when it runs on the saved key, with no claude.ai account. */
+export const CLAUDE_API_KEY_ACCOUNT_TYPE = "claude-api-key";
+
 export interface AccountReadResult {
   account: null | {
     type: string;

@@ -114,6 +114,28 @@ export function collectProviderUsage(
     });
     return;
   }
+  if (session.provider === "opencode") {
+    // OpenCode 1.19 and 2.x send the tokens of this prompt only (`state.usage.turn` starts again for
+    // each prompt). `inputTokens` is the uncached input, and each cache and thinking field is left
+    // out when it is 0, so a missing one is 0. Reasoning is billed as output.
+    const output = count(value.outputTokens);
+    usage.record({
+      agentId: agent.id,
+      sessionId: session.id,
+      turnId,
+      provider: session.provider,
+      model,
+      counterId: `${session.id}:opencode:${getString(params, "promptId") ?? turnId}`,
+      baseline: false,
+      tokens: {
+        uncachedInput: count(value.inputTokens),
+        cachedInput: count(value.cachedReadTokens ?? 0),
+        cacheCreation: count(value.cachedWriteTokens ?? 0),
+        output: output === null ? null : output + (count(value.thoughtTokens ?? 0) ?? 0),
+      },
+    });
+    return;
+  }
   // ACP `Usage` is session-cumulative by contract: its fields are documented as "Sum of all token
   // types across session" and "Total input tokens across all turns". So one counter per session,
   // like Codex, and the first report of a session that predates collection is a baseline: it

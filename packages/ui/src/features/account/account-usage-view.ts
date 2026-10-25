@@ -16,7 +16,7 @@ import {
   usageRemainingPercent,
   usageTone,
 } from "@openbot/team-client/plan-limits";
-import { providerAccountName } from "../../components/provider-accounts";
+import { isApiKeyAccount, providerAccountName } from "../../components/provider-accounts";
 import { currentText, type TextValue } from "../../text";
 
 type UsageText = Pick<TextValue, "t" | "format">;
@@ -77,7 +77,11 @@ export function accountUsageProviderRows(
     const accounts = accountsOf(provider.id);
     const ids = accounts.length
       ? accounts.flatMap((account) =>
-          account.id === DEFAULT_PROVIDER_ACCOUNT_ID ? [null] : account.state === "connected" ? [account.id] : [],
+          account.id === DEFAULT_PROVIDER_ACCOUNT_ID
+            ? [null]
+            : account.state === "connected" && !isApiKeyAccount(account.id)
+              ? [account.id]
+              : [],
         )
       : [null];
     for (const accountId of ids) {

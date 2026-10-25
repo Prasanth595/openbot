@@ -142,6 +142,10 @@ export const messages = {
   "provider.geminiKey.description":
     "이 컴퓨터에 Gemini API 키를 저장하세요. 저장된 키가 Google 계정보다 우선 사용돼요. Google로 로그인하려면 키를 제거하고 Gemini 행에서 연결을 선택하세요.",
   "provider.geminiKey.label": "Gemini API 키",
+  "provider.claudeKey.title": "Anthropic API 키",
+  "provider.claudeKey.description":
+    "호스트에 Anthropic API 키를 저장하세요. Anthropic이 각 요청을 키로 청구해요. 에이전트에서 사용하려면 에이전트의 모델 메뉴에서 'API 키' 계정을 선택하세요. Claude에 로그인하지 않은 경우 모든 에이전트가 키를 사용해요.",
+  "provider.claudeKey.label": "Anthropic API 키",
   "provider.inceptionKey.title": "Inception API 키",
   "provider.inceptionKey.description":
     "Mercury 모델을 사용하려면 이 컴퓨터에 Inception API 키를 저장하세요. OpenBot은 다운로드한 Pi CLI에서 모델을 실행해요.",
@@ -163,6 +167,7 @@ export const messages = {
   "provider.account.addLabel": "{name} 계정 추가",
   "provider.account.count": { other: "계정 {count}개" },
   "provider.account.numbered": "계정 {number}",
+  "provider.account.apiKey": "API 키",
   "provider.account.listLabel": "{name} 계정",
   "provider.account.usedBy": "{agents}이(가) 사용 중",
   "provider.account.failed": "로그인 실패",
@@ -221,6 +226,8 @@ export const messages = {
   "provider.settings.keyAlternative": "또는 {name} API 키를 붙여넣으세요.",
   "provider.settings.geminiKeyInUse":
     "Gemini가 Google AI 요금제가 아닌 이 키를 사용해요. 요금제의 사용량은 표시되지 않아요.",
+  "provider.settings.claudeKeyInUse":
+    "에이전트의 모델 메뉴에서 'API 키' 계정을 선택하세요. Claude에 로그인하지 않은 경우 모든 에이전트가 키를 사용해요.",
   "provider.settings.addKey": "키 추가",
   "provider.settings.changeKey": "키 변경",
   "provider.settings.runtime": "런타임",

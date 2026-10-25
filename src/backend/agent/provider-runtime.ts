@@ -44,6 +44,7 @@ import type { ProcessConfinement } from "../process-confinement";
 import {
   type AccountLoginCompletedResult,
   type AccountReadResult,
+  CLAUDE_API_KEY_ACCOUNT_TYPE,
   decodeAccountRateLimitsReadResult,
   decodeAccountRateLimitsUpdated,
   decodeAccountReadResult,
@@ -546,6 +547,8 @@ export class ProviderRuntime implements ProviderPort {
           cli: (provider) =>
             this.#clients.has(provider) || this.#released.has(provider) ? this.#cli.get(provider) : undefined,
           defaultEmail: (provider) => this.#accounts.get(provider)?.email ?? null,
+          apiKey: (provider) => this.#credentials.apiKey(provider),
+          defaultUsesApiKey: (provider) => this.ownSignInUsesKey(provider),
           signInTemp: (provider) => {
             const temp = provider === "antigravity" ? antigravityTemp(this.#credentials) : undefined;
             return temp && { ...temp, provider: providerLabel(provider) };
@@ -1537,6 +1540,21 @@ export class ProviderRuntime implements ProviderPort {
     yield* accounts.remove(provider, accountId).pipe(toProviderOperationFailed);
     return this.status();
   }, Effect.uninterruptible).bind(this);
+
+  /** Whether the provider has a saved API key. */
+  hasProviderKey(provider: AgentProvider): boolean {
+    return this.#credentials.apiKey(provider) !== null;
+  }
+
+  /** True when the provider's own sign-in runs on its saved key, because it has no other login. */
+  ownSignInUsesKey(provider: AgentProvider): boolean {
+    return this.#accounts.get(provider)?.type === CLAUDE_API_KEY_ACCOUNT_TYPE;
+  }
+
+  /** Gives a saved key its account and checks it again; see `ProviderAccounts.keyChanged`. */
+  providerKeyChanged(provider: AgentProvider): Effect.Effect<AgentStatus> {
+    return (this.#providerAccounts?.keyChanged(provider) ?? Effect.void).pipe(Effect.map(() => this.status()));
+  }
 
   /** True when `accountId` names an account after the first that this computer holds. */
   hasProviderAccount(provider: AgentProvider, accountId: string): boolean {

@@ -143,6 +143,10 @@ export const messages = {
   "provider.geminiKey.description":
     "このコンピューターに Gemini API キーを保存します。保存したキーは Google アカウントの代わりに使われます。Google でサインインするには、キーを削除してから Gemini の行で「接続」を選択してください。",
   "provider.geminiKey.label": "Gemini API キー",
+  "provider.claudeKey.title": "Anthropic API キー",
+  "provider.claudeKey.description":
+    "ホストに Anthropic API キーを保存します。Anthropic は各リクエストをキーに請求します。エージェントで使うには、エージェントのモデルメニューで「APIキー」アカウントを選択します。Claude にサインインしていない場合、すべてのエージェントがキーを使います。",
+  "provider.claudeKey.label": "Anthropic API キー",
   "provider.inceptionKey.title": "Inception API キー",
   "provider.inceptionKey.description":
     "Mercury モデルを使うには、このコンピューターに Inception API キーを保存します。OpenBot はダウンロードした Pi CLI でモデルを実行します。",
@@ -164,6 +168,7 @@ export const messages = {
   "provider.account.addLabel": "別の {name} アカウントを追加",
   "provider.account.count": { other: "アカウント {count} 件" },
   "provider.account.numbered": "アカウント {number}",
+  "provider.account.apiKey": "APIキー",
   "provider.account.listLabel": "{name} のアカウント",
   "provider.account.usedBy": "{agents} が使用中",
   "provider.account.failed": "サインイン失敗",

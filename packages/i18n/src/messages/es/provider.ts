@@ -144,6 +144,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Guarda una clave de API de Gemini en este equipo. Una clave guardada se usa en lugar de tu cuenta de Google. Para iniciar sesión con Google, elimina la clave y selecciona Conectar en la fila de Gemini.",
   "provider.geminiKey.label": "Clave de API de Gemini",
+  "provider.claudeKey.title": "Clave de API de Anthropic",
+  "provider.claudeKey.description":
+    "Guarda una clave de API de Anthropic en el host. Anthropic factura cada solicitud a la clave. Para usarla en un agente, selecciona la cuenta «Clave de API» en el menú de modelos del agente. Si Claude no tiene sesión iniciada, todos los agentes usan la clave.",
+  "provider.claudeKey.label": "Clave de API de Anthropic",
   "provider.inceptionKey.title": "Clave de API de Inception",
   "provider.inceptionKey.description":
     "Guarda una clave de API de Inception en este equipo para usar los modelos Mercury. OpenBot los ejecuta en la CLI de Pi que descarga.",
@@ -165,6 +169,7 @@ export const messages = {
   "provider.account.addLabel": "Añadir otra cuenta de {name}",
   "provider.account.count": { one: "{count} cuenta", other: "{count} cuentas" },
   "provider.account.numbered": "Cuenta {number}",
+  "provider.account.apiKey": "Clave de API",
   "provider.account.listLabel": "Cuentas de {name}",
   "provider.account.usedBy": "Usada por {agents}",
   "provider.account.failed": "Error al iniciar sesión",

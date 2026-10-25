@@ -98,6 +98,7 @@ import {
   type AccountReadResult,
   type AppServerNotification,
   type AppServerRequest,
+  CLAUDE_API_KEY_ACCOUNT_TYPE,
   getString,
   isRecord,
   type RequestId,
@@ -292,6 +293,14 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   readonly #stateDirectory: string | undefined;
   /** Read at each session start, so a GitHub connection made while OpenBot runs reaches the next session. */
   readonly #agentEnvironment: ((inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>) | undefined;
+  /**
+   * The saved Anthropic API key, for the provider's own sign-in only. The CLI uses `ANTHROPIC_API_KEY`
+   * before a claude.ai account, so this client gives the key only when the folder has no such
+   * account: the key then serves the agents that the user did not move to another account.
+   */
+  readonly #fallbackApiKey: (() => string | null) | undefined;
+  /** Whether the last account read found no claude.ai account and signed in with the key. */
+  #onApiKey = false;
   readonly readHistory: ReadProviderHistory;
   /** Threads whose process was closed for being idle keep the config that resumes them. */
   readonly #threads = new IdleThreadPool<ThreadRuntime, ThreadConfig>({
@@ -338,6 +347,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     stateDirectory?: string,
     agentEnvironment?: (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>>,
     historyIndexDirectory?: string,
+    fallbackApiKey?: () => string | null,
   ) {
     super();
     this.#cli = cli;
@@ -350,6 +360,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     this.#mcpEndpoint = mcpEndpoint;
     this.#stateDirectory = stateDirectory;
     this.#agentEnvironment = agentEnvironment;
+    this.#fallbackApiKey = fallbackApiKey;
     const historyEnvironment = agentEnvironment?.();
     const resolvedHistoryIndexDirectory = historyIndexDirectory ?? stateDirectory;
     const historyOptions: ClaudeHistoryOptions = {
@@ -541,7 +552,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       persistSession: false,
       env: {
         ...claudeEnvironment(this.#cli),
-        ...this.#agentEnvironment?.(),
+        ...this.#environment(this.#onApiKey),
         CLAUDE_AGENT_SDK_CLIENT_APP: "openbot/0.1.0",
       },
     };
@@ -652,11 +663,14 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   readonly #readAccountEffect = Effect.fn("ClaudeAgentClient.readAccount")(function* (
     this: ClaudeAgentClient,
   ): Effect.fn.Return<AccountReadResult, ProviderClientOperationError> {
-    const status = yield* this.#readAuthStatusEffect();
+    let status = yield* this.#readAuthStatusEffect(false);
+    const onApiKey = status.loggedIn !== true && Boolean(this.#fallbackApiKey?.());
+    if (onApiKey) status = yield* this.#readAuthStatusEffect(true);
+    this.#onApiKey = onApiKey && status.loggedIn === true;
     if (status.loggedIn !== true) return { account: null, requiresOpenaiAuth: false };
     return {
       account: {
-        type: "claude",
+        type: this.#onApiKey ? CLAUDE_API_KEY_ACCOUNT_TYPE : "claude",
         email: isString(status.email) ? status.email : null,
         planType: isString(status.subscriptionType) ? status.subscriptionType : null,
       },
@@ -672,6 +686,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
 
   readonly #readAuthStatusEffect = Effect.fn("ClaudeAgentClient.readAuthStatus")(function* (
     this: ClaudeAgentClient,
+    withApiKey: boolean,
   ): Effect.fn.Return<DynamicRecord, ProviderClientOperationError> {
     let stdout: unknown;
     let failure: unknown = null;
@@ -685,7 +700,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
               maxBuffer: 64 * 1024,
               windowsVerbatimArguments: target.windowsVerbatimArguments,
               // The agent environment carries the account's `CLAUDE_CONFIG_DIR`, so this reads that account.
-              env: { ...claudeEnvironment(this.#cli), ...this.#agentEnvironment?.() },
+              env: { ...claudeEnvironment(this.#cli), ...this.#environment(withApiKey) },
             }),
           ),
         ),
@@ -701,6 +716,12 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
       return yield* providerFailure(new RequestTimeoutError("Claude", "account/read"));
     return yield* providerFailure(failure ?? new Error("Claude returned an unreadable sign-in status."));
   });
+
+  /** The agent environment, with the saved key when `withApiKey`. */
+  #environment(withApiKey: boolean): Readonly<Record<string, string>> {
+    const key = withApiKey ? this.#fallbackApiKey?.() : null;
+    return { ...this.#agentEnvironment?.(), ...(key ? { ANTHROPIC_API_KEY: key } : {}) };
+  }
 
   #setTurnContext(threadId: string, params: unknown, resume: boolean): void {
     const current = readMemoryContext(params);
@@ -857,7 +878,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
             // The login shell's `PATH`, so the Bash tool and hooks find Homebrew and `~/.local/bin`
             // tools when Finder starts OpenBot. An `env.PATH` in the Claude settings still wins.
             ...(launchPath ? { PATH: launchPath } : {}),
-            ...this.#agentEnvironment?.(),
+            ...this.#environment(this.#onApiKey),
             CLAUDE_AGENT_SDK_CLIENT_APP: "openbot/0.1.0",
             // Without a terminal, the CLI gives the newer models no TodoWrite or task tools, so the
             // agent has no plan for OpenBot to show as a task list.

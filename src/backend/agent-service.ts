@@ -121,6 +121,7 @@ import {
   WORKFLOWS_USAGE_ID,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
+import { CLAUDE_API_KEY_ACCOUNT_ID } from "@openbot/contracts/team-protocol/claude-api-key-v1";
 import { ContextResetBusyError } from "@openbot/contracts/team-protocol/context-reset-v1";
 import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { sourceText } from "@openbot/i18n/source";
@@ -699,10 +700,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           }),
         sharedRoot: () => this.#store.sharedRoot,
         isStopping: () => this.#stopping,
-        isProviderBusy: (provider) =>
-          this.#profileClients.usesProvider(provider) ||
-          this.#drain.hasStartingDeliveries(provider) ||
-          this.#store.list().some((agent) => providerForAgent(agent) === provider && this.#runsTurn(agent.id)),
+        isProviderBusy: (provider) => this.#isProviderBusy(provider),
         isAgentBusy: (agentId) => this.#runsTurn(agentId),
         isProviderAssigned: (provider) => this.#store.list().some((agent) => providerForAgent(agent) === provider),
         captureConfigRevision: () => this.#endpoints.committedRevision(),
@@ -3338,18 +3336,72 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
+  /**
+   * A stored key serves the provider's own sign-in, and Claude's key also its own account, so a new or
+   * removed key ends the limits that hold those agents: they were the old credential's. A limit of the
+   * new one holds them again at its first refused turn. Claude's own sign-in uses the key only when it
+   * has no claude.ai login, so the limits of that plan stay. A saved Claude key gets its account; a
+   * removed one takes its account away, and its agents go back to the provider's own sign-in.
+   */
   changeProviderCredential(
     provider: AgentProvider,
     change: () => Effect.Effect<void, AgentLifecycleFailed>,
   ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    let usedKey = provider !== "claude";
     return this.#providers
-      .changeProviderCredential(provider, () => change().pipe(toProviderOperationFailed))
+      .changeProviderCredential(provider, () =>
+        Effect.suspend(() => {
+          usedKey ||= this.#providers.ownSignInUsesKey(provider);
+          return change();
+        }).pipe(toProviderOperationFailed),
+      )
       .pipe(
+        Effect.tap(() =>
+          usedKey || this.#providers.ownSignInUsesKey(provider)
+            ? this.#usageLimits.accountReset(provider, null)
+            : Effect.void,
+        ),
         Effect.mapError(
           (failure) => new AgentLifecycleFailed({ operation: "changeProviderCredential", cause: failure.cause }),
         ),
+        Effect.flatMap((status) => (provider === "claude" ? this.#claudeKeyChanged() : Effect.succeed(status))),
       );
   }
+
+  /**
+   * `changeProviderCredential` for a removed key. Claude's key account goes first, with the idle check
+   * of any removed account, so that a refusal keeps the key: an agent left on the account without its
+   * key could not run a turn. The key change refuses while the provider is busy, so that is checked
+   * before the account goes too.
+   */
+  clearProviderCredential(
+    provider: AgentProvider,
+    clear: () => Effect.Effect<void, AgentLifecycleFailed>,
+  ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    return Effect.suspend(() => {
+      if (provider !== "claude" || !this.#providers.hasProviderAccount(provider, CLAUDE_API_KEY_ACCOUNT_ID))
+        return Effect.void;
+      if (this.#isProviderBusy(provider))
+        return Effect.fail(
+          new AgentLifecycleFailed({
+            operation: "changeProviderCredential",
+            cause: new Error(sourceText("error.provider.cliBusyRetry", { provider: providerLabel(provider) })),
+          }),
+        );
+      return this.removeProviderAccount(provider, CLAUDE_API_KEY_ACCOUNT_ID);
+    }).pipe(Effect.andThen(this.changeProviderCredential(provider, clear)));
+  }
+
+  readonly #claudeKeyChanged = Effect.fn("AgentService.claudeKeyChanged")(function* (this: AgentService) {
+    const status = this.#providers.hasProviderKey("claude")
+      ? yield* this.#providers.providerKeyChanged("claude")
+      : this.#providers.hasProviderAccount("claude", CLAUDE_API_KEY_ACCOUNT_ID)
+        ? yield* this.removeProviderAccount("claude", CLAUDE_API_KEY_ACCOUNT_ID)
+        : this.#providers.status();
+    // After the removal, so that the released work starts on the provider's own sign-in.
+    yield* this.#usageLimits.accountReset("claude", CLAUDE_API_KEY_ACCOUNT_ID);
+    return status;
+  });
 
   updateProviderCli(
     provider: AgentProvider,
@@ -3475,6 +3527,14 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
    * belongs to the compaction, not to the agent, so `claimTurn` takes it away. Only its own guard
    * reports the turn the CLI is running.
    */
+  #isProviderBusy(provider: AgentProvider): boolean {
+    return (
+      this.#profileClients.usesProvider(provider) ||
+      this.#drain.hasStartingDeliveries(provider) ||
+      this.#store.list().some((agent) => providerForAgent(agent) === provider && this.#runsTurn(agent.id))
+    );
+  }
+
   #runsTurn(agentId: string): boolean {
     return this.#conversation.anyWorkingSnapshot(agentId) != null || !this.#compaction.mayDrain(agentId);
   }

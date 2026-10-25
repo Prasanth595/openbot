@@ -36,6 +36,7 @@ import {
   ItemGroup,
   ItemMedia,
   ItemTitle,
+  KeyRound,
   Link,
   LogIn,
   Pencil,
@@ -62,7 +63,7 @@ import type { JSX } from "@solidjs/web";
 import { createEffect, createMemo, createSignal, createStore, For, onCleanup, Show } from "solid-js";
 import { ProviderAccountRenameField } from "../../components/ProviderAccountList";
 import type { ProviderPickerOption } from "../../components/ProviderPicker";
-import { type ProviderPickerAccount, providerAccountName } from "../../components/provider-accounts";
+import { isApiKeyAccount, type ProviderPickerAccount, providerAccountName } from "../../components/provider-accounts";
 import {
   createProviderRow,
   PROVIDER_ACTION_LABEL,
@@ -744,13 +745,15 @@ function AccountRow(
   const [renaming, setRenaming] = createSignal(false);
   const name = () => providerAccountName(t, props.accounts, props.account.id);
   const own = () => props.account.id === DEFAULT_PROVIDER_ACCOUNT_ID;
+  /** The saved key's account: the key dialog changes or removes it, and it has no sign-in or plan usage. */
+  const apiKey = () => isApiKeyAccount(props.account.id);
   // A state that a newer host added shows as a failure.
   const state = (): ProviderAccountState =>
     Object.hasOwn(ACCOUNT_STATE_TEXT, props.account.state) ? props.account.state : "error";
   const needsSignIn = () => state() === "signed-out" || state() === "error";
   /** The own account signs in again with the provider's Reconnect, so only the others have their own. */
-  const signInAgain = () => !own() && needsSignIn();
-  const connecting = () => !own() && state() === "connecting";
+  const signInAgain = () => !own() && !apiKey() && needsSignIn();
+  const connecting = () => !own() && !apiKey() && state() === "connecting";
   /** A Reconnect of the provider waits for the browser. */
   const ownSigningIn = () => own() && props.row.signingIn();
   const agents = () => props.account.usedBy ?? [];
@@ -846,7 +849,7 @@ function AccountRow(
                 <Pencil aria-hidden="true" />
                 {t("common.rename")}
               </DropdownMenu.Item>
-              <Show when={state() === "connected" && props.resetsLeft > 0}>
+              <Show when={state() === "connected" && !apiKey() && props.resetsLeft > 0}>
                 <DropdownMenu.Item onSelect={() => props.onResetUsage()}>
                   <Gauge aria-hidden="true" />
                   {t("provider.account.resetUsage")}
@@ -863,7 +866,13 @@ function AccountRow(
               <Show when={own()}>
                 <AlternativeItem row={props.row} />
               </Show>
-              <Show when={!own()}>
+              <Show when={apiKey()}>
+                <DropdownMenu.Item onSelect={() => void props.onSignInProvider?.(props.option.id)}>
+                  <KeyRound aria-hidden="true" />
+                  {t("provider.settings.changeKey")}
+                </DropdownMenu.Item>
+              </Show>
+              <Show when={!own() && !apiKey()}>
                 <DropdownMenu.Separator />
                 <DropdownMenu.Item onSelect={() => props.onRemove()}>
                   <Trash2 aria-hidden="true" />
@@ -1091,7 +1100,9 @@ function ApiKeySection(props: SectionProps) {
                 ? t("provider.settings.keyOptional")
                 : props.option.id === "antigravity" && saved()
                   ? t("provider.settings.geminiKeyInUse")
-                  : t("provider.settings.keyAlternative", { name: props.option.name })}
+                  : props.option.id === "claude" && saved()
+                    ? t("provider.settings.claudeKeyInUse")
+                    : t("provider.settings.keyAlternative", { name: props.option.name })}
             </ItemDescription>
           </ItemContent>
           <ItemActions>

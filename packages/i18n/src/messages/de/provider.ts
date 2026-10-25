@@ -145,6 +145,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Speichere einen Gemini-API-Schlüssel auf diesem Computer. Ein gespeicherter Schlüssel wird statt deines Google-Kontos verwendet. Um dich mit Google anzumelden, entferne den Schlüssel und wähle „Verbinden“ in der Gemini-Zeile.",
   "provider.geminiKey.label": "Gemini-API-Schlüssel",
+  "provider.claudeKey.title": "Anthropic-API-Schlüssel",
+  "provider.claudeKey.description":
+    "Speichere einen Anthropic-API-Schlüssel auf dem Host. Anthropic berechnet jede Anfrage über den Schlüssel. Um ihn für einen Agenten zu verwenden, wähle das Konto „API-Schlüssel“ im Modellmenü des Agenten. Wenn Claude nicht angemeldet ist, verwenden alle Agenten den Schlüssel.",
+  "provider.claudeKey.label": "Anthropic-API-Schlüssel",
   "provider.inceptionKey.title": "Inception-API-Schlüssel",
   "provider.inceptionKey.description":
     "Speichere einen Inception-API-Schlüssel auf diesem Computer, um die Mercury-Modelle zu verwenden. OpenBot führt sie in der Pi-CLI aus, die es herunterlädt.",
@@ -167,6 +171,7 @@ export const messages = {
   "provider.account.addLabel": "Weiteres {name}-Konto hinzufügen",
   "provider.account.count": { one: "{count} Konto", other: "{count} Konten" },
   "provider.account.numbered": "Konto {number}",
+  "provider.account.apiKey": "API-Schlüssel",
   "provider.account.listLabel": "{name}-Konten",
   "provider.account.usedBy": "Verwendet von {agents}",
   "provider.account.failed": "Anmeldung fehlgeschlagen",

@@ -372,6 +372,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `instance-transfer-v1` | Export and import the server's agents and server settings as a transfer file | `instanceTransfer` |
 | `providers-v3` | Code sign-in for Codex, Claude and Grok; send the code a Claude sign-in page shows | `providerAdmin` |
 | `providers-v4` | Code or link sign-in and managed runtimes, Cursor and Cline included | `providerAdmin` |
+| `claude-api-key-v1` | No routes. The host saves an Anthropic API key for Claude through the `providers-v1` key routes | `providerAdmin` |
 | `provider-usage-reset-v1` | Read the usage reset credits of each provider account on the host, and spend one. Only Codex gives credits | `providerAdmin` |
 | `host-admin-v1` | Server name and logo | `hostAdmin` |
 | `host-update-v1` | Check for, download and restart into an app update; cancel a restart that waits | `hostAdmin` |
@@ -444,6 +445,18 @@ in the Claude settings or `CLAUDE_CODE_PROMPT_CACHE_TTL` on the host still wins.
 the next Claude process, not to a running one; an idle thread starts a new process when it resumes.
 The Cache section of the Claude page in Server settings → Providers sets it for this computer and
 for a joined server.
+
+`claude-api-key-v1` has no routes. It tells a client that the host reads the key that the released
+`providers-v1` key routes save for `claude`. The host keeps the key as a Claude account with the
+fixed id `CLAUDE_API_KEY_ACCOUNT_ID`, which `provider-accounts-v1` lists as any other account, so an
+older client can select it too. The agents on it start with `ANTHROPIC_API_KEY` and their own
+`CLAUDE_CONFIG_DIR`, and Anthropic bills each request to the key. The provider's own sign-in first
+checks its claude.ai login without the key. Only when it has no login does it use the key; it then
+reports the account type `claude-api-key`, and the host hides the key account row, because each
+agent already uses the key. A removed key removes its account and moves its agents to the own sign-in.
+A removed account with a saved key comes back at the next account check. An added account never gets
+the key. An older host saved the key but did not use it, so a client shows the Claude key only when
+the host advertises the capability.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until
