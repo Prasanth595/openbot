@@ -119,6 +119,7 @@ import {
   sameAgentModelChoice,
   workspaceAccessEnforced,
 } from "@openbot/contracts/ipc";
+import { CLAUDE_API_KEY_ACCOUNT_ID } from "@openbot/contracts/team-protocol/claude-api-key-v1";
 import { ContextResetBusyError } from "@openbot/contracts/team-protocol/context-reset-v1";
 import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import { sourceText } from "@openbot/i18n/source";
@@ -3248,9 +3249,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   }
 
   /**
-   * A stored key serves the provider's own sign-in, so a new or removed key ends the limits that hold
-   * those agents: they were the old credential's. A limit of the new one holds them again at its first
-   * refused turn.
+   * A stored key serves the provider's own sign-in, and Claude's key also its own account, so a new or
+   * removed key ends the limits that hold those agents: they were the old credential's. A limit of the
+   * new one holds them again at its first refused turn. A saved Claude key gets its account; a removed
+   * one takes its account away, and its agents go back to the provider's own sign-in.
    */
   changeProviderCredential(
     provider: AgentProvider,
@@ -3263,8 +3265,16 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         Effect.mapError(
           (failure) => new AgentLifecycleFailed({ operation: "changeProviderCredential", cause: failure.cause }),
         ),
+        Effect.flatMap((status) => (provider === "claude" ? this.#claudeKeyChanged() : Effect.succeed(status))),
       );
   }
+
+  readonly #claudeKeyChanged = Effect.fn("AgentService.claudeKeyChanged")(function* (this: AgentService) {
+    yield* this.#usageLimits.accountReset("claude", CLAUDE_API_KEY_ACCOUNT_ID);
+    if (this.#providers.hasProviderKey("claude")) return yield* this.#providers.providerKeyChanged("claude");
+    if (!this.#providers.hasProviderAccount("claude", CLAUDE_API_KEY_ACCOUNT_ID)) return this.#providers.status();
+    return yield* this.removeProviderAccount("claude", CLAUDE_API_KEY_ACCOUNT_ID);
+  });
 
   updateProviderCli(
     provider: AgentProvider,

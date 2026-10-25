@@ -144,7 +144,7 @@ export const messages = {
   "provider.geminiKey.label": "Gemini API anahtarı",
   "provider.claudeKey.title": "Anthropic API anahtarı",
   "provider.claudeKey.description":
-    "Ana bilgisayara bir Anthropic API anahtarı kaydedin. Kayıtlı anahtar, Claude hesabınızın yerine kullanılır ve Anthropic her isteği anahtara faturalandırır. Claude planınızı yeniden kullanmak için anahtarı kaldırın.",
+    'Ana bilgisayara bir Anthropic API anahtarı kaydedin. Anthropic her isteği anahtara faturalar. Bir ajan için kullanmak üzere ajanın model menüsünde "API anahtarı" hesabını seçin. Claude\'da oturum açık değilse tüm ajanlar anahtarı kullanır.',
   "provider.claudeKey.label": "Anthropic API anahtarı",
   "provider.inceptionKey.title": "Inception API anahtarı",
   "provider.inceptionKey.description":
@@ -167,6 +167,7 @@ export const messages = {
   "provider.account.addLabel": "Başka bir {name} hesabı ekle",
   "provider.account.count": { one: "{count} hesap", other: "{count} hesap" },
   "provider.account.numbered": "Hesap {number}",
+  "provider.account.apiKey": "API anahtarı",
   "provider.account.listLabel": "{name} hesapları",
   "provider.account.usedBy": "Kullanan: {agents}",
   "provider.account.failed": "Oturum açılamadı",

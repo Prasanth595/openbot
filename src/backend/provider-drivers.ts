@@ -398,26 +398,19 @@ function claudeAgentEnvironment(
   context: ProviderClientContext,
 ): (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>> {
   const environment = withAccountEnvironment(context);
-  return (inherited) => {
-    const key = claudeApiKey(context);
-    return {
-      ...((context.promptCacheTtl?.() ?? DEFAULT_PROMPT_CACHE_TTL.ttl) === "1h"
-        ? { ENABLE_PROMPT_CACHING_1H: "1" }
-        : {}),
-      ...environment?.(inherited),
-      ...(key ? { ANTHROPIC_API_KEY: key } : {}),
-    };
-  };
+  return (inherited) => ({
+    ...((context.promptCacheTtl?.() ?? DEFAULT_PROMPT_CACHE_TTL.ttl) === "1h" ? { ENABLE_PROMPT_CACHING_1H: "1" } : {}),
+    ...environment?.(inherited),
+  });
 }
 
 /**
- * The saved Anthropic API key. The CLI uses `ANTHROPIC_API_KEY` before a claude.ai sign-in (Claude
- * Code 2.1.310 `auth status` reports `authMethod: "api_key"` with both), so a saved key wins: the
- * user saved it last. The key belongs to the provider's own sign-in. An account after the first has
- * its own `CLAUDE_CONFIG_DIR` and never gets the key.
+ * The saved Anthropic API key, for the provider's own sign-in when it has no claude.ai account. An
+ * account after the first has its own `CLAUDE_CONFIG_DIR`; the account of the key carries the key in
+ * its environment, and no other account gets it.
  */
-function claudeApiKey(context: ProviderClientContext): string | null {
-  return context.accountEnvironment ? null : context.apiKey("claude");
+function claudeFallbackApiKey(context: ProviderClientContext): (() => string | null) | undefined {
+  return context.accountEnvironment ? undefined : () => context.apiKey("claude");
 }
 
 /** Nothing stored and no endpoint, for tests and for call sites that predate the credential store. */
@@ -657,6 +650,8 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
         context.mcpEndpoint,
         context.providerStateDirectory,
         claudeAgentEnvironment(context),
+        undefined,
+        claudeFallbackApiKey(context),
       ),
     authState: (account) => ({ kind: "claude", email: account?.email ?? null }),
     validateAccount: () => undefined,

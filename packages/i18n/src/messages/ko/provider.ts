@@ -144,7 +144,7 @@ export const messages = {
   "provider.geminiKey.label": "Gemini API 키",
   "provider.claudeKey.title": "Anthropic API 키",
   "provider.claudeKey.description":
-    "호스트에 Anthropic API 키를 저장하세요. 저장된 키가 Claude 계정 대신 사용되고, Anthropic이 각 요청을 키로 청구해요. Claude 요금제를 다시 사용하려면 키를 제거하세요.",
+    "호스트에 Anthropic API 키를 저장하세요. Anthropic이 각 요청을 키로 청구해요. 에이전트에서 사용하려면 에이전트의 모델 메뉴에서 'API 키' 계정을 선택하세요. Claude에 로그인하지 않은 경우 모든 에이전트가 키를 사용해요.",
   "provider.claudeKey.label": "Anthropic API 키",
   "provider.inceptionKey.title": "Inception API 키",
   "provider.inceptionKey.description":
@@ -167,6 +167,7 @@ export const messages = {
   "provider.account.addLabel": "{name} 계정 추가",
   "provider.account.count": { other: "계정 {count}개" },
   "provider.account.numbered": "계정 {number}",
+  "provider.account.apiKey": "API 키",
   "provider.account.listLabel": "{name} 계정",
   "provider.account.usedBy": "{agents}이(가) 사용 중",
   "provider.account.failed": "로그인 실패",
@@ -226,7 +227,7 @@ export const messages = {
   "provider.settings.geminiKeyInUse":
     "Gemini가 Google AI 요금제가 아닌 이 키를 사용해요. 요금제의 사용량은 표시되지 않아요.",
   "provider.settings.claudeKeyInUse":
-    "Claude가 Claude 요금제가 아닌 이 키를 사용해요. 요금제의 사용량은 표시되지 않아요.",
+    "에이전트의 모델 메뉴에서 'API 키' 계정을 선택하세요. Claude에 로그인하지 않은 경우 모든 에이전트가 키를 사용해요.",
   "provider.settings.addKey": "키 추가",
   "provider.settings.changeKey": "키 변경",
   "provider.settings.runtime": "런타임",

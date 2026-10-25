@@ -276,6 +276,7 @@ export const messages = {
   "mobile.agent.runtime.provider": "제공자",
   "mobile.agent.runtime.account": "계정",
   "mobile.agent.runtime.accountNumbered": "계정 {number}",
+  "mobile.agent.runtime.accountApiKey": "API 키",
   "mobile.agent.runtime.accountUnsupported": "이 호스트는 원격 기기에서 에이전트 계정을 변경할 수 없어요.",
   "mobile.agent.runtime.model": "모델",
   "mobile.agent.runtime.reasoning": "추론",

@@ -137,7 +137,7 @@ export const messages = {
   "provider.geminiKey.label": "Chave de API do Gemini",
   "provider.claudeKey.title": "Chave de API da Anthropic",
   "provider.claudeKey.description":
-    "Salve uma chave de API da Anthropic no host. Uma chave salva é usada no lugar da sua conta Claude, e a Anthropic cobra cada solicitação na chave. Para usar seu plano Claude de novo, remova a chave.",
+    'Salve uma chave de API da Anthropic no host. A Anthropic cobra cada solicitação na chave. Para usá-la em um agente, selecione a conta "Chave de API" no menu de modelos do agente. Quando o Claude não está conectado, todos os agentes usam a chave.',
   "provider.claudeKey.label": "Chave de API da Anthropic",
   "provider.inceptionKey.title": "Chave de API da Inception",
   "provider.inceptionKey.description":
@@ -160,6 +160,7 @@ export const messages = {
   "provider.account.addLabel": "Adicionar outra conta de {name}",
   "provider.account.count": { one: "{count} conta", other: "{count} contas" },
   "provider.account.numbered": "Conta {number}",
+  "provider.account.apiKey": "Chave de API",
   "provider.account.listLabel": "Contas de {name}",
   "provider.account.usedBy": "Usada por {agents}",
   "provider.account.failed": "Falha ao entrar",

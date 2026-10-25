@@ -145,7 +145,7 @@ export const messages = {
   "provider.geminiKey.label": "Gemini API キー",
   "provider.claudeKey.title": "Anthropic API キー",
   "provider.claudeKey.description":
-    "ホストに Anthropic API キーを保存します。保存したキーは Claude アカウントの代わりに使われ、各リクエストはキーに対して Anthropic から請求されます。Claude プランに戻すには、キーを削除してください。",
+    "ホストに Anthropic API キーを保存します。Anthropic は各リクエストをキーに請求します。エージェントで使うには、エージェントのモデルメニューで「APIキー」アカウントを選択します。Claude にサインインしていない場合、すべてのエージェントがキーを使います。",
   "provider.claudeKey.label": "Anthropic API キー",
   "provider.inceptionKey.title": "Inception API キー",
   "provider.inceptionKey.description":
@@ -168,6 +168,7 @@ export const messages = {
   "provider.account.addLabel": "別の {name} アカウントを追加",
   "provider.account.count": { other: "アカウント {count} 件" },
   "provider.account.numbered": "アカウント {number}",
+  "provider.account.apiKey": "APIキー",
   "provider.account.listLabel": "{name} のアカウント",
   "provider.account.usedBy": "{agents} が使用中",
   "provider.account.failed": "サインイン失敗",

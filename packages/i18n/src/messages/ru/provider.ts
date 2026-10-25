@@ -159,7 +159,7 @@ export const messages = {
   "provider.geminiKey.label": "Ключ API Gemini",
   "provider.claudeKey.title": "Ключ API Anthropic",
   "provider.claudeKey.description":
-    "Сохраните ключ API Anthropic на хосте. Сохранённый ключ используется вместо аккаунта Claude, и Anthropic выставляет счёт за каждый запрос по ключу. Чтобы снова использовать план Claude, удалите ключ.",
+    "Сохраните API-ключ Anthropic на хосте. Anthropic выставляет счёт за каждый запрос на ключ. Чтобы использовать его для агента, выберите аккаунт «API-ключ» в меню моделей агента. Если в Claude не выполнен вход, все агенты используют ключ.",
   "provider.claudeKey.label": "Ключ API Anthropic",
   "provider.inceptionKey.title": "Ключ API Inception",
   "provider.inceptionKey.description":
@@ -187,6 +187,7 @@ export const messages = {
     other: "{count} аккаунта",
   },
   "provider.account.numbered": "Аккаунт {number}",
+  "provider.account.apiKey": "API-ключ",
   "provider.account.listLabel": "Аккаунты {name}",
   "provider.account.usedBy": "Используют: {agents}",
   "provider.account.failed": "Ошибка входа",

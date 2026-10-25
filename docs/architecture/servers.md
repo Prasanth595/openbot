@@ -407,12 +407,17 @@ the next Claude process, not to a running one; an idle thread starts a new proce
 The Cache section of the Claude page in Server settings → Providers sets it for this computer and
 for a joined server.
 
-`claude-api-key-v1` has no routes. It tells a client that the host gives Claude the key that the
-released `providers-v1` key routes save for `claude`: each Claude process starts with
-`ANTHROPIC_API_KEY`. Claude Code uses that key before a claude.ai sign-in, so Anthropic bills each
-request to the key, and `auth status` reports no email and no plan. An account after the first has its
-own `CLAUDE_CONFIG_DIR` and does not get the key. An older host saved the key but did not use it, so a
-client shows the Claude key only when the host advertises the capability.
+`claude-api-key-v1` has no routes. It tells a client that the host reads the key that the released
+`providers-v1` key routes save for `claude`. The host keeps the key as a Claude account with the
+fixed id `CLAUDE_API_KEY_ACCOUNT_ID`, which `provider-accounts-v1` lists as any other account, so an
+older client can select it too. The agents on it start with `ANTHROPIC_API_KEY` and their own
+`CLAUDE_CONFIG_DIR`, and Anthropic bills each request to the key. The provider's own sign-in first
+checks its claude.ai login without the key. Only when it has no login does it use the key; it then
+reports the account type `claude-api-key`, and the host hides the key account row, because each
+agent already uses the key. A removed key removes its account and moves its agents to the own sign-in.
+A removed account with a saved key comes back at the next account check. An added account never gets
+the key. An older host saved the key but did not use it, so a client shows the Claude key only when
+the host advertises the capability.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until

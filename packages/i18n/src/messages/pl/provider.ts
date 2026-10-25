@@ -160,7 +160,7 @@ export const messages = {
   "provider.geminiKey.label": "Klucz API Gemini",
   "provider.claudeKey.title": "Klucz API Anthropic",
   "provider.claudeKey.description":
-    "Zapisz klucz API Anthropic na hoście. Zapisany klucz jest używany zamiast konta Claude, a Anthropic nalicza opłatę za każde żądanie na klucz. Aby znowu używać planu Claude, usuń klucz.",
+    "Zapisz klucz API Anthropic na hoście. Anthropic nalicza każde zapytanie na klucz. Aby użyć go dla agenta, wybierz konto „Klucz API” w menu modeli agenta. Gdy Claude nie jest zalogowany, wszyscy agenci używają klucza.",
   "provider.claudeKey.label": "Klucz API Anthropic",
   "provider.inceptionKey.title": "Klucz API Inception",
   "provider.inceptionKey.description":
@@ -188,6 +188,7 @@ export const messages = {
     other: "{count} konta",
   },
   "provider.account.numbered": "Konto {number}",
+  "provider.account.apiKey": "Klucz API",
   "provider.account.listLabel": "Konta {name}",
   "provider.account.usedBy": "Używane przez: {agents}",
   "provider.account.failed": "Błąd logowania",

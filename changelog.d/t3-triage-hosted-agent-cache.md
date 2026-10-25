@@ -1,9 +1,9 @@
 ### Added
 
-- Claude can use an Anthropic API key. Open the Claude page in Server settings → Providers and select Add key. A saved
-  key is used instead of the Claude account, and Anthropic bills each request to the key. Remove the
-  key to use the Claude plan again. A joined server shows the key when the server also has this
-  version.
+- Claude can use an Anthropic API key. Open the Claude page in Server settings → Providers and select
+  Add key. The key shows as an "API key" account. To bill an agent to the key, select the API key
+  account in the agent's model menu. Other agents keep the Claude plan. When Claude has no sign-in,
+  all agents use the key. A joined server shows the key when the server also has this version.
 
 ### Fixed
 

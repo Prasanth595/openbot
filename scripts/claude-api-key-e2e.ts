@@ -1,17 +1,22 @@
-// Checks that a saved Anthropic API key reaches the Claude CLI, through the real Claude driver and
-// client. A fake `claude` CLI records the environment of each process it starts and answers
-// `auth status --json` as Claude Code 2.1.310 does: with `ANTHROPIC_API_KEY` set it reports
-// `authMethod: "api_key"` and no email, also when a claude.ai login exists. Cases: a saved key reaches
-// the account check and the SDK process that turns and model probes use; no saved key leaves the
-// claude.ai login; an account after the first, with its own `CLAUDE_CONFIG_DIR`, never gets the key.
+// Checks where a saved Anthropic API key reaches the Claude CLI, through the real Claude driver,
+// client, account store and accounts. A fake `claude` CLI records the environment of each process it
+// starts and answers `auth status --json` as Claude Code 2.1.310 does: with `ANTHROPIC_API_KEY` set it
+// reports `authMethod: "api_key"` and no email, also when a claude.ai login exists. Cases: with a
+// claude.ai login, the own sign-in never gets the key; with no login, its account check and SDK
+// process get the key; the key account gets the key in its own folder, and its row shows only while
+// the own sign-in has a login; an added account never gets the key; no saved key keeps the login.
 // `bun scripts/claude-api-key-e2e.ts`. Writes .openbot-build/claude-api-key-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { CLAUDE_API_KEY_ACCOUNT_ID } from "@openbot/contracts/team-protocol/claude-api-key-v1";
 import { Effect } from "effect";
+import { ProviderAccountStore } from "../src/backend/agent/provider-account-store";
+import { ProviderAccounts, type ProviderAccountsHost } from "../src/backend/agent/provider-accounts";
 import { runCauseEffect } from "../src/backend/effect-boundary";
+import { CLAUDE_API_KEY_ACCOUNT_TYPE } from "../src/backend/protocol";
 import { BUILT_IN_PROVIDER_DRIVERS, NO_PROVIDER_CREDENTIALS } from "../src/backend/provider-drivers";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/claude-api-key-e2e");
@@ -37,7 +42,9 @@ if (process.argv.includes("--version")) { process.stdout.write("2.1.310 (Claude 
 if (process.argv.slice(2).join(" ") === "auth status --json") {
   process.stdout.write(JSON.stringify(key
     ? { loggedIn: true, authMethod: "api_key", apiProvider: "firstParty", apiKeySource: "ANTHROPIC_API_KEY" }
-    : { loggedIn: true, authMethod: "claude.ai", apiProvider: "firstParty", email: "owner@example.invalid", subscriptionType: "max" }));
+    : process.env.FAKE_CLAUDE_SIGNED_OUT === "1"
+      ? { loggedIn: false, authMethod: "none", apiProvider: "firstParty" }
+      : { loggedIn: true, authMethod: "claude.ai", apiProvider: "firstParty", email: "owner@example.invalid", subscriptionType: "max" }));
   process.exit(0);
 }
 process.exit(2);
@@ -76,8 +83,11 @@ interface CaseResult {
 async function runCase(
   name: string,
   apiKey: string | null,
-  accountEnvironment?: Readonly<Record<string, string>>,
+  options: { accountEnvironment?: Readonly<Record<string, string>>; signedOut?: boolean } = {},
 ): Promise<CaseResult> {
+  const { accountEnvironment, signedOut = false } = options;
+  if (signedOut) process.env.FAKE_CLAUDE_SIGNED_OUT = "1";
+  else delete process.env.FAKE_CLAUDE_SIGNED_OUT;
   const before = readLog().length;
   const client = claudeDriver.createClient({ executable, version: "2.1.310" }, 5_000, {
     ...NO_PROVIDER_CREDENTIALS,
@@ -89,10 +99,40 @@ async function runCase(
     const account = await runCauseEffect(client.request("account/read", {}, (value) => value));
     // The probe fails, because the fake CLI is no SDK process. Only its start matters.
     await runCauseEffect(Effect.ignore(client.request("model/list", {}, (value) => value, 5_000)));
-    return { name, account, starts: readLog().slice(before) };
+    const starts = readLog().slice(before);
+    assert.ok(
+      starts.some((entry) => entry.args[0] !== "auth"),
+      `${name}: the model probe started no Claude process`,
+    );
+    return { name, account, starts };
   } finally {
     await runCauseEffect(client.stop());
   }
+}
+
+/** A host for `environment` and `rows` only. The other calls fail the run. */
+function accountsHost(key: Pick<ProviderAccountsHost, "apiKey" | "defaultUsesApiKey">): ProviderAccountsHost {
+  const unused = (name: string) => () => {
+    throw new Error(`unexpected ProviderAccountsHost.${name}`);
+  };
+  return {
+    ...key,
+    scope: unused("scope"),
+    cli: () => ({ executable, version: "2.1.310" }),
+    defaultEmail: () => null,
+    signInTemp: () => undefined,
+    authenticate: unused("authenticate"),
+    stopClient: unused("stopClient"),
+    agentClient: () => null,
+    isAccountBusy: () => false,
+    stopAgentClients: unused("stopAgentClients"),
+    readUsage: unused("readUsage"),
+    resetCredits: () => undefined,
+    consumeUsageReset: unused("consumeUsageReset"),
+    changed: () => {},
+    usageChanged: () => {},
+    redact: (text) => text,
+  };
 }
 
 const report: { cases: CaseResult[]; result?: "pass" | "fail"; error?: string } = { cases: [] };
@@ -100,19 +140,32 @@ try {
   await writeFile(executable, FAKE_CLAUDE);
   await chmod(executable, 0o755);
 
-  const saved = await runCase("saved-key", KEY);
-  report.cases.push(saved);
-  assert.deepEqual(saved.account, {
-    account: { type: "claude", email: null, planType: null },
+  const plan = await runCase("plan-and-key", KEY);
+  report.cases.push(plan);
+  assert.deepEqual(plan.account, {
+    account: { type: "claude", email: "owner@example.invalid", planType: "max" },
     requiresOpenaiAuth: false,
   });
-  const savedStatus = saved.starts.filter((entry) => entry.args[0] === "auth");
-  const savedSdk = saved.starts.filter((entry) => entry.args[0] !== "auth");
-  assert.ok(savedStatus.length > 0 && savedStatus.every((entry) => entry.key === "saved"), "account check without key");
-  assert.ok(savedSdk.length > 0, "the model probe started no Claude process");
   assert.ok(
-    savedSdk.every((entry) => entry.key === "saved"),
-    "SDK process without key",
+    plan.starts.every((entry) => entry.key === "absent"),
+    "the own sign-in with a claude.ai login got the key",
+  );
+
+  const keyOnly = await runCase("key-only", KEY, { signedOut: true });
+  report.cases.push(keyOnly);
+  assert.deepEqual(keyOnly.account, {
+    account: { type: CLAUDE_API_KEY_ACCOUNT_TYPE, email: null, planType: null },
+    requiresOpenaiAuth: false,
+  });
+  const keyOnlyStatus = keyOnly.starts.filter((entry) => entry.args[0] === "auth");
+  assert.deepEqual(
+    keyOnlyStatus.map((entry) => entry.key),
+    ["absent", "saved"],
+    "the account check did not try the login first, then the key",
+  );
+  assert.ok(
+    keyOnly.starts.filter((entry) => entry.args[0] !== "auth").every((entry) => entry.key === "saved"),
+    "SDK process with no login did not get the key",
   );
 
   const none = await runCase("no-key", null);
@@ -121,16 +174,40 @@ try {
     account: { type: "claude", email: "owner@example.invalid", planType: "max" },
     requiresOpenaiAuth: false,
   });
-  assert.ok(none.starts.length > 0 && none.starts.every((entry) => entry.key === "absent"), "key without a saved key");
-
-  const secondDir = join(root, "account-2");
-  const second = await runCase("second-account", KEY, { CLAUDE_CONFIG_DIR: secondDir });
-  report.cases.push(second);
-  assert.ok(second.starts.length > 0, "the second account started no Claude process");
   assert.ok(
-    second.starts.every((entry) => entry.key === "absent" && entry.configDir === secondDir),
-    "the second account got the key or another folder",
+    none.starts.every((entry) => entry.key === "absent"),
+    "key without a saved key",
   );
+
+  // The key account and an added account, from the real store and accounts.
+  let defaultUsesApiKey = false;
+  const store = new ProviderAccountStore(join(root, "accounts.json"), join(root, "accounts"));
+  const accounts = new ProviderAccounts(
+    store,
+    accountsHost({ apiKey: () => KEY, defaultUsesApiKey: () => defaultUsesApiKey }),
+  );
+  const keyAccount = await runCauseEffect(store.ensure("claude", CLAUDE_API_KEY_ACCOUNT_ID));
+  const added = await runCauseEffect(store.create("claude"));
+  assert.ok(keyAccount && added, "the store made no account");
+  const keyHome = store.home(keyAccount);
+  const keyCase = await runCase("key-account", KEY, { accountEnvironment: accounts.environment(keyAccount) });
+  report.cases.push(keyCase);
+  assert.ok(
+    keyCase.starts.every((entry) => entry.key === "saved" && entry.configDir === keyHome),
+    "the key account did not get the key in its own folder",
+  );
+  const addedHome = store.home(added);
+  const addedCase = await runCase("added-account", KEY, { accountEnvironment: accounts.environment(added) });
+  report.cases.push(addedCase);
+  assert.ok(
+    addedCase.starts.every((entry) => entry.key === "absent" && entry.configDir === addedHome),
+    "the added account got the key or another folder",
+  );
+
+  const rowIds = () => accounts.rows("claude", null)?.map((row) => row.id) ?? [];
+  assert.deepEqual(rowIds(), ["default", CLAUDE_API_KEY_ACCOUNT_ID, added.id], "the key account row is missing");
+  defaultUsesApiKey = true;
+  assert.deepEqual(rowIds(), ["default", added.id], "the key account row shows while the own sign-in uses the key");
   report.result = "pass";
 } catch (error) {
   report.result = "fail";
