@@ -10,14 +10,15 @@ import { providerCall } from "./provider-client-effects";
 // process. The key is never written to the extension file. Pi runs an extension again when it
 // switches sessions, so the key stays in a process slot for those later runs. Pi reads an apiKey
 // that starts with `$` or `!` as an environment reference or a shell command, so the key is escaped
-// to stay a literal.
+// to stay a literal. A header value reads `$` in the same way, but not a `!` after the start.
 const readKey = (provider: KeyOnlyProviderId, variable: string) => `
   const slot = Symbol.for("openbot.pi.${provider}ApiKey");
   globalThis[slot] ??= process.env.${variable};
   delete process.env.${variable};
   const key = globalThis[slot];
   if (!key) return;
-  const apiKey = key.replaceAll("$", "$$$$").replace(/^!/, "$$!");`;
+  const literal = key.replaceAll("$", "$$$$");
+  const apiKey = literal.replace(/^!/, "$$!");`;
 
 const KEY_EXTENSIONS = {
   // Inception serves Mercury through OpenAI chat completions. Pi has no built-in Inception provider,
@@ -43,11 +44,12 @@ const KEY_EXTENSIONS = {
 `,
   },
   // Pi has a built-in DeepSeek provider. A registration with only the key keeps its models, endpoint
-  // and thinking levels, which Pi updates (checked in Pi 1.4.0).
+  // and thinking levels, which Pi updates (checked in Pi 1.4.0). Pi prefers a DeepSeek key that
+  // `/login` stored in auth.json to this apiKey, but the Authorization header replaces either one.
   deepseek: {
     variable: "OPENBOT_PI_DEEPSEEK_API_KEY",
     source: `export default function (pi) {${readKey("deepseek", "OPENBOT_PI_DEEPSEEK_API_KEY")}
-  pi.registerProvider("deepseek", { apiKey });
+  pi.registerProvider("deepseek", { apiKey, headers: { Authorization: "Bearer " + literal } });
 }
 `,
   },

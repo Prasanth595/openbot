@@ -161,12 +161,12 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
 
   #redact = (text: string): string => redactMcpValues(redactText(text), this.#secretValues());
 
-  /** Pi reports an API error as `<status>: <body>`. A key provider's 401 and 402 point at the saved key. */
+  /** Pi starts an API error with its HTTP status. A key provider's 401 and 402 point at the saved key. */
   #failureText(message: string | null): string {
     if (message && this.provider !== "pi") {
       const provider = agentProviderName(this.provider);
-      if (message.startsWith("401:")) return sourceText("error.provider.keyProviderRefused", { provider });
-      if (message.startsWith("402:")) return sourceText("error.provider.keyProviderNoBalance", { provider });
+      if (/^401\b/u.test(message)) return sourceText("error.provider.keyProviderRefused", { provider });
+      if (/^402\b/u.test(message)) return sourceText("error.provider.keyProviderNoBalance", { provider });
     }
     return this.#redact(message ?? "Pi model request failed.");
   }
@@ -345,7 +345,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
           for (const model of getArray(listed, "models")) {
             const provider = getString(model, "provider");
             const id = getString(model, "id");
-            // The Pi client loads no key extension, so a model of a key-only provider there is the user's own.
+            // A key provider's client lists only its own models. Pi also lists the models of other signed-in providers.
             if (!provider || !id || (keyProvider && provider !== keyProvider.id)) continue;
             const reasoning = isRecord(model) && model.reasoning === true;
             let levels: string[] = [];

@@ -1152,13 +1152,14 @@ Inception agents stay on this computer: OpenBot does not show them to team membe
 
 ### DeepSeek
 
-DeepSeek agents run in the Pi CLI that OpenBot downloads for Pi. On this computer, Sign in on the
+DeepSeek agents run in the Pi CLI that OpenBot downloads for Pi. On this computer, Connect on the
 DeepSeek row saves a DeepSeek API key. OpenBot encrypts it in its existing provider credential
 store, gives it to the local Pi process in its environment, and redacts it from logs. Pi does not
 write the key to a file. Prompts, attachments, and tool results go to that process, and Pi sends
-them with the key to `api.deepseek.com`. When OpenBot reads the DeepSeek model list, Pi reads its
-built-in list and does not contact DeepSeek. Pi keeps its session files in its own folder, as for
-Pi agents. OpenBot does not copy or upload these files. DeepSeek's terms apply:
+them with this key to `api.deepseek.com`, also when Pi has its own DeepSeek key. When OpenBot reads
+the DeepSeek model list, Pi reads its built-in list and does not contact DeepSeek. Pi keeps its
+session files in its own folder, as for Pi agents. OpenBot does not copy or upload these files.
+DeepSeek's terms apply:
 <https://cdn.deepseek.com/policies/en-US/deepseek-open-platform-terms-of-service.html>.
 DeepSeek agents stay on this computer: OpenBot does not show them to team members.
 
