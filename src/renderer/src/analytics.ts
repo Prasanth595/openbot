@@ -509,6 +509,20 @@ const SAFE_FAILURE_CODES = new Set([
   "import_failed",
   "copy_failed",
   "revoke_failed",
+  "runtime_download_failed",
+  "disk_space",
+  "download_http",
+  "download_integrity",
+  "download_size",
+  "archive_invalid",
+  "checksum_failed",
+  "version_mismatch",
+  "cli_update_failed",
+  "cli_activate_failed",
+  "cli_select_failed",
+  "cli_signing_in",
+  "provider_off",
+  "download_stopped",
 ]);
 
 const EVENT_ACTIONS: Partial<Record<AnalyticsEventName, readonly string[]>> = {

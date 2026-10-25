@@ -145,6 +145,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Speichere einen Gemini-API-Schlüssel auf diesem Computer. Ein gespeicherter Schlüssel wird statt deines Google-Kontos verwendet. Um dich mit Google anzumelden, entferne den Schlüssel und wähle „Verbinden“ in der Gemini-Zeile.",
   "provider.geminiKey.label": "Gemini-API-Schlüssel",
+  "provider.claudeKey.title": "Anthropic-API-Schlüssel",
+  "provider.claudeKey.description":
+    "Speichere einen Anthropic-API-Schlüssel auf dem Host. Ein gespeicherter Schlüssel wird statt deines Claude-Kontos verwendet, und Anthropic berechnet jede Anfrage über den Schlüssel. Um wieder deinen Claude-Plan zu verwenden, entferne den Schlüssel.",
+  "provider.claudeKey.label": "Anthropic-API-Schlüssel",
   "provider.inceptionKey.title": "Inception-API-Schlüssel",
   "provider.inceptionKey.description":
     "Speichere einen Inception-API-Schlüssel auf diesem Computer, um die Mercury-Modelle zu verwenden. OpenBot führt sie in der Pi-CLI aus, die es herunterlädt.",

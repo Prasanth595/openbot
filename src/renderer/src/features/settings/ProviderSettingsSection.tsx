@@ -346,17 +346,25 @@ function createProviderKeyState(props: { readonly open: boolean; readonly provid
   const [keyDialogOpen, setKeyDialogOpen] = createSignal(false);
   const [keyProvider, setKeyProvider] = createSignal<KeyDialogProvider>("opencode");
   const [openCodeKeyStatus, setOpenCodeKeyStatus] = createSignal<ProviderApiKeyStatus | undefined>(undefined);
+  const [claudeKeyStatus, setClaudeKeyStatus] = createSignal<ProviderApiKeyStatus | undefined>(undefined);
+  async function readKeyStatus(keys: ProviderKeyApi, provider: AgentProviderId) {
+    try {
+      return (await keys.getProviderApiKeyState(provider)).status;
+    } catch {
+      return undefined;
+    }
+  }
   async function refreshOpenCodeKeyStatus(): Promise<void> {
     const keys = props.providerKeys;
     if (!keys) return;
-    let status: ProviderApiKeyStatus | undefined;
-    try {
-      status = (await keys.getProviderApiKeyState("opencode")).status;
-    } catch {
-      status = undefined;
-    }
+    const [openCode, claude] = await Promise.all([
+      readKeyStatus(keys, "opencode"),
+      keys.readsClaudeKey ? readKeyStatus(keys, "claude") : undefined,
+    ]);
     // An answer from a source the modal has since left belongs to the other computer.
-    if (keys === props.providerKeys) setOpenCodeKeyStatus(status);
+    if (keys !== props.providerKeys) return;
+    setOpenCodeKeyStatus(openCode);
+    setClaudeKeyStatus(claude);
   }
   // The badge has to answer on first paint: the key state arrives after the rows, so an open
   // without a read would show no badge until something else re-renders the list. The keys can move
@@ -366,6 +374,7 @@ function createProviderKeyState(props: { readonly open: boolean; readonly provid
     () => (props.open ? props.providerKeys : undefined),
     (keys) => {
       setOpenCodeKeyStatus(undefined);
+      setClaudeKeyStatus(undefined);
       if (keys) void untrack(refreshOpenCodeKeyStatus);
     },
   );
@@ -373,7 +382,8 @@ function createProviderKeyState(props: { readonly open: boolean; readonly provid
     keyDialogOpen,
     keyProvider,
     openCodeKeyStatus,
-    /** Only the providers whose sign-in can be a pasted key are served: OpenCode, Muse and Gemini. */
+    claudeKeyStatus,
+    /** Only the providers whose sign-in can be a pasted key are served: OpenCode, Muse, Gemini and Claude. */
     openKeyDialog(provider: AgentProviderId): void {
       if (isKeyDialogProvider(provider)) {
         setKeyProvider(provider);
@@ -498,6 +508,7 @@ export function HostProviderSettingsPanel(
       return props.providerAvailableVersions;
     },
     openCodeKeyStatus: keys.openCodeKeyStatus,
+    claudeKeyStatus: keys.claudeKeyStatus,
     get providerHostName() {
       return props.hostName;
     },

@@ -30,6 +30,8 @@ export function providerAuthKind(agent: AgentSummary, facts: ProviderAuthFacts):
     }
     case "claude":
       if (addedAccount) return "unknown";
+      // A saved key comes before the claude.ai sign-in.
+      if (facts.hasApiKey("claude")) return "api_key";
       return facts.account("claude")?.planType ? "subscription" : "unknown";
     case "grok":
       // With a key set, the CLI picks the method it advertises, which the host does not see.

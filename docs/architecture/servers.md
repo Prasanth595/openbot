@@ -333,6 +333,7 @@ host advertises a capability only when its `TeamApiAdmin` member exists.
 | `instance-transfer-v1` | Export and import the server's agents and server settings as a transfer file | `instanceTransfer` |
 | `providers-v3` | Code sign-in for Codex, Claude and Grok; send the code a Claude sign-in page shows | `providerAdmin` |
 | `providers-v4` | Code or link sign-in and managed runtimes, Cursor and Cline included | `providerAdmin` |
+| `claude-api-key-v1` | No routes. The host saves an Anthropic API key for Claude through the `providers-v1` key routes | `providerAdmin` |
 | `provider-usage-reset-v1` | Read the usage reset credits of each provider account on the host, and spend one. Only Codex gives credits | `providerAdmin` |
 | `host-admin-v1` | Server name and logo | `hostAdmin` |
 | `host-update-v1` | Check for, download and restart into an app update; cancel a restart that waits | `hostAdmin` |
@@ -405,6 +406,13 @@ in the Claude settings or `CLAUDE_CODE_PROMPT_CACHE_TTL` on the host still wins.
 the next Claude process, not to a running one; an idle thread starts a new process when it resumes.
 The Cache section of the Claude page in Server settings → Providers sets it for this computer and
 for a joined server.
+
+`claude-api-key-v1` has no routes. It tells a client that the host gives Claude the key that the
+released `providers-v1` key routes save for `claude`: each Claude process starts with
+`ANTHROPIC_API_KEY`. Claude Code uses that key before a claude.ai sign-in, so Anthropic bills each
+request to the key, and `auth status` reports no email and no plan. An account after the first has its
+own `CLAUDE_CONFIG_DIR` and does not get the key. An older host saved the key but did not use it, so a
+client shows the Claude key only when the host advertises the capability.
 
 `host-update-v1` runs the same update as the host's own Settings. `src/main/requested-update.ts`
 keeps the schedule in memory: who asked, and whether the restart waits until

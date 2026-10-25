@@ -135,6 +135,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Salve uma chave de API do Gemini neste computador. Uma chave salva é usada no lugar da sua conta Google. Para entrar com o Google, remova a chave e selecione Conectar na linha do Gemini.",
   "provider.geminiKey.label": "Chave de API do Gemini",
+  "provider.claudeKey.title": "Chave de API da Anthropic",
+  "provider.claudeKey.description":
+    "Salve uma chave de API da Anthropic no host. Uma chave salva é usada no lugar da sua conta Claude, e a Anthropic cobra cada solicitação na chave. Para usar seu plano Claude de novo, remova a chave.",
+  "provider.claudeKey.label": "Chave de API da Anthropic",
   "provider.inceptionKey.title": "Chave de API da Inception",
   "provider.inceptionKey.description":
     "Salve uma chave de API da Inception neste computador para usar os modelos Mercury. O OpenBot os executa na CLI do Pi que ele baixa.",

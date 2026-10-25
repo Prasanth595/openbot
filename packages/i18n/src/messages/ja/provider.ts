@@ -143,6 +143,10 @@ export const messages = {
   "provider.geminiKey.description":
     "このコンピューターに Gemini API キーを保存します。保存したキーは Google アカウントの代わりに使われます。Google でサインインするには、キーを削除してから Gemini の行で「接続」を選択してください。",
   "provider.geminiKey.label": "Gemini API キー",
+  "provider.claudeKey.title": "Anthropic API キー",
+  "provider.claudeKey.description":
+    "ホストに Anthropic API キーを保存します。保存したキーは Claude アカウントの代わりに使われ、各リクエストはキーに対して Anthropic から請求されます。Claude プランに戻すには、キーを削除してください。",
+  "provider.claudeKey.label": "Anthropic API キー",
   "provider.inceptionKey.title": "Inception API キー",
   "provider.inceptionKey.description":
     "Mercury モデルを使うには、このコンピューターに Inception API キーを保存します。OpenBot はダウンロードした Pi CLI でモデルを実行します。",

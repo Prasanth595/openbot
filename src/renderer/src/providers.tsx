@@ -4,6 +4,7 @@ import {
   agentProviderDescriptor,
   LOCAL_SERVER_ID,
 } from "@openbot/contracts/ipc";
+import { CLAUDE_API_KEY_CAPABILITY } from "@openbot/contracts/team-protocol/claude-api-key-v1";
 import {
   PROVIDER_ACCOUNT_RELAY_CAPABILITY,
   PROVIDER_ACCOUNT_RELAY_PROVIDERS,
@@ -78,6 +79,7 @@ const Providers = createSimpleContext({
       const api = serverId ? hostProviderKeyApi(providerAdmin, serverId) : providerKeyApi;
       return {
         ...api,
+        readsClaudeKey: !serverId || serverSupportsCapability(activeServer(), CLAUDE_API_KEY_CAPABILITY),
         setProviderApiKey: async (input: { provider: AgentProviderId; key: string }) => {
           const analytics = desktopAnalytics.scope();
           const tracked = { provider: input.provider, action: "api_key_saved", method: "api_key" } as const;

@@ -153,6 +153,10 @@ export const messages = defineMessages("provider", {
   "provider.geminiKey.description":
     "Save a Gemini API key on this computer. A saved key is used instead of your Google account. To sign in with Google, remove the key and select Connect on the Gemini row.",
   "provider.geminiKey.label": "Gemini API key",
+  "provider.claudeKey.title": "Anthropic API key",
+  "provider.claudeKey.description":
+    "Save an Anthropic API key on the host. A saved key is used instead of your Claude account, and Anthropic bills each request to the key. To use your Claude plan again, remove the key.",
+  "provider.claudeKey.label": "Anthropic API key",
   "provider.inceptionKey.title": "Inception API key",
   "provider.inceptionKey.description":
     "Save an Inception API key on this computer to use the Mercury models. OpenBot runs them in the Pi CLI that it downloads.",
@@ -235,6 +239,7 @@ export const messages = defineMessages("provider", {
   "provider.settings.keyOptional": "Optional. A key adds paid models.",
   "provider.settings.keyAlternative": "Or paste a {name} API key.",
   "provider.settings.geminiKeyInUse": "Gemini uses this key, not your Google AI plan. The plan's usage is not shown.",
+  "provider.settings.claudeKeyInUse": "Claude uses this key, not your Claude plan. The plan's usage is not shown.",
   "provider.settings.addKey": "Add key",
   "provider.settings.changeKey": "Change key",
   "provider.settings.runtime": "Runtime",

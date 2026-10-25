@@ -144,6 +144,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Guarda una clave de API de Gemini en este equipo. Una clave guardada se usa en lugar de tu cuenta de Google. Para iniciar sesión con Google, elimina la clave y selecciona Conectar en la fila de Gemini.",
   "provider.geminiKey.label": "Clave de API de Gemini",
+  "provider.claudeKey.title": "Clave de API de Anthropic",
+  "provider.claudeKey.description":
+    "Guarda una clave de API de Anthropic en el host. Una clave guardada se usa en lugar de tu cuenta de Claude, y Anthropic cobra cada solicitud a la clave. Para volver a usar tu plan de Claude, elimina la clave.",
+  "provider.claudeKey.label": "Clave de API de Anthropic",
   "provider.inceptionKey.title": "Clave de API de Inception",
   "provider.inceptionKey.description":
     "Guarda una clave de API de Inception en este equipo para usar los modelos Mercury. OpenBot los ejecuta en la CLI de Pi que descarga.",

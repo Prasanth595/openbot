@@ -142,6 +142,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Bu bilgisayara bir Gemini API anahtarı kaydedin. Kayıtlı anahtar, Google hesabınızın yerine kullanılır. Google ile oturum açmak için anahtarı kaldırın ve Gemini satırında Bağlan'ı seçin.",
   "provider.geminiKey.label": "Gemini API anahtarı",
+  "provider.claudeKey.title": "Anthropic API anahtarı",
+  "provider.claudeKey.description":
+    "Ana bilgisayara bir Anthropic API anahtarı kaydedin. Kayıtlı anahtar, Claude hesabınızın yerine kullanılır ve Anthropic her isteği anahtara faturalandırır. Claude planınızı yeniden kullanmak için anahtarı kaldırın.",
+  "provider.claudeKey.label": "Anthropic API anahtarı",
   "provider.inceptionKey.title": "Inception API anahtarı",
   "provider.inceptionKey.description":
     "Mercury modellerini kullanmak için bu bilgisayara bir Inception API anahtarı kaydedin. OpenBot bunları indirdiği Pi CLI'da çalıştırır.",

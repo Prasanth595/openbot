@@ -398,10 +398,26 @@ function claudeAgentEnvironment(
   context: ProviderClientContext,
 ): (inherited?: NodeJS.ProcessEnv) => Readonly<Record<string, string>> {
   const environment = withAccountEnvironment(context);
-  return (inherited) => ({
-    ...((context.promptCacheTtl?.() ?? DEFAULT_PROMPT_CACHE_TTL.ttl) === "1h" ? { ENABLE_PROMPT_CACHING_1H: "1" } : {}),
-    ...environment?.(inherited),
-  });
+  return (inherited) => {
+    const key = claudeApiKey(context);
+    return {
+      ...((context.promptCacheTtl?.() ?? DEFAULT_PROMPT_CACHE_TTL.ttl) === "1h"
+        ? { ENABLE_PROMPT_CACHING_1H: "1" }
+        : {}),
+      ...environment?.(inherited),
+      ...(key ? { ANTHROPIC_API_KEY: key } : {}),
+    };
+  };
+}
+
+/**
+ * The saved Anthropic API key. The CLI uses `ANTHROPIC_API_KEY` before a claude.ai sign-in (Claude
+ * Code 2.1.310 `auth status` reports `authMethod: "api_key"` with both), so a saved key wins: the
+ * user saved it last. The key belongs to the provider's own sign-in. An account after the first has
+ * its own `CLAUDE_CONFIG_DIR` and never gets the key.
+ */
+function claudeApiKey(context: ProviderClientContext): string | null {
+  return context.accountEnvironment ? null : context.apiKey("claude");
 }
 
 /** Nothing stored and no endpoint, for tests and for call sites that predate the credential store. */

@@ -151,6 +151,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Enregistrez une clé d’API Gemini sur cet ordinateur. Une clé enregistrée est utilisée à la place de votre compte Google. Pour vous connecter avec Google, supprimez la clé et sélectionnez « Connecter » sur la ligne Gemini.",
   "provider.geminiKey.label": "Clé d’API Gemini",
+  "provider.claudeKey.title": "Clé d’API Anthropic",
+  "provider.claudeKey.description":
+    "Enregistrez une clé d’API Anthropic sur l’hôte. Une clé enregistrée est utilisée à la place de votre compte Claude, et Anthropic facture chaque requête sur la clé. Pour utiliser à nouveau votre forfait Claude, supprimez la clé.",
+  "provider.claudeKey.label": "Clé d’API Anthropic",
   "provider.inceptionKey.title": "Clé d’API Inception",
   "provider.inceptionKey.description":
     "Enregistrez une clé d’API Inception sur cet ordinateur pour utiliser les modèles Mercury. OpenBot les exécute dans la CLI Pi qu’il télécharge.",
