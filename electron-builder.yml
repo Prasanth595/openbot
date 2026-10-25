@@ -85,8 +85,13 @@ mac:
   minimumSystemVersion: "13.0"
   notarize: true
   hardenedRuntime: true
+  # macOS 13-15 show `icon.icns`. macOS 26 shows the catalog that `CFBundleIconName` names, with our
+  # own dark version; without it, macOS 26 makes the dark icon a black tile with black eyes. Make
+  # the catalog again with `bun scripts/compile-macos-icon.ts` after a change to the `.icon` file.
   icon: build/icon-production.icns
   extraResources:
+    - from: build/macos/Assets.car
+      to: Assets.car
     - from: build/icon-production-macos-safe-area.png
       to: icons/icon-production-macos-safe-area.png
     - from: build/icon-dev-macos-safe-area.png
@@ -110,6 +115,7 @@ mac:
   entitlementsInherit: build/entitlements.mac.inherit.plist
   darkModeSupport: true
   extendInfo:
+    CFBundleIconName: Icon
     ElectronTeamID: ZTRDTUL87R
     NSMicrophoneUsageDescription: OpenBot uses the microphone to transcribe voice prompts locally on this Mac.
     # Computer Use runs the driver as a child process, so macOS asks for both grants in OpenBot's
