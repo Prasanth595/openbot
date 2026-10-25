@@ -58,7 +58,7 @@ import {
   type UpdateQueuedMessageInput,
   type UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
-import { guardedDecoder } from "@openbot/contracts/ipc-decoding";
+import { guardedDecoder, guardedListDecoder } from "@openbot/contracts/ipc-decoding";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { AGENT_IMPORT_ROUTES, AGENT_IMPORT_UPLOAD_BYTES } from "@openbot/contracts/team-protocol/agent-import-v1";
@@ -340,6 +340,36 @@ export function teamChannelsApi(request: TeamApiRequest): TeamChannelsApi {
 
 const decodeRoutine = guardedDecoder(isRoutine, "routine");
 const decodeRoutineRun = guardedDecoder(isRoutineRun, "routine run");
+const decodeRoutines = guardedListDecoder(isRoutine, "routine list");
+const decodeRoutineRuns = guardedListDecoder(isRoutineRun, "routine run list");
+
+/** The agent routine calls of the desktop IPC surface, which a remote desktop sends to the host the same way. */
+export type TeamAgentRoutinesApi = Pick<
+  OpenBotDesktopApi["agent"],
+  "listRoutines" | "createRoutine" | "updateRoutine" | "deleteRoutine" | "testRoutine" | "listRoutineRuns"
+>;
+
+/** The frozen v1 agent routine routes. Every host serves them. */
+export function teamAgentRoutinesApi(request: TeamApiRequest): TeamAgentRoutinesApi {
+  return {
+    listRoutines: (agentId) => request("GET", TEAM_API_ROUTES.agent.routines(agentId), decodeRoutines),
+    createRoutine: (input) =>
+      request("POST", TEAM_API_ROUTES.agent.routines(input.agentId), decodeRoutine, decodeTeamProtocolV2Json(input)),
+    updateRoutine: (input) =>
+      request(
+        "PATCH",
+        TEAM_API_ROUTES.agent.routine(input.agentId, input.routineId),
+        decodeRoutine,
+        decodeTeamProtocolV2Json(input),
+      ),
+    deleteRoutine: ({ agentId, routineId }) =>
+      request("DELETE", TEAM_API_ROUTES.agent.routine(agentId, routineId), ignoreResponse),
+    testRoutine: ({ agentId, routineId }) =>
+      request("POST", TEAM_API_ROUTES.agent.routineTest(agentId, routineId), decodeRoutineRun),
+    listRoutineRuns: ({ agentId, routineId, limit }) =>
+      request("GET", `${TEAM_API_ROUTES.agent.routineRuns(agentId, routineId)}?limit=${limit}`, decodeRoutineRuns),
+  };
+}
 
 /** Changes an agent routine, such as its instruction. Every host serves this frozen v1 route. */
 export const updateAgentRoutine = Effect.fn("TeamClient.updateAgentRoutine")(function* (
