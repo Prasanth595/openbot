@@ -228,7 +228,7 @@
   fill-opacity: 0.35;
 }
 
-.wfn-stage .wfn-hud .wfn-hud-tool[aria-pressed="true"] .wfn-hud-arrow {
+.wfn-stage .wfn-hud .wfn-hud-tool[aria-pressed="true"] svg.wfn-hud-arrow {
   fill-opacity: 1;
 }
 
