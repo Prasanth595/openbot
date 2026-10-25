@@ -962,6 +962,37 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
   const graph = createMemo<WorkflowGraph>((previous) =>
     previous && gesturing() ? previous : graphFromSnapshot(capture()),
   );
+  /**
+   * A bar that keeps its screen size in the world, such as a node toolbar, lands on part pixels at a zoom other than
+   * 100%. Then its icons and text blur. After the camera, a node or the selection moves, each bar moves by less than a
+   * pixel onto whole device pixels. The move is in screen pixels; the CSS divides it by the zoom.
+   */
+  let worldElement: HTMLElement | undefined;
+  let snapFrame = 0;
+  const snapBars = () => {
+    const bars = [...(worldElement?.querySelectorAll<HTMLElement>(".wfn-toolbar, .wfn-strip") ?? [])];
+    const moves = bars.map((bar) => {
+      const box = bar.getBoundingClientRect();
+      const x = box.x - Number(bar.dataset.snapX ?? 0);
+      const y = box.y - Number(bar.dataset.snapY ?? 0);
+      return { bar, x: devicePixel(x) - x, y: devicePixel(y) - y };
+    });
+    // All reads come before the writes, so the frame lays out once.
+    for (const { bar, x, y } of moves) {
+      bar.dataset.snapX = String(x);
+      bar.dataset.snapY = String(y);
+      bar.style.setProperty("--wfn-snap-x", `${x}px`);
+      bar.style.setProperty("--wfn-snap-y", `${y}px`);
+    }
+  };
+  createEffect(
+    () => [camera.x, camera.y, camera.scale, graph(), canvas.selection()],
+    () => {
+      cancelAnimationFrame(snapFrame);
+      snapFrame = requestAnimationFrame(snapBars);
+    },
+  );
+  onCleanup(() => cancelAnimationFrame(snapFrame));
   /** The graph that the host has, as the canvas saves it. */
   let savedGraph = untrack(() => savedJson(props.workflow.graph));
   createEffect(
@@ -2516,7 +2547,10 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
           >
             <DotGrid camera={camera} />
             <div
-              ref={canvas.setWorld}
+              ref={(element: HTMLElement) => {
+                worldElement = element;
+                canvas.setWorld(element);
+              }}
               class="wfn-world"
               inert={frozen()}
               data-group={groupBox() ? "" : undefined}
@@ -3002,7 +3036,7 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
             pressed={ui.tool === "select"}
             onClick={() => setTool("select")}
           >
-            <MousePointer2 />
+            <MousePointer2 class="wfn-hud-arrow" />
           </HudButton>
           <HudButton
             label={t("workflow.canvas.tool.pan")}

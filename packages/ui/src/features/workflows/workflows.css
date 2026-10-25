@@ -221,6 +221,17 @@
   color: var(--openbot-text-primary);
 }
 
+/* The icon of a pressed tool is full. Most icons have lines inside, which a full fill hides, so they take a part fill.
+ * The Select arrow is one closed shape, so it fills whole. */
+.wfn-stage .wfn-hud .wfn-hud-tool[aria-pressed="true"] svg.lucide {
+  fill: currentcolor;
+  fill-opacity: 0.35;
+}
+
+.wfn-stage .wfn-hud .wfn-hud-tool[aria-pressed="true"] .wfn-hud-arrow {
+  fill-opacity: 1;
+}
+
 .wfn-stage .wfn-hud .wfn-hud-tool svg {
   width: var(--openbot-icon-md);
   height: var(--openbot-icon-md);
