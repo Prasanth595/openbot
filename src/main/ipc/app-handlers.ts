@@ -258,7 +258,7 @@ export function appIpcHandlers({
       setExternalLinkPreference: payloadHandler(parseExternalLinkPreference, (parsed) =>
         runCauseEffect(externalLinkPreference.set(parsed)),
       ),
-      listExternalLinkBrowsers: handler(() => Effect.runPromise(externalLinks.listBrowsers())),
+      listExternalLinkBrowsers: handler(() => runCauseEffect(externalLinks.listBrowsers())),
       chooseExternalLinkApp: handler(async (): Promise<ExternalLinkBrowser | null> => {
         const mainWindow = getMainWindow();
         // macOS shows an application bundle as one file, so the dialog can offer only applications.

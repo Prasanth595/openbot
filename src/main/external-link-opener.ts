@@ -69,7 +69,7 @@ export class ExternalLinkOpener {
         toLogValue(launched.failure.cause),
       );
       yield* Effect.tryPromise({ try: () => openDefault(url), catch: (cause) => new ExternalLinkFailure({ cause }) });
-      onFallback({ name: externalLinkAppName(target.path) });
+      onFallback({ name: externalLinkAppName(platform === "darwin" ? target.path : programOf(target.path)) });
       return;
     }
     yield* Effect.tryPromise({ try: () => openDefault(url), catch: (cause) => new ExternalLinkFailure({ cause }) });
@@ -93,19 +93,33 @@ function webPage(url: string): string | null {
 }
 
 /**
+ * The words of a Linux or Windows command, split at spaces. Double quotes keep a path with spaces
+ * in one word. A backslash is a plain character, as in a Windows path. No shell reads the words.
+ */
+function commandWords(command: string): string[] {
+  return Array.from(command.matchAll(/"([^"]*)"|[^\s"]+/g), (match) => match[1] ?? match[0]);
+}
+
+function programOf(command: string): string {
+  return commandWords(command)[0] ?? command;
+}
+
+/**
  * The address starts with `http`, so neither `open` nor the program can read it as an option.
- * `open -a` stops with an error when the application is missing. A program on Linux or Windows
- * fails to spawn when it is missing or cannot run.
+ * `open -a` stops with an error when the application is missing. It has no time limit: it waits
+ * while macOS asks the user to open a downloaded application. A program on Linux or Windows fails
+ * to spawn when it is missing or cannot run.
  */
 function launchApp(platform: NodeJS.Platform, path: string, page: string): Effect.Effect<void, ExternalLinkFailure> {
   return Effect.tryPromise({
     try: () =>
       platform === "darwin"
         ? new Promise<void>((resolve, reject) => {
-            execFile("open", ["-a", path, page], { timeout: 15_000 }, (error) => (error ? reject(error) : resolve()));
+            execFile("open", ["-a", path, page], (error) => (error ? reject(error) : resolve()));
           })
         : new Promise<void>((resolve, reject) => {
-            const child = spawn(path, [page], { shell: false, detached: true, stdio: "ignore" });
+            const [program = path, ...options] = commandWords(path);
+            const child = spawn(program, [...options, page], { shell: false, detached: true, stdio: "ignore" });
             child.once("error", reject);
             child.once("spawn", () => {
               child.unref();

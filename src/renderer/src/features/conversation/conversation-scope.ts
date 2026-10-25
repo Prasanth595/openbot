@@ -1405,9 +1405,16 @@ export function createConversationViewScope(props: ConversationProps) {
     const runtime = conversationRuntime(props);
     try {
       // A relayed sign-in page must open on this computer, so it does not go to the built-in browser.
-      if (props.openLinksInBrowser && props.browserEnabled !== false && builtInBrowserPage(url)) {
+      // A joined server's browser runs on its host, and the other members see its tabs.
+      // When no tab opens, the link opens as it does with no setting.
+      if (
+        props.openLinksInBrowser &&
+        props.server?.kind !== "remote" &&
+        props.browserEnabled !== false &&
+        builtInBrowserPage(url) &&
+        (await openBrowserAddress(url, true))
+      ) {
         setActiveRightPanel("browser");
-        await openBrowserAddress(url, true);
         return;
       }
       if (target && runtime.agent.openMessageLink) {

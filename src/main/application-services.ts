@@ -92,7 +92,7 @@ import { createOpenBotLogger, toLogValue } from "@openbot/logging";
 import { REMOTE_ACCOUNT_CHECK_INTERVAL_MS } from "@openbot/team-client";
 import {
   app,
-  type BrowserWindow,
+  BrowserWindow,
   clipboard,
   desktopCapturer,
   Notification,
@@ -866,12 +866,18 @@ export async function createApplicationServices({
   const externalLinkPreference = createExternalLinkPreferenceStore(
     join(app.getPath("userData"), EXTERNAL_LINK_PREFERENCE_FILE),
   );
-  await runCauseEffect(externalLinkPreference.load());
+  // The store loads below with the other preferences. Until then, a page opens in the default browser.
   const externalLinks = new ExternalLinkOpener({
     preference: externalLinkPreference,
     platform: process.platform,
     openDefault: (url) => shell.openExternal(url),
-    onFallback: (fallback) => sendToRenderer(windows.getMainWindow(), IPC_ENDPOINTS.app.externalLinkFallback, fallback),
+    // The user clicked the link in the focused window, which can be a chat window.
+    onFallback: (fallback) =>
+      sendToRenderer(
+        BrowserWindow.getFocusedWindow() ?? windows.getMainWindow(),
+        IPC_ENDPOINTS.app.externalLinkFallback,
+        fallback,
+      ),
   });
   const openLink = (url: string) => runCauseEffect(externalLinks.open(url));
   // The one forward reference left in this function: the controller is built at the top of
@@ -1145,6 +1151,7 @@ export async function createApplicationServices({
     join(app.getPath("userData"), REMOTE_SESSION_REUSE_PREFERENCE_FILE),
   );
   await runCauseEffect(remoteSessionReuse.load());
+  await runCauseEffect(externalLinkPreference.load());
   const remoteNetworkRoute = createRemoteNetworkRoutePreferenceStore(
     join(app.getPath("userData"), REMOTE_NETWORK_ROUTE_PREFERENCE_FILE),
   );
