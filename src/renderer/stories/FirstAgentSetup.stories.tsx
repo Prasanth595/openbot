@@ -108,6 +108,23 @@ export const ModelPicker: Story = {
   args: { modelOptions: STORY_MODELS, agentStatus: STORY_AGENT_STATUS, onManageProviders: fn() },
 };
 
+/** With channels and sections on the host, fields under the model picker place the new agent. */
+export const ChannelPicker: Story = {
+  args: {
+    modelOptions: STORY_MODELS,
+    agentStatus: STORY_AGENT_STATUS,
+    channels: [
+      { id: "channel-launch", name: "Launch planning" },
+      { id: "channel-support", name: "Support triage" },
+      { id: "channel-research", name: "Research" },
+    ],
+    sections: [
+      { id: "section-work", name: "Work" },
+      { id: "section-personal", name: "Personal" },
+    ],
+  },
+};
+
 export const LongPrompt: Story = {
   args: {
     value: {

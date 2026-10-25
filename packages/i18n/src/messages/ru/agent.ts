@@ -17,6 +17,8 @@ export const messages = {
   "agent.instructions.length": "{length} / {limit}",
   "agent.instructions.tooLong": "Сократите инструкции до {limit} символов. Более длинные инструкции не сохраняются.",
   "agent.setup.model": "Модель агента",
+  "agent.setup.channel": "Канал",
+  "agent.setup.channelNone": "Без канала",
   "agent.setup.creating": "Создание агента…",
   "agent.setup.create": "Создать агента",
   "agent.setup.suggestions": "Подсказки",

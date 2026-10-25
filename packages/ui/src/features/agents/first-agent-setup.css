@@ -376,3 +376,39 @@
     transition: none;
   }
 }
+
+/* The channel select reads as the model picker's row above it: label on the left, choice on the right. */
+.first-agent-fields .first-agent-channel-trigger {
+  height: 44px;
+  gap: 8px;
+  border-color: var(--openbot-border-strong);
+  background: var(--openbot-bg-control);
+  padding: 0 11px 0 12px;
+  box-shadow: none;
+}
+
+.first-agent-fields .first-agent-channel-trigger:hover:not(:disabled),
+.first-agent-fields .first-agent-channel-trigger[data-expanded] {
+  background: var(--openbot-bg-control);
+}
+
+.first-agent-fields .first-agent-channel-trigger:focus-visible {
+  border-color: var(--openbot-border-focus);
+}
+
+.first-agent-channel-label {
+  flex: 0 0 auto;
+  color: var(--openbot-text-secondary);
+  font-size: var(--openbot-text-sm);
+  line-height: 17px;
+}
+
+.first-agent-channel-value {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  font-weight: 500;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

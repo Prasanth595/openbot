@@ -105,8 +105,9 @@ const AgentActions = createSimpleContext({
       }
     }
 
-    async function createAgent(draft: FirstAgentDraft = agentSetupDraft()) {
-      if (creatingAgent()) return;
+    /** The new agent's ID, or `null` when nothing was created. */
+    async function createAgent(draft: FirstAgentDraft = agentSetupDraft()): Promise<string | null> {
+      if (creatingAgent()) return null;
       const analytics = desktopAnalytics.scope();
       const submitted = { ...draft };
       setCreatingAgent(true);
@@ -118,10 +119,12 @@ const AgentActions = createSimpleContext({
         setActiveAgentId(newAgent.id);
         const properties = analyticsAgentProperties(newAgent.id);
         analytics.track("agent_action", { action: "create", result: "succeeded", ...(properties ?? {}) });
+        return newAgent.id;
       } catch (error) {
         analytics.track("agent_action", { action: "create", result: "failed", failure_code: "create_failed" });
         const { t, errorMessage } = currentText();
         setAgentSetupError(errorMessage(error, t("agent.error.createFailed")));
+        return null;
       } finally {
         setCreatingAgent(false);
       }

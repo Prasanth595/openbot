@@ -1,12 +1,16 @@
 import { TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { FIRST_AGENT_SUGGESTIONS, FirstAgentSetup } from "@openbot/ui/features/agents/FirstAgentSetup";
+import { currentText } from "@openbot/ui/text";
 import { createEffect, createMemo, createSignal } from "solid-js";
+import { actionToast } from "../../action-toast";
 import { useProviders } from "../../providers";
+import { useChannels } from "../channels/channels-context";
 import { useCustomAgents } from "../custom-agents/custom-agents-context";
 import { useCustomProviders } from "../custom-providers/custom-providers-context";
 import { useSetup } from "../onboarding/onboarding-context";
 import { useServerSettings } from "../servers/server-settings";
 import { useServers } from "../servers/servers-context";
+import { useSidebar } from "../sidebar/sidebar-context";
 import { useAgentActions } from "./agent-actions";
 import { resolveCreationModel } from "./agent-creation-model";
 import { useAgents } from "./agents-context";
@@ -30,12 +34,26 @@ export function WorkspaceAgentSetup() {
     developmentCreation,
   } = useAgents();
   const { createAgent } = useAgentActions();
+  const channels = useChannels();
+  const { sidebarLayout, applySidebarLayoutAction } = useSidebar();
+  /** Archived channels take no new members, and a host without channels offers none. */
+  const channelOptions = createMemo(() =>
+    channels.supported()
+      ? channels.state.channels
+          .filter((channel) => !channel.archived)
+          .map((channel) => ({ id: channel.id, name: channel.name }))
+      : [],
+  );
   const { setupState } = useSetup();
   // Not gated on the server: the picker needs these IDs to label a model it is already showing,
   // and a remote server's OpenCode has its own catalogue. Only the write paths are local-only.
   const { customProviders } = useCustomProviders();
   const { customAgents } = useCustomAgents();
   const { activeServer, activeServerSupportsCapability } = useServers();
+  /** The user's own sections; a host without sidebar layouts has none to place an agent in. */
+  const sectionOptions = createMemo(() =>
+    activeServerSupportsCapability("sidebar-layout") ? sidebarLayout().sections : [],
+  );
   const {
     providerRuntimeStatuses,
     providerRuntimeDownloadsAvailable,
@@ -105,6 +123,8 @@ export function WorkspaceAgentSetup() {
       submitting={creatingAgent()}
       error={agentSetupError()}
       modelOptions={createModelSupported() ? modelOptions() : undefined}
+      channels={channelOptions()}
+      sections={sectionOptions()}
       agentStatus={agentStatus()}
       runtimeStatuses={localProviderDownloads() ? providerRuntimeStatuses() : undefined}
       customProviders={customProviders()}
@@ -125,7 +145,16 @@ export function WorkspaceAgentSetup() {
           setModelTouched(true);
         setAgentSetupDraft(next);
       }}
-      onSubmit={createAgent}
+      onSubmit={async (draft) => {
+        const agentId = await createAgent(draft);
+        if (!agentId) return;
+        if (draft.channelId && !(await channels.addAgent(draft.channelId, agentId)))
+          actionToast.error(currentText().t("channel.error.update"));
+        if (draft.sectionId)
+          await applySidebarLayoutAction({ type: "assign", agentId, sectionId: draft.sectionId }).catch(() => {
+            actionToast.error(currentText().t("sidebar.section.saveFailed"));
+          });
+      }}
       onCancel={agentList().length > 0 ? cancelAgentSetup : undefined}
     />
   );
