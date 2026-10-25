@@ -289,8 +289,8 @@ export function createWebConversationRuntime(
     attachmentMedia,
     visualPage: files.visualPage,
     async importFiles(files) {
-      if (importing || files.length === 0) return;
-      // A picked or dropped file waits for a paste upload; it does not start while another one runs.
+      if (files.length === 0) return;
+      // A picked or dropped file waits for the upload in flight; it does not start while another one runs.
       await oneAtATime(async () => {
         const serverId = hostId();
         const job = { cancelled: false, serverId };
