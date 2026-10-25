@@ -113,8 +113,9 @@ function trimmed<A>(whole: A, lists: readonly WorkflowStep[][]): A {
  * the settings of such a node, and the member's save would then lose them. An owner or admin also
  * sees a workflow whose agent was deleted, so that they can fix or delete it. A run or a decision
  * needs the chat level for each of those agents; a change, a delete or a restore needs the manage
- * level, before and after the change. A change to an output that posts to a messaging place needs an
- * owner or admin, as routine results do. Frozen by `workflows-v1`.
+ * level, before and after the change. A graph that names no agent needs no level, by product decision.
+ * A change to an output that posts to a messaging place needs an owner or admin, as routine results
+ * do. Frozen by `workflows-v1`.
  */
 export async function routeWorkflows(
   context: TeamApiRequestContext,

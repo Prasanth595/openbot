@@ -7,7 +7,9 @@
 // missing, and so do its runs, steps and versions. A run, a single step, a stop, a retry or a
 // decision needs the chat level for each agent that the workflow names, because a run sends tasks to
 // them. A change, a delete or a restore needs the manage level for each agent that the workflow
-// names, before and after the change. Only an owner or admin can add an output that posts to a
+// names, before and after the change. A workflow that names no agent, such as one with only model
+// and condition steps, needs no agent level: each member who reads it can change and run it on the
+// host's providers, by product decision. Only an owner or admin can add an output that posts to a
 // messaging place or change its place, as routine results need the admin role; a member can run one
 // that is there. A step of an agent that is hidden now does not cross, as no object that names a
 // hidden agent does. A webhook trigger's URL goes only to an owner or admin; a member reads it as

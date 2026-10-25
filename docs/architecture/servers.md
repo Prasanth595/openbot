@@ -183,6 +183,9 @@ with the same filter as `get`. The contract header in `team-protocol/workflows-v
 - A change, a rename, a delete, a restore or a new webhook secret needs the manage level for each
   named agent, before and after the change (403). A restore checks the graph of the version. The
   desktop shows the canvas read-only when the member does not manage each agent of the graph.
+- A workflow that names no agent, such as one with only model and condition steps, needs no agent
+  level. Each member who sees it can change and run it on the host's providers. This is a product
+  decision: model and condition steps are open to each member who can see the workflow.
 - Only an owner or admin can add an output that posts to a messaging place, or change its place
   (403 `adminRequired`); a member can keep and run one that is there.
 - A step of an agent that is hidden now does not cross: the generic hidden-agent filter of the
