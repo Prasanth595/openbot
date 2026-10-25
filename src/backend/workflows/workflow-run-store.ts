@@ -50,6 +50,8 @@ export interface StoredWorkflowStep extends WorkflowStep {
   deliveryId: string | null;
   turnId: string | null;
   createdAt: string;
+  /** The order in which the steps of a run were added: a later step has a larger number. */
+  sequence: number;
 }
 
 const OPEN_STEP_STATUSES = ["running", "approval"] as const satisfies readonly WorkflowStepStatus[];
@@ -541,7 +543,7 @@ const RUN_SELECT = `
 
 const STEP_SELECT = `
   SELECT step_id, workflow_id, run_id, node_id, attempt, kind, agent_id, status, delivery_id, turn_id, input, output,
-    branch, error, started_at, ended_at, created_at
+    branch, error, started_at, ended_at, created_at, rowid AS sequence
   FROM workflow_steps`;
 
 function toRun(row: DynamicRecord): StoredWorkflowRun {
@@ -584,6 +586,7 @@ function toStep(row: DynamicRecord): StoredWorkflowStep {
     startedAt: optionalStringColumn(row, "started_at"),
     endedAt: optionalStringColumn(row, "ended_at"),
     createdAt: requiredStringColumn(row, "created_at"),
+    sequence: requiredNumberColumn(row, "sequence"),
   };
 }
 

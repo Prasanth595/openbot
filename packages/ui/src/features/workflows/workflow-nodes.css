@@ -1514,7 +1514,16 @@ fieldset.wfn-picker-group {
   color: var(--openbot-danger);
 }
 
-/* Why the line cannot end here, next to the pointer. It keeps its screen size at every zoom. */
+/* A line back to an earlier node can end here too: it makes a loop. */
+.wfn-edge-draft[data-state="loop"] {
+  color: var(--openbot-warning);
+  stroke-dasharray: none;
+}
+
+/*
+ * Why the line cannot end here, or that it makes a loop, next to the pointer. It keeps its screen
+ * size at every zoom.
+ */
 .wfn-draft-reason {
   position: absolute;
   z-index: 3;
@@ -1529,6 +1538,11 @@ fieldset.wfn-picker-group {
   transform-origin: 0 0;
   translate: calc(14px / var(--wfn-scale, 1)) calc(14px / var(--wfn-scale, 1));
   scale: calc(1 / var(--wfn-scale, 1));
+}
+
+.wfn-draft-reason[data-tone="loop"] {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--openbot-warning) 45%, transparent);
+  color: var(--openbot-warning-text);
 }
 
 /*
@@ -2528,6 +2542,41 @@ fieldset.wfn-picker-group {
   text-transform: capitalize;
   pointer-events: none;
   translate: -50% -50%;
+}
+
+/*
+ * A loop shows where it goes back under its nodes. With no condition to end it, it takes the warning
+ * colour: the run repeats it until the user stops the run.
+ */
+.wfn-edge-loop {
+  position: absolute;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--openbot-space-1);
+  padding: 0 var(--openbot-space-2) 0 var(--openbot-space-1-5);
+  border-radius: var(--openbot-radius-pill);
+  background: var(--wfn-card);
+  box-shadow: 0 0 0 1px var(--wfn-ring-strong);
+  color: var(--openbot-text-secondary);
+  font-size: var(--wfn-small);
+  font-weight: var(--openbot-weight-medium);
+  line-height: var(--openbot-leading-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  translate: -50% -50%;
+}
+
+.wfn-edge-loop svg {
+  width: 0.875em;
+  height: 0.875em;
+}
+
+.wfn-edge-loop[data-endless] {
+  /* The soft warning is translucent, so the card under it hides the line. */
+  background: linear-gradient(var(--openbot-warning-soft) 0 0), var(--wfn-card);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--openbot-warning) 45%, transparent);
+  color: var(--openbot-warning-text);
 }
 
 /* ---------------------------------------------------------------- Note */

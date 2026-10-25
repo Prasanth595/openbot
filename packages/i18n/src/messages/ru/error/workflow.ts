@@ -11,7 +11,6 @@ export const messages = {
   "error.workflow.duplicateEdge": "У этих двух шагов уже есть такая связь.",
   "error.workflow.serverTooOld":
     "Этот сервер не поддерживает рабочие процессы. Обновите OpenBot на компьютере, на котором он работает.",
-  "error.workflow.cycle": "Рабочий процесс не может вернуться к предыдущему шагу.",
   "error.workflow.nodeUnsupported":
     "Эта версия OpenBot пока не может выполнять шаги с изображениями, файлами и сообщениями.",
   "error.workflow.interrupted": "OpenBot остановился во время этого шага. Запустите его снова.",

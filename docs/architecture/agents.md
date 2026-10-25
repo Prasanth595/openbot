@@ -191,14 +191,18 @@ changed, on this computer and on a joined host.
 - `src/backend/workflows/` owns the tables of migration 46: workflows, nodes, edges, versions,
   triggers, webhook triggers and receipts, runs, steps and output posts. The rows are written
   directly, not through `dispatch`, as for routine flows. `workflow-graph.ts` checks the graph rules
-  (no cycles, branch edges only from a condition, port types, limits). A save with an old revision
+  (branch edges only from a condition, port types, limits). A graph can have loops. A save with an old revision
   answers the current graph as a conflict. The store keeps at most 50 versions: one when the newest
   is older than 5 minutes, one on a restore, and one when a run starts on a graph revision that has
   no version yet.
 - `Workflows` (`workflows.ts`) is an Effect service on its own managed runtime. A run copies the
   graph. Each pass ends the steps that ended and starts each node whose inputs are in
   (`workflow-walk.ts`). Passes run one at a time; a pass runs after a turn or queue event, after
-  each user action, and at startup.
+  each user action, and at startup. A node runs again when a node before it has a newer step, as
+  after a retry. An edge back to an earlier node (`workflowLoopEdges` in the contracts) is a loop:
+  when its source is done and newer, the earlier node runs again with that answer as one more
+  input. A loop has no pass limit. It ends when a condition takes the other branch, a step fails or
+  is rejected, or the user stops the run. The canvas marks a loop with no condition as endless.
 - An agent step is a routine handoff (`AgentService.enqueueRoutineHandoff`, with the workflow as the
   routine) and ends when its delivery ends. A model step and a condition run in the process without
   tools; a condition must answer yes or no, and only the edges of that branch stay active. An

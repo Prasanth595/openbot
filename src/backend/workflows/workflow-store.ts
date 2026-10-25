@@ -66,7 +66,6 @@ const PROBLEM_TEXT = {
   branch: "error.workflow.branch",
   "condition-branch": "error.workflow.conditionBranch",
   duplicate: "error.workflow.duplicateEdge",
-  cycle: "error.workflow.cycle",
 } as const satisfies Record<WorkflowGraphProblem, string>;
 
 /** A schedule trigger whose next occurrence came. */

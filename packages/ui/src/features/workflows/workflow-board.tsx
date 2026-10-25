@@ -6,7 +6,7 @@
 
 import type { RoutineSchedule, StoredFileRow } from "@openbot/contracts/ipc";
 import type { AppTextKey, AppTranslate } from "@openbot/i18n";
-import { Button, Kbd, LabelTooltip, X } from "@openbot/ui";
+import { Button, Kbd, LabelTooltip, Repeat, X } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
 import {
   createContext,
@@ -22,6 +22,8 @@ import {
 import { useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
 import { diagramEdgeMidpoint, diagramEdgePath } from "../diagrams/diagram-graph";
+import type { Box } from "./workflow-ink";
+import type { WorkflowLoop } from "./workflow-loops";
 import type { WorkflowCatalogs, WorkflowFeatures } from "./workflow-model";
 
 export type WfnPortType = "text" | "image" | "file";
@@ -290,6 +292,10 @@ export interface BoardOptions {
   scale?: () => number;
   /** The position of a node in the world. Without it, the board measures where the node is. */
   origin?: (id: string) => WfnPoint | undefined;
+  /** The box of a node in the world. A loop goes under the boxes of the nodes it runs again. */
+  box?: (id: string) => Box | undefined;
+  /** The connections that go back to an earlier node, by connection ID. */
+  loops?: () => ReadonlyMap<string, WorkflowLoop>;
   status?: (id: string) => WfnRunStatus | undefined;
   error?: (id: string) => string | undefined;
   retry?: (id: string) => void;
@@ -371,6 +377,16 @@ const DRAG_THRESHOLD = 4;
  * world units, plus half the button and a gap, in screen pixels.
  */
 const EDGE_END_CLEARANCE = { port: 14, button: 16 };
+/** How far a loop goes under the lowest node it runs again, and how wide it turns at each end. */
+const LOOP_DROP = 56;
+const LOOP_BEND = 48;
+
+/** A loop: out of its port to the right, down and back under its nodes, then into the earlier node's port. */
+function loopPath(from: WfnPoint, to: WfnPoint, y: number): string {
+  const out = from.x + LOOP_BEND;
+  const back = to.x - LOOP_BEND;
+  return `M ${from.x} ${from.y} C ${out} ${from.y}, ${out} ${y}, ${from.x} ${y} L ${to.x} ${y} C ${back} ${y}, ${back} ${to.y}, ${to.x} ${to.y}`;
+}
 
 /**
  * The point of a path nearest to a world point. A coarse pass finds the nearest of 32 samples, then
@@ -574,8 +590,8 @@ export function createBoard(options: BoardOptions) {
     start.side === "out" ? [start, end] : [end, start];
 
   /**
-   * Why a connection from one port cannot end on another, or null when it can. A workflow runs once
-   * from its inputs to its outputs, so a connection that makes a loop is refused.
+   * Why a connection from one port cannot end on another, or null when it can. A connection back to an
+   * earlier node is a loop, which the run takes as its next pass.
    */
   const refusal = (start: PortRef, end: PortRef): string | null => {
     if (end.side === start.side) return t("workflow.board.refusal.side");
@@ -586,7 +602,6 @@ export function createBoard(options: BoardOptions) {
     }
     const [from, to] = orient(start, end);
     if (hasEdge(from.node, to.node, from.type, from.branch)) return t("workflow.board.refusal.connected");
-    if (reaches(to.node, from.node)) return t("workflow.board.refusal.loop");
     return null;
   };
 
@@ -631,7 +646,8 @@ export function createBoard(options: BoardOptions) {
   };
 
   const connect = (from: string, to: string, type: WfnPortType, branch?: string) => {
-    if (from === to || hasEdge(from, to, type, branch) || reaches(to, from)) return;
+    if (from === to || hasEdge(from, to, type, branch)) return;
+    const loop = reaches(to, from);
     options.beforeChange?.();
     const fromName = nameOf(ports.get(portKey(from, "out", type, branch))?.element);
     const toName = nameOf(ports.get(portKey(to, "in", type))?.element);
@@ -640,7 +656,10 @@ export function createBoard(options: BoardOptions) {
     setState((draft) => {
       draft.edges.push(edge);
       draft.pending = null;
-      draft.message = t("workflow.board.live.connected", { from: fromName, to: toName });
+      draft.message = t(loop ? "workflow.board.live.connectedLoop" : "workflow.board.live.connected", {
+        from: fromName,
+        to: toName,
+      });
     });
   };
 
@@ -1104,12 +1123,37 @@ export function createBoard(options: BoardOptions) {
   const showsActions = (id: string) => state.edge === id || (state.hover === id && state.pending === null);
   const motion = !prefersReducedMotion();
 
+  /** The line of a connection and the point where its controls sit. A loop goes back under its nodes. */
+  const shapeOf = (edge: WfnEdge, from: WfnPoint, to: WfnPoint) => {
+    const loop = options.loops?.().get(edge.id);
+    if (!loop) return { path: diagramEdgePath(from, to), middle: diagramEdgeMidpoint(from, to), turn: undefined };
+    const bottoms = loop.body.flatMap((id) => {
+      const box = options.box?.(id);
+      return box ? [box.y + box.height] : [];
+    });
+    const y = Math.max(from.y, to.y, ...bottoms) + LOOP_DROP;
+    return {
+      path: loopPath(from, to, y),
+      middle: { x: (from.x + to.x) / 2, y },
+      // The middle of the first bend, where the branch name of a loop goes.
+      turn: { x: from.x + LOOP_BEND * 0.75, y: (from.y + y) / 2 },
+    };
+  };
+  /** Whether the open connection would close a loop on the port under the pointer. */
+  const draftLoops = () => {
+    const pending = state.pending;
+    const port = state.target?.reason === null ? state.target.port : null;
+    if (!pending || !port) return false;
+    const [from, to] = orient(pending, port);
+    return reaches(to.node, from.node);
+  };
+
   /** The connections, under the nodes. Put it first inside the world element. */
   function Edges() {
     const ends = (edge: WfnEdge) => {
       const from = point(edge.from, "out", edge.type, edge.branch);
       const to = point(edge.to, "in", edge.type);
-      return from && to ? { from, to } : null;
+      return from && to ? shapeOf(edge, from, to) : null;
     };
     /** The line follows the pointer, and snaps to a port that can take it. */
     const draftPath = () => {
@@ -1124,7 +1168,14 @@ export function createBoard(options: BoardOptions) {
     const draftState = () => {
       const target = state.target;
       if (!target) return undefined;
-      return target.reason === null ? "ok" : "refused";
+      if (target.reason !== null) return "refused";
+      return draftLoops() ? "loop" : "ok";
+    };
+    /** Next to the pointer: why the line cannot end here, or that it makes a loop. */
+    const draftNote = () => {
+      const reason = state.target?.reason;
+      if (reason) return { text: reason, tone: "refused" };
+      return draftLoops() ? { text: t("workflow.board.loop.makes"), tone: "loop" } : null;
     };
     return (
       <>
@@ -1132,38 +1183,35 @@ export function createBoard(options: BoardOptions) {
           <For each={state.edges}>
             {(edge) => (
               <Show when={ends(edge)}>
-                {(line) => {
-                  const path = () => diagramEdgePath(line().from, line().to);
-                  return (
-                    <g
-                      class="wfn-edge"
-                      data-type={edge.type}
-                      data-tone={tone(edge)}
-                      data-selected={state.edge === edge.id ? "" : undefined}
-                      data-removing={
-                        state.removing === edge.id || isDoomed(edge.from) || isDoomed(edge.to) ? "" : undefined
+                {(line) => (
+                  <g
+                    class="wfn-edge"
+                    data-type={edge.type}
+                    data-tone={tone(edge)}
+                    data-selected={state.edge === edge.id ? "" : undefined}
+                    data-removing={
+                      state.removing === edge.id || isDoomed(edge.from) || isDoomed(edge.to) ? "" : undefined
+                    }
+                    data-motion={motion ? "" : undefined}
+                  >
+                    <path class="wfn-edge-line" d={line().path} />
+                    <Show when={tone(edge) === "run"}>
+                      <path class="wfn-edge-comet" d={line().path} pathLength="1" />
+                    </Show>
+                    <path
+                      class="wfn-edge-hit"
+                      data-edge-id={edge.id}
+                      d={line().path}
+                      onPointerDown={() =>
+                        setState((draft) => {
+                          draft.edge = edge.id;
+                        })
                       }
-                      data-motion={motion ? "" : undefined}
-                    >
-                      <path class="wfn-edge-line" d={path()} />
-                      <Show when={tone(edge) === "run"}>
-                        <path class="wfn-edge-comet" d={path()} pathLength="1" />
-                      </Show>
-                      <path
-                        class="wfn-edge-hit"
-                        data-edge-id={edge.id}
-                        d={path()}
-                        onPointerDown={() =>
-                          setState((draft) => {
-                            draft.edge = edge.id;
-                          })
-                        }
-                        onPointerMove={(event) => trackEdge(edge.id, event)}
-                        onPointerLeave={(event) => leaveEdge(edge.id, event.relatedTarget)}
-                      />
-                    </g>
-                  );
-                }}
+                      onPointerMove={(event) => trackEdge(edge.id, event)}
+                      onPointerLeave={(event) => leaveEdge(edge.id, event.relatedTarget)}
+                    />
+                  </g>
+                )}
               </Show>
             )}
           </For>
@@ -1171,14 +1219,15 @@ export function createBoard(options: BoardOptions) {
             {(path) => <path class="wfn-edge-draft" data-state={draftState()} d={path()} />}
           </Show>
         </svg>
-        <Show when={state.target?.reason}>
-          {(reason) => (
+        <Show when={draftNote()}>
+          {(note) => (
             <span
               class="wfn-draft-reason"
+              data-tone={note().tone}
               aria-hidden="true"
               style={{ left: `${state.draft?.x ?? 0}px`, top: `${state.draft?.y ?? 0}px` }}
             >
-              {reason()}
+              {note().text}
             </span>
           )}
         </Show>
@@ -1188,7 +1237,7 @@ export function createBoard(options: BoardOptions) {
               {(line) => {
                 const spot = () => {
                   const hovered = state.hoverAt;
-                  return hovered?.edge === edge.id ? hovered.at : diagramEdgeMidpoint(line().from, line().to);
+                  return hovered?.edge === edge.id ? hovered.at : line().middle;
                 };
                 return (
                   <div
@@ -1218,18 +1267,38 @@ export function createBoard(options: BoardOptions) {
           {(edge) => (
             <Show when={edge.branch !== undefined && !showsActions(edge.id) ? ends(edge) : undefined}>
               {(line) => {
-                const middle = () => diagramEdgeMidpoint(line().from, line().to);
+                const spot = () => line().turn ?? line().middle;
                 return (
                   <span
                     class="wfn-edge-label"
                     data-branch={edge.branch}
                     aria-hidden="true"
-                    style={{ left: `${middle().x}px`, top: `${middle().y}px` }}
+                    style={{ left: `${spot().x}px`, top: `${spot().y}px` }}
                   >
                     {branchName(t, edge.branch ?? "")}
                   </span>
                 );
               }}
+            </Show>
+          )}
+        </For>
+        <For each={state.edges}>
+          {(edge) => (
+            <Show when={!showsActions(edge.id) ? options.loops?.().get(edge.id) : undefined}>
+              {(loop) => (
+                <Show when={ends(edge)}>
+                  {(line) => (
+                    <span
+                      class="wfn-edge-loop"
+                      data-endless={loop().endless ? "" : undefined}
+                      style={{ left: `${line().middle.x}px`, top: `${line().middle.y}px` }}
+                    >
+                      <Repeat aria-hidden="true" />
+                      {t(loop().endless ? "workflow.board.loop.endless" : "workflow.board.loop.badge")}
+                    </span>
+                  )}
+                </Show>
+              )}
             </Show>
           )}
         </For>

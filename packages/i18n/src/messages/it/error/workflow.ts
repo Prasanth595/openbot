@@ -10,7 +10,6 @@ export const messages = {
   "error.workflow.conditionBranch": "Ogni connessione da una condizione deve essere sì o no.",
   "error.workflow.duplicateEdge": "Questi due passaggi hanno già questa connessione.",
   "error.workflow.serverTooOld": "Questo server non supporta i workflow. Aggiorna OpenBot sul computer che lo esegue.",
-  "error.workflow.cycle": "Un workflow non può tornare a un passaggio precedente.",
   "error.workflow.nodeUnsupported":
     "Questa versione di OpenBot non può ancora eseguire passaggi di immagine, file e messaggio.",
   "error.workflow.interrupted": "OpenBot si è fermato durante questo passaggio. Eseguilo di nuovo.",

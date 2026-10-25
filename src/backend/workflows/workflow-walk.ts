@@ -2,15 +2,27 @@
  * How a run moves through its graph, without the database: which nodes a run includes, which of
  * them can start now, the inputs each gets, and the text a step sends to an agent or a model.
  *
- * A node starts when every node before it has ended. It runs when at least one incoming edge is
- * active, or when it has no incoming edge. An edge is active when the node before it ended with an
- * answer and, for a condition, when its branch is the condition's answer. A node with incoming edges
- * and no active one is skipped, so a failure or the other branch never leaves a run waiting. A
- * skipped node is looked at again on each pass, so a retried step can start the nodes after it.
+ * A node is due when it has no step in the run yet, or when a node before it has a newer step than
+ * its own, as after a retry. A due node starts when no node before it is open or due. It runs when
+ * at least one incoming edge is active, or when it has no incoming edge. An edge is active when the
+ * node before it ended with an answer and, for a condition, when its branch is the condition's
+ * answer. A due node with incoming edges and no active one is skipped, so a failure or the other
+ * branch never leaves a run waiting.
+ *
+ * A loop edge (`workflowLoopEdges`) goes back to an earlier node. It does not hold that node back.
+ * When it is active and newer than the node's own step, the node is due again with the loop edge's
+ * answer as one more input: that is the next pass of the loop, and the nodes after it follow. A loop
+ * has no pass limit; it ends when a condition takes the other branch, a step fails, or the run stops.
  */
 
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import { isWorkflowStepKind, type WorkflowEdge, type WorkflowGraph, type WorkflowNode } from "@openbot/contracts/ipc";
+import {
+  isWorkflowStepKind,
+  type WorkflowEdge,
+  type WorkflowGraph,
+  type WorkflowNode,
+  workflowLoopEdges,
+} from "@openbot/contracts/ipc";
 import { isOpenStep, type StoredWorkflowStep } from "./workflow-run-store";
 
 /** Node kinds and settings that this version cannot run. The canvas does not offer them. */
@@ -30,7 +42,8 @@ export interface RunStart {
  * The nodes a run includes, and those of them it takes from an earlier answer instead of running.
  * - From a trigger: the nodes after the trigger, and every node they need that is not a trigger.
  * - From a node: that node and the nodes after it. A node they need that answered before gives that
- *   answer again; one that never answered runs.
+ *   answer again; one that never answered runs. So does a node that only a loop edge brings back, so
+ *   that the first pass starts at the node.
  * - Otherwise every step of the graph.
  */
 export function runScope(
@@ -41,11 +54,15 @@ export function runScope(
   const steps = new Map(graph.nodes.filter((node) => isWorkflowStepKind(node.kind)).map((node) => [node.id, node]));
   const origin = start.triggerNodeId ?? start.fromNodeId;
   if (origin === null || !steps.has(origin)) return { nodes: new Set(steps.keys()), reused: new Set() };
+  const loops = workflowLoopEdges(graph.nodes, graph.edges);
+  const ahead = reach(origin, outgoing(graph.edges.filter((edge) => !loops.has(edge.id))));
   const after = reach(origin, outgoing(graph.edges));
   const before = incoming(graph.edges);
   const nodes = new Set(after);
-  const reused = new Set<string>();
-  const pending = [...after];
+  const reused = new Set(
+    start.fromNodeId === null ? [] : [...after].filter((id) => !ahead.has(id) && answered.has(id)),
+  );
+  const pending = [...after].filter((id) => !reused.has(id));
   while (pending.length > 0) {
     const id = pending.pop();
     if (id === undefined) break;
@@ -67,29 +84,44 @@ export function runScope(
 export type WalkAction = { nodeId: string; action: "run"; inputs: string[] } | { nodeId: string; action: "skip" };
 
 /**
- * What can happen now, in graph order. `latest` is the newest attempt of each node of the run.
- * A node whose newest attempt is open or ended with something other than a skip waits or is done.
+ * What can happen now, in graph order. `latest` is the newest step of each node of the run. A node
+ * whose newest step is open waits; a node that is not due is done.
  */
 export function nextActions(
   graph: WorkflowGraph,
   scope: ReadonlySet<string>,
   latest: ReadonlyMap<string, StoredWorkflowStep>,
 ): WalkAction[] {
+  const loops = workflowLoopEdges(graph.nodes, graph.edges);
+  const forward = graph.edges.filter((edge) => !loops.has(edge.id));
   const before = incoming(graph.edges);
+  const due = new Set<string>();
   const actions: WalkAction[] = [];
-  for (const nodeId of graphOrder(graph, scope)) {
+  for (const nodeId of graphOrder(graph.nodes, forward, scope)) {
     const current = latest.get(nodeId);
-    if (current && current.status !== "skipped") continue;
+    if (current && isOpenStep(current)) continue;
     const edges = (before.get(nodeId) ?? []).filter((edge) => scope.has(edge.from));
+    const ahead = edges.filter((edge) => !loops.has(edge.id));
+    const back = edges.filter((edge) => loops.has(edge.id));
+    const newer = (edge: WorkflowEdge) => {
+      const source = latest.get(edge.from);
+      return source !== undefined && (current === undefined || source.sequence > current.sequence);
+    };
+    const nextPass = back.some((edge) => {
+      const source = latest.get(edge.from);
+      return source !== undefined && edgeActive(edge, source) && newer(edge);
+    });
+    if (current && !nextPass && !ahead.some(newer)) continue;
+    due.add(nodeId);
+    if (ahead.some((edge) => due.has(edge.from) || isWaiting(latest.get(edge.from)))) continue;
     // Another trigger's edge never becomes active in this run.
     const outside = (before.get(nodeId) ?? []).length > edges.length;
-    if (edges.some((edge) => isWaiting(latest.get(edge.from)))) continue;
     const inputs = edges.flatMap((edge) => {
       const source = latest.get(edge.from);
       return source && edgeActive(edge, source) ? [source.output ?? ""] : [];
     });
-    if (inputs.length === 0 && (edges.length > 0 || outside)) {
-      if (!current) actions.push({ nodeId, action: "skip" });
+    if (inputs.length === 0 && (ahead.length > 0 || outside)) {
+      actions.push({ nodeId, action: "skip" });
       continue;
     }
     actions.push({ nodeId, action: "run", inputs });
@@ -118,14 +150,18 @@ function isWaiting(step: StoredWorkflowStep | undefined): boolean {
   return step === undefined || isOpenStep(step);
 }
 
-/** The nodes of `scope` with every node before another; the graph rules keep it free of loops. */
-function graphOrder(graph: WorkflowGraph, scope: ReadonlySet<string>): string[] {
-  const edges = graph.edges.filter((edge) => scope.has(edge.from) && scope.has(edge.to));
+/** The nodes of `scope` with every node before another, by edges without a loop. */
+function graphOrder(
+  nodes: readonly WorkflowNode[],
+  forward: readonly WorkflowEdge[],
+  scope: ReadonlySet<string>,
+): string[] {
+  const edges = forward.filter((edge) => scope.has(edge.from) && scope.has(edge.to));
   const remaining = new Map([...scope].map((id) => [id, 0]));
   for (const edge of edges) remaining.set(edge.to, (remaining.get(edge.to) ?? 0) + 1);
   const next = outgoing(edges);
   // The canvas order breaks ties, so a pass is the same each time.
-  const ready = graph.nodes.filter((node) => remaining.get(node.id) === 0).map((node) => node.id);
+  const ready = nodes.filter((node) => remaining.get(node.id) === 0).map((node) => node.id);
   const order: string[] = [];
   while (ready.length > 0) {
     const id = ready.shift();

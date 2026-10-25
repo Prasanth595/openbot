@@ -1,7 +1,8 @@
 /**
  * The rules of a workflow graph that need the meaning of its nodes, without the database: which
- * port types each kind takes and sends, where a branch edge may start, and that the steps form no
- * loop. The shape and the limits of a graph are the contract's (`isWorkflowGraph`).
+ * port types each kind takes and sends, and where a branch edge may start. A loop is allowed: the run
+ * takes its edge back as the next pass (`workflowLoopEdges`). The shape and the limits of a graph are
+ * the contract's (`isWorkflowGraph`).
  */
 
 import {
@@ -13,7 +14,7 @@ import {
   type WorkflowPortType,
 } from "@openbot/contracts/ipc";
 
-export type WorkflowGraphProblem = "annotation" | "port" | "branch" | "condition-branch" | "duplicate" | "cycle";
+export type WorkflowGraphProblem = "annotation" | "port" | "branch" | "condition-branch" | "duplicate";
 
 const ALL_PORTS = ["text", "image", "file"] as const satisfies readonly WorkflowPortType[];
 
@@ -54,7 +55,7 @@ export function workflowGraphProblem(graph: WorkflowGraph): WorkflowGraphProblem
     if (seen.has(key)) return "duplicate";
     seen.add(key);
   }
-  return hasCycle(graph.edges) ? "cycle" : null;
+  return null;
 }
 
 function edgeProblem(from: WorkflowNode, to: WorkflowNode, edge: WorkflowEdge): WorkflowGraphProblem | null {
@@ -62,34 +63,4 @@ function edgeProblem(from: WorkflowNode, to: WorkflowNode, edge: WorkflowEdge): 
   if (!PORTS[from.kind].out.includes(edge.type) || !PORTS[to.kind].in.includes(edge.type)) return "port";
   if (from.kind === "condition") return edge.branch === undefined ? "condition-branch" : null;
   return edge.branch === undefined ? null : "branch";
-}
-
-function hasCycle(edges: readonly WorkflowEdge[]): boolean {
-  const next = new Map<string, string[]>();
-  for (const edge of edges) next.set(edge.from, [...(next.get(edge.from) ?? []), edge.to]);
-  const done = new Set<string>();
-  const open = new Set<string>();
-  // Depth first, without recursion: a long chain must not reach the stack limit.
-  for (const start of next.keys()) {
-    if (done.has(start)) continue;
-    const stack: { id: string; index: number }[] = [{ id: start, index: 0 }];
-    open.add(start);
-    while (stack.length > 0) {
-      const top = stack[stack.length - 1];
-      if (!top) break;
-      const target = next.get(top.id)?.[top.index];
-      if (target === undefined) {
-        stack.pop();
-        open.delete(top.id);
-        done.add(top.id);
-        continue;
-      }
-      top.index += 1;
-      if (open.has(target)) return true;
-      if (done.has(target)) continue;
-      open.add(target);
-      stack.push({ id: target, index: 0 });
-    }
-  }
-  return false;
 }

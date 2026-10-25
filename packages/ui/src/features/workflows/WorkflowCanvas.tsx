@@ -146,6 +146,7 @@ import {
   touches,
   union,
 } from "./workflow-ink";
+import { workflowLoops } from "./workflow-loops";
 import type { WorkflowCatalogs, WorkflowFeatures } from "./workflow-model";
 import {
   BLOCK_RESIZE,
@@ -590,6 +591,15 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
     },
     scale: () => camera.scale,
     origin: (id) => positions[id],
+    // The rendered size, as a result can make a card taller than its stored size, and the results strip.
+    box: (id) => {
+      const at = positions[id];
+      const rendered = slotSizes[id];
+      if (!at || !rendered) return undefined;
+      const strip = board.results(id).length > 1 ? STRIP_ROOM / camera.scale : 0;
+      return { ...at, width: rendered.width, height: rendered.height + strip };
+    },
+    loops: () => loops(),
     size: (id) => sizes[id],
     stretch: (id) => {
       const kind = kindOf(id);
@@ -962,6 +972,7 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
   const graph = createMemo<WorkflowGraph>((previous) =>
     previous && gesturing() ? previous : graphFromSnapshot(capture()),
   );
+  const loops = createMemo(() => workflowLoops(graph()));
   /**
    * A bar that keeps its screen size in the world, such as a node toolbar, lands on part pixels at a zoom other than
    * 100%. Then its icons and text blur. After the camera, a node or the selection moves, each bar moves by less than a
@@ -1570,7 +1581,12 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
       const element = slot(id);
       const from = boxOf(edge.from);
       const to = positions[edge.to];
-      if (element && from && to) {
+      // On a loop, the new node goes where it was dropped, under the nodes the loop runs again.
+      if (element && loops().has(edge.id))
+        setPositions((draft) => {
+          draft[id] = snapPoint({ x: at.x - element.offsetWidth / 2, y: at.y - element.offsetHeight / 2 });
+        });
+      else if (element && from && to) {
         const width = element.offsetWidth;
         const room = to.x - (from.x + from.width);
         // The new node keeps the gap that the two nodes had on each side of it.

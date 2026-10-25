@@ -110,6 +110,53 @@ export interface WorkflowGraph {
   strokes: WorkflowStroke[];
 }
 
+/**
+ * The edges that go back to an earlier step and so close a loop. The host runs them as the next
+ * pass of the loop and the canvas draws them as loops, so both must pick the same edges. A walk goes
+ * depth first from the nodes that no edge enters, then from the rest, each in canvas order; an edge
+ * to a node that the walk is still inside is a loop edge. Without the loop edges, the graph has no
+ * loop.
+ */
+export function workflowLoopEdges(
+  nodes: readonly { id: string }[],
+  edges: readonly { id: string; from: string; to: string }[],
+): Set<string> {
+  const next = new Map<string, { id: string; to: string }[]>();
+  const entered = new Set<string>();
+  for (const edge of edges) {
+    const list = next.get(edge.from);
+    if (list) list.push(edge);
+    else next.set(edge.from, [edge]);
+    entered.add(edge.to);
+  }
+  const loops = new Set<string>();
+  const done = new Set<string>();
+  const open = new Set<string>();
+  const starts = [...nodes.filter((node) => !entered.has(node.id)), ...nodes.filter((node) => entered.has(node.id))];
+  // Without recursion: a long chain must not reach the stack limit.
+  for (const { id: start } of starts) {
+    if (done.has(start)) continue;
+    const stack = [{ id: start, index: 0 }];
+    open.add(start);
+    for (let top = stack.at(-1); top; top = stack.at(-1)) {
+      const edge = next.get(top.id)?.[top.index];
+      if (!edge) {
+        stack.pop();
+        open.delete(top.id);
+        done.add(top.id);
+        continue;
+      }
+      top.index += 1;
+      if (open.has(edge.to)) loops.add(edge.id);
+      else if (!done.has(edge.to)) {
+        open.add(edge.to);
+        stack.push({ id: edge.to, index: 0 });
+      }
+    }
+  }
+  return loops;
+}
+
 /** The agent of an agent node, or null for another kind or an agent node with no agent yet. */
 export function nodeAgentId(node: WorkflowNode): string | null {
   const agentId = node.fields.agentId;
@@ -366,7 +413,7 @@ function uniqueIds(items: readonly { id: string }[]): boolean {
 
 /**
  * The shape of a graph and its limits. Each edge must join two nodes of the graph. Rules that need
- * the meaning of the nodes, such as cycles and branch edges, are the host's.
+ * the meaning of the nodes, such as branch edges, are the host's.
  */
 export function isWorkflowGraph(value: unknown): value is WorkflowGraph {
   if (

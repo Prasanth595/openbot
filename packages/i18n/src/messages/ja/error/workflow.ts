@@ -11,7 +11,6 @@ export const messages = {
   "error.workflow.duplicateEdge": "この 2 つのステップにはすでにこの接続があります。",
   "error.workflow.serverTooOld":
     "このサーバーはワークフローに対応していません。サーバーを実行しているコンピューターの OpenBot を更新してください。",
-  "error.workflow.cycle": "ワークフローは前のステップに戻れません。",
   "error.workflow.nodeUnsupported":
     "このバージョンの OpenBot では、画像、ファイル、メッセージのステップはまだ実行できません。",
   "error.workflow.interrupted": "このステップの実行中に OpenBot が停止しました。もう一度実行してください。",
