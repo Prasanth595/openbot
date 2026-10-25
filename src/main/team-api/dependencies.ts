@@ -324,7 +324,11 @@ interface TeamApiHostIdentity {
 interface TeamApiProviders {
   service: Pick<
     AgentService,
-    "startProviderCodeLogin" | "submitProviderCodeLogin" | "cancelProviderCodeLogin" | "changeProviderCredential"
+    | "startProviderCodeLogin"
+    | "submitProviderCodeLogin"
+    | "cancelProviderCodeLogin"
+    | "changeProviderCredential"
+    | "clearProviderCredential"
   >;
   credentials: Pick<ProviderCredentialStore, "status" | "set" | "clear">;
   runtimes: Pick<ProviderRuntimeManager, "getStatus" | "download" | "cancel" | "checkForUpdates">;

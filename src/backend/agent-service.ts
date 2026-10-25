@@ -3280,11 +3280,31 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
+  /**
+   * `changeProviderCredential` for a removed key. Claude's key account goes first, with the idle check
+   * of any removed account, so that a refusal keeps the key: an agent left on the account without its
+   * key could not run a turn.
+   */
+  clearProviderCredential(
+    provider: AgentProvider,
+    clear: () => Effect.Effect<void, AgentLifecycleFailed>,
+  ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    return Effect.suspend(() =>
+      provider === "claude" && this.#providers.hasProviderAccount(provider, CLAUDE_API_KEY_ACCOUNT_ID)
+        ? this.removeProviderAccount(provider, CLAUDE_API_KEY_ACCOUNT_ID)
+        : Effect.void,
+    ).pipe(Effect.andThen(this.changeProviderCredential(provider, clear)));
+  }
+
   readonly #claudeKeyChanged = Effect.fn("AgentService.claudeKeyChanged")(function* (this: AgentService) {
+    const status = this.#providers.hasProviderKey("claude")
+      ? yield* this.#providers.providerKeyChanged("claude")
+      : this.#providers.hasProviderAccount("claude", CLAUDE_API_KEY_ACCOUNT_ID)
+        ? yield* this.removeProviderAccount("claude", CLAUDE_API_KEY_ACCOUNT_ID)
+        : this.#providers.status();
+    // After the removal, so that the released work starts on the provider's own sign-in.
     yield* this.#usageLimits.accountReset("claude", CLAUDE_API_KEY_ACCOUNT_ID);
-    if (this.#providers.hasProviderKey("claude")) return yield* this.#providers.providerKeyChanged("claude");
-    if (!this.#providers.hasProviderAccount("claude", CLAUDE_API_KEY_ACCOUNT_ID)) return this.#providers.status();
-    return yield* this.removeProviderAccount("claude", CLAUDE_API_KEY_ACCOUNT_ID);
+    return status;
   });
 
   updateProviderCli(
