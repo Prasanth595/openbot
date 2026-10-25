@@ -9,6 +9,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { Effect } from "effect";
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { type DynamicToolNamespace, LocalMcpBridge, type LocalMcpSession } from "../src/backend/local-mcp-bridge";
@@ -52,6 +53,33 @@ function authorization(session: LocalMcpSession): string {
 }
 
 /**
+ * The SDK transport classes declare their handlers and `sessionId` as `T | undefined`, which
+ * `exactOptionalPropertyTypes` does not accept as a `Transport`. This one forwards to such a class.
+ */
+function asTransport(inner: {
+  start(): Promise<void>;
+  send: Transport["send"];
+  close(): Promise<void>;
+  onclose?: (() => void) | undefined;
+  onerror?: ((error: Error) => void) | undefined;
+  onmessage?: Transport["onmessage"] | undefined;
+  setProtocolVersion?: ((version: string) => void) | undefined;
+}): Transport {
+  const transport: Transport = {
+    start: () => {
+      inner.onclose = () => transport.onclose?.();
+      inner.onerror = (error) => transport.onerror?.(error);
+      inner.onmessage = (message, extra) => transport.onmessage?.(message, extra);
+      return inner.start();
+    },
+    send: (message, options) => inner.send(message, options),
+    close: () => inner.close(),
+    setProtocolVersion: (version) => inner.setProtocolVersion?.(version),
+  };
+  return transport;
+}
+
+/**
  * One tool call over a new connection, as OpenCode makes after it adds the server again. OpenCode
  * 2.1.4 names the calling session in `_meta`.
  */
@@ -61,9 +89,11 @@ async function whoami(session: LocalMcpSession, caller?: string): Promise<string
   const client = new Client({ name: "e2e-opencode", version: "1.0.0" });
   try {
     await client.connect(
-      new StreamableHTTPClientTransport(new URL(server.url), {
-        requestInit: { headers: { Authorization: authorization(session) } },
-      }),
+      asTransport(
+        new StreamableHTTPClientTransport(new URL(server.url), {
+          requestInit: { headers: { Authorization: authorization(session) } },
+        }),
+      ),
     );
     const result = await client.callTool({
       name: "whoami",
