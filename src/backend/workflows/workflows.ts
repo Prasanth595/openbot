@@ -950,8 +950,12 @@ class Workflows extends Context.Service<Workflows, WorkflowsShape>()("openbot/ba
               if (failed.status !== "failed" && failed.status !== "stopped")
                 return yield* refuse("refused", sourceText("error.workflow.notRetryable"));
               const run = failed.runId ? runs.run(failed.runId) : null;
-              const graph: WorkflowGraph = run?.graph ?? (yield* attempt(() => detailOf(failed.workflowId))).graph;
-              const node = graph.nodes.find((candidate) => candidate.id === failed.nodeId);
+              const current = (yield* attempt(() => detailOf(failed.workflowId))).graph;
+              // The node's current settings, so that a setting fixed after the failure applies. The
+              // run's copy when the node is gone or is now another kind.
+              const node =
+                current.nodes.find((candidate) => candidate.id === failed.nodeId && candidate.kind === failed.kind) ??
+                run?.graph.nodes.find((candidate) => candidate.id === failed.nodeId);
               if (!node) return yield* refuse("missing", sourceText("error.workflow.nodeMissing"));
               if (run && runs.reopenRun(run.id, now())) changed(run.workflowId);
               const step = yield* attempt(() =>
@@ -962,7 +966,7 @@ class Workflows extends Context.Service<Workflows, WorkflowsShape>()("openbot/ba
                     nodeId: failed.nodeId,
                     kind: failed.kind,
                     requestId: input.requestId,
-                    agentId: failed.agentId,
+                    agentId: nodeAgentId(node),
                     status: "running",
                     input: failed.input,
                   },

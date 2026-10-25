@@ -153,12 +153,28 @@ try {
     .run(CONNECTION, now, now);
 
   const noPlace = await workflowWith(workflows, "No place", graphOf("Hello", { connectionId: CONNECTION }));
-  let step = await outputStep(workflows, (await runOnce(workflows, noPlace)).id, ended);
+  const noPlaceRun = await runOnce(workflows, noPlace);
+  let step = await outputStep(workflows, noPlaceRun.id, ended);
   check(
     "an output with no place fails and posts nothing",
     step.status === "failed" &&
       step.error === sourceText("error.workflow.outputPlaceMissing") &&
       report.posts.length === 0,
+    step,
+  );
+  const noPlaceDetail = await runCauseEffect(workflows.get(noPlace));
+  await runCauseEffect(
+    workflows.saveGraph({
+      workflowId: noPlace,
+      baseRevision: noPlaceDetail.revision,
+      graph: graphOf("Hello", toPlace),
+    }),
+  );
+  await runCauseEffect(workflows.retryStep({ stepId: step.id, requestId: `request-${++requests}` }));
+  step = await outputStep(workflows, noPlaceRun.id, (candidate) => candidate.attempt === 2 && ended(candidate));
+  check(
+    "a retry uses the place chosen after the failure",
+    step.status === "done" && report.posts.at(-1)?.placeId === PLACE && report.posts.length === 1,
     step,
   );
 

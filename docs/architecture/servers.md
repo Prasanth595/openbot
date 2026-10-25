@@ -179,7 +179,7 @@ with the same filter as `get`. The contract header in `team-protocol/workflows-v
   deleted agent, so they can fix or delete it. The host answers any other workflow, and its runs,
   steps and versions, with 404.
 - A run, a single step, a stop, a retry or a decision needs the chat level for each named agent. A
-  retry, a stop and a decision check the agents of the run's graph, not of the current graph.
+  retry, a stop and a decision check the agents of the current graph and of the run's graph.
 - A change, a rename, a delete, a restore or a new webhook secret needs the manage level for each
   named agent, before and after the change (403). A restore checks the graph of the version. The
   desktop shows the canvas read-only when the member does not manage each agent of the graph.
