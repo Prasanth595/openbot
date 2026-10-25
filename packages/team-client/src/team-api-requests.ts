@@ -48,15 +48,11 @@ import {
   type RespondToApprovalInput,
   type RespondToBrowserSecretInput,
   type RespondToBrowserTakeoverInput,
-  type Routine,
-  type RoutineRun,
   remoteBrowserSecretResponse,
   type SetAgentMemoryInclusionInput,
   type StartAgentTaskInput,
   type SteerQueuedMessageInput,
-  type TestRoutineInput,
   type UpdateQueuedMessageInput,
-  type UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
 import { guardedDecoder, guardedListDecoder } from "@openbot/contracts/ipc-decoding";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
@@ -370,31 +366,6 @@ export function teamAgentRoutinesApi(request: TeamApiRequest): TeamAgentRoutines
       request("GET", `${TEAM_API_ROUTES.agent.routineRuns(agentId, routineId)}?limit=${limit}`, decodeRoutineRuns),
   };
 }
-
-/** Changes an agent routine, such as its instruction. Every host serves this frozen v1 route. */
-export const updateAgentRoutine = Effect.fn("TeamClient.updateAgentRoutine")(function* (
-  request: TeamApiRequest,
-  input: UpdateRoutineInput,
-): Effect.fn.Return<Routine, TeamRequestError> {
-  return yield* teamCall(() =>
-    request(
-      "PATCH",
-      TEAM_API_ROUTES.agent.routine(input.agentId, input.routineId),
-      decodeRoutine,
-      decodeTeamProtocolV2Json(input),
-    ),
-  );
-});
-
-/** Runs an agent routine now. Every host serves this frozen v1 route. */
-export const testAgentRoutine = Effect.fn("TeamClient.testAgentRoutine")(function* (
-  request: TeamApiRequest,
-  { agentId, routineId }: TestRoutineInput,
-): Effect.fn.Return<RoutineRun, TeamRequestError> {
-  return yield* teamCall(() =>
-    request("POST", TEAM_API_ROUTES.agent.routineTest(agentId, routineId), decodeRoutineRun),
-  );
-});
 
 /** The routine canvas calls of the desktop IPC surface. Send them only to a host that serves `routine-flows-v1`. */
 export type TeamRoutineFlowsApi = OpenBotDesktopApi["routineFlows"];
