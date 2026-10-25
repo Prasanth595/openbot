@@ -1769,6 +1769,7 @@ export async function createApplicationServices({
       changed: (workflowId) => service.notifyWorkflowsChanged(workflowId),
       rearm: () => service.armRoutines(),
       timezone: () => serverTimezone.effective(),
+      runEnded: (end) => service.notifyWorkflowRunEnded(end),
     }),
   );
   workflowTriggers = new WorkflowTriggers({
@@ -2483,6 +2484,7 @@ export async function createApplicationServices({
       collectAnalyticsInventory({
         agents: () => service.listAgents(),
         routines: (agentId) => service.listRoutines(agentId),
+        workflowCount: () => workflowStore.list().length,
         // The local read: `listInstalled` asks the marketplace for each skill's latest version.
         skills: (agentId) => skills.listInstalledForChatTags(agentId),
         mcpServers: () => service.listMcpServers(),

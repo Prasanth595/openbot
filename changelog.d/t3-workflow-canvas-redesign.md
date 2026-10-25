@@ -10,3 +10,4 @@
 - Members of a joined server can open and run the workflows whose agents they can use. To change, delete or restore a workflow, a member needs “Can manage” on each of its agents; otherwise the canvas is read-only.
 - Usage shows the tokens of workflow model and condition steps in one Workflows row. Steps that use an agent count under that agent.
 - Consecutive model and condition steps reuse one started provider for 5 minutes, so they start faster. Each step still starts with no earlier text.
+- When analytics is on, OpenBot counts workflow actions and runs: the kind of action, the outcome, the duration and the step counts. It never sends a workflow name, step text or graph.

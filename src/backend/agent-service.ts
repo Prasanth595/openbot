@@ -235,6 +235,7 @@ import type { RoutineHoldWindow } from "./routine-store";
 import { type RoutineDueSource, RoutineTimer } from "./routine-timer";
 import type { SidebarLayoutStore } from "./sidebar-layout-store";
 import type { VaultItems } from "./vault-items";
+import type { WorkflowRunEnd } from "./workflows/workflows";
 import {
   listWorkspaceDirectory,
   type ResolvedSharedFile,
@@ -260,6 +261,8 @@ interface AgentServiceEvents {
   event: [event: AgentEvent];
   /** Finished tool steps for the local host's product analytics. Never forwarded to a client. */
   toolUsage: [usage: ToolUsageSignal];
+  /** A workflow run ended, for the local host's product analytics. Never forwarded to a client. */
+  workflowRun: [end: WorkflowRunEnd];
 }
 
 export interface AgentServiceOptions {
@@ -1966,6 +1969,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   /** A workflow changed, so every view showing it reads it again. */
   notifyWorkflowsChanged(workflowId: string): void {
     this.#emit({ type: "workflows-changed", workflowId });
+  }
+
+  notifyWorkflowRunEnded(end: WorkflowRunEnd): void {
+    this.emit("workflowRun", end);
   }
 
   listModels(): AgentModelOption[] {

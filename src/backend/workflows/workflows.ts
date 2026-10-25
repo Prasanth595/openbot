@@ -40,6 +40,7 @@ import {
   type WorkflowDetail,
   type WorkflowGraph,
   type WorkflowNode,
+  type WorkflowNodeKind,
   type WorkflowRun,
   type WorkflowRunDetail,
   type WorkflowRunPage,
@@ -121,6 +122,17 @@ interface RunOrigin {
   payload: string | null;
 }
 
+/** How a run ended, for the host's product analytics: no title, text or ID of the user. */
+export interface WorkflowRunEnd {
+  runId: string;
+  status: "done" | "failed" | "stopped";
+  source: WorkflowRunSource;
+  startedAt: string;
+  endedAt: string;
+  /** The kind of each node that ran, by its newest attempt. Skipped nodes are not in it. */
+  stepKinds: WorkflowNodeKind[];
+}
+
 export interface WorkflowsDependencies {
   store: WorkflowStore;
   runs: WorkflowRunStore;
@@ -155,6 +167,8 @@ export interface WorkflowsDependencies {
   rearm(): void;
   /** The zone of a schedule trigger that names none: the server timezone. */
   timezone(): string;
+  /** A run ended. */
+  runEnded?: (end: WorkflowRunEnd) => void;
   now?: () => Date;
 }
 
@@ -595,9 +609,19 @@ class Workflows extends Context.Service<Workflows, WorkflowsShape>()("openbot/ba
                   : ends.some((step) => step.status === "stopped")
                     ? "stopped"
                     : "done";
-          if (!runs.setRunStatus(run.id, status, null, now())) return;
+          const endedAt = now();
+          if (!runs.setRunStatus(run.id, status, null, endedAt)) return;
           changed(run.workflowId);
-          if (status !== "running" && status !== "approval" && status !== "stopping") rearm();
+          if (status === "running" || status === "approval" || status === "stopping") return;
+          rearm();
+          dependencies.runEnded?.({
+            runId: run.id,
+            status,
+            source: run.source,
+            startedAt: run.startedAt,
+            endedAt: endedAt.toISOString(),
+            stepKinds: ends.filter((step) => step.status !== "skipped").map((step) => step.kind),
+          });
         });
 
         const sweepOnce = Effect.fn("Workflows.sweepOnce")(function* () {

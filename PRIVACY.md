@@ -141,7 +141,7 @@ It also records the topic and result of a contact form send, and whether a retur
 completed or was cancelled, for a plan, a license or the billing portal. The contact form message,
 name and email are not sent to analytics.
 The production desktop app records application, sign-in, onboarding, agent, message, turn, prompt,
-approval, queue, routine, team, browser, search, Remote Desktop, update, marketplace, memory,
+approval, queue, routine, workflow, team, browser, search, Remote Desktop, update, marketplace, memory,
 provider, voice transcription, Voice pane, spoken reply, voice model download, spoken reply setting,
 reaction, Hosted Site, hosted server offer, hosted server plans, plan and member limits, license,
 contact sales, provider usage limit, agent template, phone connection, connector, Computer Use
@@ -247,9 +247,12 @@ The local host also records how the agents are used:
 - **Routine runs.** The host sends the outcome of a routine run, whether it was scheduled or manual,
   and its schedule type (for example daily or weekly). The routine name and instruction are not
   sent.
-- **Setup.** At most once a day, the host sends counts of agents, enabled routines, custom MCP
-  servers, local skills and community skills; the slugs of enabled catalog plugins and of curated
-  skills and agents; the providers in use; and whether Computer Use is enabled.
+- **Workflow runs.** When a workflow run ends, the host sends its outcome, how it started (for
+  example manual, schedule or webhook), its duration, and the count of steps that ran, by kind
+  (agent, model, approval, output). The workflow name, the step text and the IDs are not sent.
+- **Setup.** At most once a day, the host sends counts of agents, enabled routines, workflows,
+  custom MCP servers, local skills and community skills; the slugs of enabled catalog plugins and of
+  curated skills and agents; the providers in use; and whether Computer Use is enabled.
 - **Resource use.** At most once a day, the host sends a summary of the previous day: the memory and
   CPU use of OpenBot's process groups (main, windows, browser tabs, GPU, the database and voice
   processes) and of each provider's CLI and its child processes, by provider id; the main process
@@ -806,6 +809,11 @@ graph, up to 50 earlier versions of the graph, its runs, and the input and outpu
 in its local SQLite database. A run also keeps a copy of the graph and, for a webhook run, the
 request body. Runs stay until the workflow is deleted. Nothing about a workflow goes to the account
 service, except the webhook route metadata above.
+
+When analytics is on, product analytics gets the kind of each workflow action (for example create,
+run, approve or restore), the kind of the step, the result, the duration and a coarse failure code,
+and the outcome, duration and step counts of each run. It never gets a workflow name, step text,
+graph, or ID.
 
 - **Agent steps** send their input to the agent as a routine message. The agent's model provider
   gets it, as with other routine input.
