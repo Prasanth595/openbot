@@ -1175,7 +1175,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           if (this.#pendingRuntimeDue(agentId)) {
             Effect.runFork(
               this.#followPendingRuntime(agentId).pipe(
-                Effect.andThen((moved) => Effect.sync(() => this.#drain.scheduleDrain(agentId, moved))),
+                // A change that is gone, applied or dropped, lets the next drain make a due usage-limit move.
+                Effect.andThen((moved) =>
+                  Effect.sync(() => this.#drain.scheduleDrain(agentId, moved || !this.#pendingRuntimeDue(agentId))),
+                ),
                 Effect.forkIn(this.#scope, { startImmediately: true }),
               ),
             );
@@ -2465,10 +2468,18 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
-  /** `initiatingAgentId` is set when an agent, not the user, asks for the change. */
-  updateAgent(input: AgentUpdate, initiatingAgentId?: string): Effect.Effect<AgentSummary, AgentLifecycleFailed> {
+  /**
+   * `initiatingAgentId` is set when an agent, not the user, asks for the change. `queueWhileBusy`
+   * is false for a Team API client: its released protocol has no `pendingRuntime`, so a provider
+   * change during work is refused for it as before.
+   */
+  updateAgent(
+    input: AgentUpdate,
+    initiatingAgentId?: string,
+    queueWhileBusy = true,
+  ): Effect.Effect<AgentSummary, AgentLifecycleFailed> {
     return this.#endpoints
-      .runExclusive(() => this.#applyAgentUpdate(input, initiatingAgentId, null, true))
+      .runExclusive(() => this.#applyAgentUpdate(input, initiatingAgentId, null, queueWhileBusy))
       .pipe(Effect.mapError((failure) => new AgentLifecycleFailed({ operation: "updateAgent", cause: failure.cause })));
   }
 
@@ -2597,9 +2608,13 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       input.reasoningEffort !== undefined ||
       input.providerAccountId !== undefined;
     // Only an update of the runtime alone waits for the next turn. An update with other fields is
-    // refused while work runs, as before.
+    // refused while work runs, as before, and so is a move to a backup model: `pendingRuntime` does
+    // not keep the model to go back to.
     const queueable =
-      queueWhileBusy && previous !== undefined && Object.keys(input).every((key) => RUNTIME_UPDATE_KEYS.has(key));
+      queueWhileBusy &&
+      previous !== undefined &&
+      !input.leaveUsageLimit &&
+      Object.keys(input).every((key) => RUNTIME_UPDATE_KEYS.has(key));
     const queue = (pendingRuntime: AgentPendingRuntime) =>
       this.#store.updateAgent({ agentId: input.agentId, pendingRuntime }, initiatingAgentId).pipe(
         Effect.tap(() =>
@@ -2609,6 +2624,9 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           }),
         ),
       );
+    // An effort that the queued model does not support becomes the model's default.
+    const queuedEffort = (effort: AgentReasoningEffort, model = requestedModel) =>
+      model && !model.supportedReasoningEfforts.includes(effort) ? model.defaultReasoningEffort : effort;
     if (queueable && previous && requestedProvider && runtimeFields && handoverNeeded && idleRefusal(previous)) {
       yield* this.#providers.ensureProvider(requestedProvider);
       if (input.provider || input.model)
@@ -2616,16 +2634,16 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       return yield* queue({
         provider: requestedProvider,
         model: requestedModel?.id ?? previous.model,
-        reasoningEffort:
-          input.reasoningEffort ??
-          (requestedModel && !requestedModel.supportedReasoningEfforts.includes(previous.reasoningEffort)
-            ? requestedModel.defaultReasoningEffort
-            : (previous.pendingRuntime?.reasoningEffort ?? previous.reasoningEffort)),
+        reasoningEffort: queuedEffort(
+          input.reasoningEffort ?? previous.pendingRuntime?.reasoningEffort ?? previous.reasoningEffort,
+        ),
         ...(requestedAccount ? { providerAccountId: requestedAccount } : {}),
       });
     }
-    // A model or effort change while a queued change waits edits the queued change. A model of the
-    // running provider ends the queued change instead, on the normal path below.
+    // An effort change while a queued change waits edits the queued change, also when a hold keeps
+    // the change from applying on an idle agent: the pickers show the queued runtime. So does a model
+    // change of the same provider when the queued change keeps the provider (an account or a custom
+    // agent). A model of another provider names the provider, and is queued or applied above or below.
     const queued = previous?.pendingRuntime;
     if (
       queueable &&
@@ -2633,13 +2651,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       !handoverNeeded &&
       input.provider === undefined &&
       input.providerAccountId === undefined &&
-      (requestedModel ? requestedModel.provider === queued.provider : input.reasoningEffort !== undefined) &&
-      idleRefusal(previous)
+      (requestedModel ? requestedModel.provider === queued.provider : input.reasoningEffort !== undefined)
     ) {
+      const queuedModel =
+        requestedModel ??
+        this.#endpoints.available().find((model) => model.provider === queued.provider && model.id === queued.model);
       return yield* queue({
         ...queued,
         ...(requestedModel ? { model: requestedModel.id } : {}),
-        ...(input.reasoningEffort !== undefined ? { reasoningEffort: input.reasoningEffort } : {}),
+        reasoningEffort: queuedEffort(input.reasoningEffort ?? queued.reasoningEffort, queuedModel),
       });
     }
     const wasHeld = !this.#usageLimits.mayDrain(input.agentId);
@@ -2848,12 +2868,18 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     );
   }
 
-  /** True while a provider handover would break a running turn, task, or started delivery. */
+  /**
+   * True while a provider handover would break a running turn, task, or started delivery. It sees a
+   * turn that the database still records too, as the idle check of `#applyAgentUpdate` does, so a
+   * queued change waits for that turn and is not dropped as a failure.
+   */
   #runtimeHandoverBusy(agentId: string): boolean {
+    const threadId = this.#store.list().find((candidate) => candidate.id === agentId)?.threadId;
     return (
       this.#runsTurn(agentId) ||
       this.#mailbox.hasStartedDelivery(agentId) ||
-      this.#conversation.workingTaskSnapshots(agentId).length > 0
+      this.#conversation.workingTaskSnapshots(agentId).length > 0 ||
+      (threadId ? this.#store.database.readActiveTurnId(agentId, threadId) !== null : false)
     );
   }
 

@@ -152,6 +152,17 @@ export function isAgentPendingRuntime(value: unknown): value is AgentPendingRunt
   return isDynamicRecord(value) && isAgentModelChoice(value) && isReasoningEffort(value.reasoningEffort);
 }
 
+/**
+ * The account of the next turn. A queued runtime without an account uses the provider's own
+ * sign-in, not the account of the running turn.
+ */
+export function agentNextProviderAccountId(agent: {
+  providerAccountId?: string | undefined;
+  pendingRuntime?: AgentPendingRuntime | undefined;
+}): string | undefined {
+  return agent.pendingRuntime ? agent.pendingRuntime.providerAccountId : agent.providerAccountId;
+}
+
 export function isAgentBackupModels(value: unknown): value is AgentBackupModels {
   return (
     isDynamicRecord(value) &&

@@ -103,7 +103,7 @@ export const updateProfileToolSchema = z
     providerAccountId: providerAccountId
       .nullable()
       .describe(
-        "Account id from list_models for the agent's provider, or null for the provider's own sign-in. A provider change without it uses the new provider's own sign-in. An account change fails while the agent has a turn or queued messages.",
+        "Account id from list_models for the agent's provider, or null for the provider's own sign-in. A provider change without it uses the new provider's own sign-in. A provider, account or custom-agent change while the agent works is saved as pendingRuntime and applies before its next turn.",
       )
       .optional(),
     backupModels: z

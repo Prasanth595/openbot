@@ -317,8 +317,9 @@ sessions. When the drain is about to start the next message and no work has star
 `AgentService` applies the queued runtime first (the `next-turn` move), then retires the provider
 sessions of the chat and of each task thread, so each one gets a handoff on the new provider. A
 queued change that fails on an idle agent, such as for a provider that is now off, is removed. An
-update that also changes other fields, and the automatic usage-limit, provider-error and endpoint
-moves, still wait for idle work (`error.agent.waitForTasksBeforeProviderChange` /
+update that also changes other fields, a move to a backup model, a Team API request (its released
+protocol has no `pendingRuntime`), and the automatic usage-limit, provider-error and endpoint moves
+still wait for idle work (`error.agent.waitForTasksBeforeProviderChange` /
 `error.agent.waitBeforeProviderChange`). The channel threads of the agent
 (`ChannelStore.contextThreadsForAgent`) are retired too, and their work steps are saved. A channel
 turn also carries its own self-contained context packet. The instance transfer file keeps `taskLimit`.

@@ -3,6 +3,7 @@ import {
   type AgentModelId,
   type AgentProviderRef,
   type AgentReasoningEffort,
+  agentNextProviderAccountId,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   providerDisplayName,
 } from "@openbot/contracts/ipc";
@@ -112,7 +113,7 @@ export function ConversationHeader() {
         // A model, effort, provider or account chosen during a turn applies from the next turn.
         disabledReason: t("conversation.header.modelsUnavailable"),
         accountChoice: true,
-        providerAccountId: props.agent?.pendingRuntime?.providerAccountId ?? props.agent?.providerAccountId,
+        providerAccountId: props.agent ? agentNextProviderAccountId(props.agent) : undefined,
         onChange: (model, provider, accountId) => void selectAndConfirmModel(model, provider, accountId),
         onReasoningEffortChange: (effort) => void selectAndConfirmReasoning(effort),
         // Codex only for now, and only on this computer: the Team API does not carry fast mode.

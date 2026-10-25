@@ -1533,6 +1533,8 @@ export class OpenBotToolRouter {
               provider: updated.provider,
               model: updated.model,
               reasoningEffort: updated.reasoningEffort,
+              // A runtime change during work applies before the next turn.
+              ...(updated.pendingRuntime ? { pendingRuntime: updated.pendingRuntime } : {}),
               ...agentAccountSetup(updated),
               access: workspaceAccessEnforced(updated) ? "workspace" : "full",
               computerUse: agentComputerUseEnabled(updated),

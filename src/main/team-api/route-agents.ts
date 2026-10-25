@@ -239,7 +239,8 @@ export async function routeAgents(
     if (method === "PATCH" && !action) {
       const input = agentUpdate(await readJson(request), agentId);
       if (input.provider !== undefined) requireVisibleProvider({ provider: input.provider });
-      return json(200, await runCauseEffect(agents.updateAgent(input)));
+      // The released protocol has no `pendingRuntime`, so a provider change during work is refused.
+      return json(200, await runCauseEffect(agents.updateAgent(input, undefined, false)));
     }
     if (method === "POST" && action === "duplicate") {
       const body = await readJson(request);

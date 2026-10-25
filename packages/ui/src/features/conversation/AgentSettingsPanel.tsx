@@ -18,6 +18,7 @@ import {
   agentBrowserProfile,
   agentComputerUseEnabled,
   agentNewChatAllowed,
+  agentNextProviderAccountId,
   agentPermissionLevel,
   agentPermissionLevels,
   agentPermissionUpdate,
@@ -1212,7 +1213,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   onManageProviders={props.onManageProviders}
                   disabledReason={t("agentSettings.runtime.modelUnavailable")}
                   accountChoice
-                  providerAccountId={props.agent.pendingRuntime?.providerAccountId ?? props.agent.providerAccountId}
+                  providerAccountId={agentNextProviderAccountId(props.agent)}
                   onChange={(nextModel, provider, accountId) => void selectModel(nextModel, provider, accountId)}
                 />
                 <Select<AgentReasoningEffort>
