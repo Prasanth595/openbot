@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { type AccountUsage, isAccountUsage, usageGroupForModel } from "@openbot/contracts/ipc";
+import { type AccountUsage, isAccountUsage, usageGroupForModel, usageQuotaForModel } from "@openbot/contracts/ipc";
 import { normalizeAccountUsage } from "../src/backend/agent/account-usage";
 import type { AgentClient } from "../src/backend/agent-client";
 import type { AgentCliInfo } from "../src/backend/cli";
@@ -240,6 +240,13 @@ try {
     ["gemini-codename-x", undefined],
   ] as const)
     assert.equal(usageGroupForModel(groups, model)?.name, name, `the group of ${model}`);
+  // A kept account reading has no model: the usage limit check takes the model's group from it, and
+  // with no model it keeps the reading's own windows.
+  const dock = usage.limits[0];
+  assert.ok(dock, "the dock reading has a limit");
+  assert.equal(usageQuotaForModel(dock, "gemini-4-argon-high")?.secondary?.usedPercent, 100, "Argon's own quota");
+  assert.equal(usageQuotaForModel(dock, ""), dock, "no model keeps the reading");
+  assert.equal(usageQuotaForModel(dock, "gemini-codename-x"), undefined, "an unlisted model has no quota");
 
   // 4. An API key sign-in has no plan quota.
   const apiKey = await readUsage("1.4.1", API_KEY_ANSWER, 1);

@@ -5,7 +5,7 @@ import {
   accountUsageCoversModel,
   canPreviewAttachment,
   type QueueSnapshot,
-  usageGroupForModel,
+  usageQuotaForModel,
 } from "@openbot/contracts/ipc";
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
@@ -221,13 +221,9 @@ export function ConversationComposer() {
     for (const limit of props.accountUsage?.limits ?? []) {
       if (limit.id !== provider) continue;
       // A provider that names quota groups limits each group apart: only the agent's model's group
-      // can stop it, and a model that no group lists has no notice. With no model, or no listed
-      // models, the reading's own windows apply, as in the backend.
+      // can stop it, and a model that no group lists has no notice.
       const model = props.agent?.model;
-      const quota =
-        model && limit.groups?.some((group) => group.models.length > 0)
-          ? usageGroupForModel(limit.groups, model)
-          : limit;
+      const quota = usageQuotaForModel(limit, model);
       if (!quota) continue;
       for (const window of ["primary", "secondary"] as const) {
         const plan = quota[window];

@@ -10,6 +10,7 @@ import {
   type ProviderAccountStatus,
   type ProviderUsageResetOutcome,
   type ProviderUsageResets,
+  usageQuotaForModel,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -425,8 +426,12 @@ export class ProviderAccounts {
   ) {
     const client = this.#host.agentClient(provider, accountId);
     if (client) return yield* this.#host.readUsage(client, model);
-    const kept = this.#usage.get(accountId);
-    return { limits: kept ? [kept.limit] : [] } satisfies AccountUsage;
+    // The kept reading has no model: take the windows of the model's quota group from it.
+    const kept = this.#usage.get(accountId)?.limit;
+    const quota = kept && usageQuotaForModel(kept, model);
+    return {
+      limits: kept && quota ? [{ ...kept, primary: quota.primary, secondary: quota.secondary }] : [],
+    } satisfies AccountUsage;
   }).bind(this);
 
   /**

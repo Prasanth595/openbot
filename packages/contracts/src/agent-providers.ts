@@ -1,5 +1,5 @@
 import type { AgentModelId } from "./ipc-agent-identity";
-import type { AgentAuthState } from "./ipc-agent-status";
+import type { AccountUsageLimit, AgentAuthState } from "./ipc-agent-status";
 import type { ExternalDestination } from "./ipc-app-auth";
 import { isOneOf, isString } from "./runtime-values";
 
@@ -575,6 +575,19 @@ export function accountUsageCoversModel(provider: AgentProviderId, model: string
   if (provider === "opencode") return Boolean(model?.toLowerCase().startsWith("opencode-go/"));
   if (provider === "antigravity") return !/^(?:claude|gpt)/iu.test(model ?? "");
   return true;
+}
+
+/**
+ * The windows that limit the model: the quota group that lists it when the reading lists the models
+ * of its groups, or else the reading itself. Undefined when no group lists the model.
+ */
+export function usageQuotaForModel(
+  limit: AccountUsageLimit,
+  model: string | null | undefined,
+): Pick<AccountUsageLimit, "primary" | "secondary"> | undefined {
+  return model && limit.groups?.some((group) => group.models.length > 0)
+    ? usageGroupForModel(limit.groups, model)
+    : limit;
 }
 
 /**
