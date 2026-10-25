@@ -320,7 +320,8 @@ queued change that fails on an idle agent, such as for a provider that is now of
 update that also changes other fields, a move to a backup model, a Team API request (its released
 protocol has no `pendingRuntime`), and the automatic usage-limit, provider-error and endpoint moves
 still wait for idle work (`error.agent.waitForTasksBeforeProviderChange` /
-`error.agent.waitBeforeProviderChange`). The channel threads of the agent
+`error.agent.waitBeforeProviderChange`). A Team API model or effort change keeps the queued
+change, because the remote client cannot see it. The channel threads of the agent
 (`ChannelStore.contextThreadsForAgent`) are retired too, and their work steps are saved. A channel
 turn also carries its own self-contained context packet. The instance transfer file keeps `taskLimit`.
 

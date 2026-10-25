@@ -2712,7 +2712,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           ? { providerAccountId: requestedAccount }
           : {}),
         ...(usageLimitReturn !== undefined ? { usageLimitReturn } : {}),
-        ...(runtimeFields ? { pendingRuntime: null } : {}),
+        // A Team API client cannot see the queued change, so only a handover from it ends the change.
+        ...(runtimeFields && (queueWhileBusy || handoverNeeded) ? { pendingRuntime: null } : {}),
       },
       initiatingAgentId,
     );
