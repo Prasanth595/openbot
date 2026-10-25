@@ -1,12 +1,25 @@
 import { isDynamicRecord } from "@openbot/contracts/runtime-values";
 
 /**
- * Codex can finish a credential-store fallback while the provider keeps working. The JSON record
- * has a `secure_error` field even when its value is `none`, so a keyword search reads it as an
- * error. Keep only this completed, non-error fallback in the log. Failed storage operations and
- * authentication replies still use the normal failure paths.
+ * Codex's text record of a completed fallback, as Codex 0.163 writes it when `LOG_FORMAT` is not
+ * `json`: `<time>  WARN codex_otel::auth_storage: credential storage file fallback completed
+ * credential_kind="codex" … outcome="not_found" … secure_error="none" …`.
+ */
+const CODEX_FALLBACK_LINE =
+  /^(?:\S+\s+)?(?:TRACE|DEBUG|INFO|WARN)\s+codex_otel::auth_storage: credential storage file fallback completed\s/u;
+
+/**
+ * Codex can finish a credential-store fallback while the provider keeps working. The record has a
+ * `secure_error` field even when its value is `none`, so a keyword search reads it as an error.
+ * Codex writes the record only when `RUST_LOG` lets warnings through, as text or, with
+ * `LOG_FORMAT=json`, as JSON. Keep only this completed, non-error fallback in the log. Failed
+ * storage operations and authentication replies still use the normal failure paths.
  */
 export function isCodexCredentialFallbackDiagnostic(message: string): boolean {
+  if (CODEX_FALLBACK_LINE.test(message)) {
+    // A space before the name, so `secure_outcome` is not read as `outcome`.
+    return /\ssecure_error="none"(?:\s|$)/u.test(message) && /\soutcome="(?:success|not_found)"(?:\s|$)/u.test(message);
+  }
   try {
     const record = JSON.parse(message);
     if (!isDynamicRecord(record)) return false;
