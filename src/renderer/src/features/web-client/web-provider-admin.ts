@@ -279,12 +279,14 @@ export function createWebProviderSettings(options: WebProviderSettingsOptions) {
     void store.refreshCustomProviders().catch(() => undefined);
     return store;
   });
+  // A boolean, so that a server-list update that keeps the capability does not rebuild the keys.
+  const readsClaudeKey = createMemo(() => serverSupportsCapability(options.server(), CLAUDE_API_KEY_CAPABILITY));
   const providerKeys = createMemo(() => {
     const id = serverId();
     return id
       ? {
           ...hostProviderKeyApi(() => admin, id, openWebDestination),
-          readsClaudeKey: serverSupportsCapability(options.server(), CLAUDE_API_KEY_CAPABILITY),
+          readsClaudeKey: readsClaudeKey(),
         }
       : undefined;
   });
