@@ -200,7 +200,9 @@ function logProviderStateChanges(
  */
 function usageWindowHasReset(limit: AccountUsage["limits"][number]): boolean {
   const now = Date.now() / 1_000;
-  return [limit.primary, limit.secondary].some((window) => window?.resetsAt != null && window.resetsAt <= now);
+  return [limit, ...(limit.groups ?? [])].some((group) =>
+    [group.primary, group.secondary].some((window) => window?.resetsAt != null && window.resetsAt <= now),
+  );
 }
 
 /**

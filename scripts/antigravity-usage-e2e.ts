@@ -2,7 +2,8 @@
 // server that answers `/usage` the way Antigravity 1.4.1 does: one Markdown answer in its own
 // session, and no model turn. Checks that a Google sign-in gives the Gemini weekly window and not
 // the Claude and GPT one, that a model with a quota group of its own gets that group's window
-// (#3055), that an API key sign-in and a 1.3.0 server give no reading, that 1.3.0 is never sent
+// (#3055), that the reading names every group for the usage popover and the composer notice, that an
+// API key sign-in and a 1.3.0 server give no reading, that 1.3.0 is never sent
 // `/usage`, that the answer reaches no thread, and that later reads reuse the first session: each
 // new Antigravity session leaves a conversation database on disk.
 // `bun scripts/antigravity-usage-e2e.ts`. Writes .openbot-build/antigravity-usage-e2e/report.json.
@@ -10,6 +11,8 @@ import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { type AccountUsage, isAccountUsage, usageGroupForModel } from "@openbot/contracts/ipc";
+import { normalizeAccountUsage } from "../src/backend/agent/account-usage";
 import type { AgentClient } from "../src/backend/agent-client";
 import type { AgentCliInfo } from "../src/backend/cli";
 import { runCauseEffect } from "../src/backend/effect-boundary";
@@ -119,6 +122,7 @@ interface Report {
   passed: boolean;
   googleSignIn?: UsageCase;
   perModel?: UsageCase[];
+  groups?: AccountUsage;
   apiKeySignIn?: UsageCase;
   olderRuntime?: UsageCase;
 }
@@ -215,13 +219,35 @@ try {
     assert.deepEqual(reading.readings[0]?.rateLimits ?? null, expected, `the reading of ${model ?? "the dock"}`);
   }
 
-  // 3. An API key sign-in has no plan quota.
+  // 3. The dock's reading names every group, so the popover shows one line each and the composer
+  // finds the group of the agent's model. It passes the contract's decoder.
+  const usage = normalizeAccountUsage(perModel.find((reading) => reading.model === undefined)?.readings[0] ?? null);
+  report.groups = usage;
+  assert.ok(isAccountUsage(usage), "the reading with groups passes the IPC decoder");
+  const groups = usage.limits[0]?.groups ?? [];
+  assert.deepEqual(
+    groups.map((group) => [group.name, group.models, group.secondary?.usedPercent]),
+    [
+      ["Gemini Models", ["Gemini Flash", "Gemini Pro"], 0],
+      ["Gemini 4 Argon", ["Gemini 4 Argon"], 100],
+      ["Claude and GPT models", ["Claude Opus", "Claude Sonnet", "GPT-OSS"], 0],
+    ],
+  );
+  for (const [model, name] of [
+    ["gemini-3.8-flash-high", "Gemini Models"],
+    ["gemini-4-argon-high", "Gemini 4 Argon"],
+    ["claude-opus-4-6-thinking", "Claude and GPT models"],
+    ["gemini-codename-x", undefined],
+  ] as const)
+    assert.equal(usageGroupForModel(groups, model)?.name, name, `the group of ${model}`);
+
+  // 4. An API key sign-in has no plan quota.
   const apiKey = await readUsage("1.4.1", API_KEY_ANSWER, 1);
   report.apiKeySignIn = apiKey;
   assert.deepEqual(apiKey.prompts, ["/usage"]);
   assert.equal(apiKey.readings[0]?.rateLimits ?? null, null, "an API key sign-in gives no reading");
 
-  // 4. 1.3.0 sends `/usage` to the model, so it is never sent.
+  // 5. 1.3.0 sends `/usage` to the model, so it is never sent.
   const older = await readUsage("1.3.0", GOOGLE_ANSWER, 1);
   report.olderRuntime = older;
   assert.deepEqual(older.prompts, [], "1.3.0 is not sent `/usage`");

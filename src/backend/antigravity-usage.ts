@@ -14,10 +14,15 @@
 //     - **Weekly Limit Remaining:** 100% remaining
 //
 // Google names the groups and can give a model a group of its own, such as Gemini 4 Argon on some
-// plans (#3055). An API key sign-in has no plan quota: the section then says "Not applicable for
+// plans (#3055). The reading carries every group, so the usage popover shows each one. An API key sign-in has no plan quota: the section then says "Not applicable for
 // current authentication method", which reads as no usage.
 
-import type { AccountRateLimitsReadResult, AccountRateLimitWindowResult } from "./protocol";
+import { usageGroupForModel } from "@openbot/contracts/ipc";
+import type {
+  AccountRateLimitGroupResult,
+  AccountRateLimitsReadResult,
+  AccountRateLimitWindowResult,
+} from "./protocol";
 
 export const ANTIGRAVITY_USAGE_PROMPT = "/usage";
 
@@ -35,28 +40,24 @@ const RESET = /^([A-Z][a-z]{2}) (\d{1,2}), (\d{4}), (\d{1,2}):(\d{2}) UTC$/u;
 
 type UsageWindow = AccountRateLimitWindowResult & { usedPercent: number };
 
-interface QuotaGroup {
-  name: string;
-  /** The model names Google lists for the group, each as its words, such as `["gemini", "flash"]`. */
-  models: string[][];
-  primary: UsageWindow | null;
-  secondary: UsageWindow | null;
-}
+type QuotaGroup = AccountRateLimitGroupResult & { primary: UsageWindow | null; secondary: UsageWindow | null };
 
 /**
  * The windows of the group that limits `model`. A five-hour bucket is the first window and a weekly
  * one the second, as for Codex. Without a model, the dock's reading, it is the "Gemini Models" group.
  * A model that no group lists has no reading: another group's room does not say that it can run.
  * When Google lists no models at all, the Gemini group covers every model, as one group did before.
+ * `groups` holds every group that has a window.
  */
 export function antigravityRateLimits(answer: string, model: string | null = null): AccountRateLimitsReadResult {
   const groups = quotaGroups(answer);
   const listed = groups.some((group) => group.models.length > 0);
-  const group = model && listed ? modelGroup(groups, model) : geminiGroup(groups);
+  const group = model && listed ? usageGroupForModel(groups, model) : geminiGroup(groups);
   if (!group || (!group.primary && !group.secondary)) return NO_USAGE;
   return {
     rateLimits: { limitId: "antigravity", primary: group.primary, secondary: group.secondary },
     rateLimitsByLimitId: null,
+    groups: groups.filter((candidate) => candidate.primary || candidate.secondary),
   };
 }
 
@@ -80,8 +81,8 @@ function quotaGroups(answer: string): QuotaGroup[] {
     if (models) {
       group.models = models
         .split(",")
-        .map(words)
-        .filter((model) => model.length > 0);
+        .map((model) => model.trim())
+        .filter(Boolean);
       continue;
     }
     const bucket = BUCKET.exec(line);
@@ -108,28 +109,6 @@ function geminiGroup(groups: readonly QuotaGroup[]): QuotaGroup | undefined {
     groups.find((group) => /^gemini models$/iu.test(group.name.trim())) ??
     groups.find((group) => /^gemini\b/iu.test(group.name))
   );
-}
-
-/**
- * The group that lists the model. Google lists families ("Gemini Flash", "Gemini 4 Argon") and the
- * model ID adds a version and an effort (`gemini-3.8-flash-high`), so each word of a listed name
- * must be a word of the ID. The longest such name wins: "Gemini Flash Lite" before "Gemini Flash".
- */
-function modelGroup(groups: readonly QuotaGroup[], model: string): QuotaGroup | undefined {
-  const id = new Set(words(model));
-  let best: { group: QuotaGroup; length: number } | undefined;
-  for (const group of groups)
-    for (const listed of group.models)
-      if (listed.length > (best?.length ?? 0) && listed.every((word) => id.has(word)))
-        best = { group, length: listed.length };
-  return best?.group;
-}
-
-function words(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-z0-9.]+/u)
-    .filter(Boolean);
 }
 
 function bindingWindow(current: UsageWindow | null, next: UsageWindow): UsageWindow {

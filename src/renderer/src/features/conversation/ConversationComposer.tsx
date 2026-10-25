@@ -5,6 +5,7 @@ import {
   accountUsageCoversModel,
   canPreviewAttachment,
   type QueueSnapshot,
+  usageGroupForModel,
 } from "@openbot/contracts/ipc";
 import {
   TEAM_EML_ATTACHMENTS_CAPABILITY,
@@ -219,13 +220,19 @@ export function ConversationComposer() {
     if (!provider || !isKnownAgentProvider(provider)) return null;
     for (const limit of props.accountUsage?.limits ?? []) {
       if (limit.id !== provider) continue;
+      // A provider that names quota groups limits each group apart: only the agent's model's group
+      // can stop it, and a model that no group lists has no notice.
+      const quota = limit.groups?.length ? usageGroupForModel(limit.groups, props.agent?.model ?? "") : limit;
+      if (!quota) continue;
       for (const window of ["primary", "secondary"] as const) {
-        const plan = limit[window];
+        const plan = quota[window];
         if (!plan || plan.usedPercent < 100) continue;
         if (plan.resetsAt !== null && plan.resetsAt * 1_000 <= now()) continue;
         return {
           provider,
           resetsAt: plan.resetsAt,
+          // A named group is the model's own quota.
+          covers: quota !== limit || accountUsageCoversModel(provider, props.agent?.model),
           key: JSON.stringify([window, plan.windowDurationMins, plan.resetsAt]),
         };
       }
@@ -241,7 +248,7 @@ export function ConversationComposer() {
     const spent = usageExhausted();
     return spent &&
       !signInRequired() &&
-      accountUsageCoversModel(spent.provider, props.agent?.model) &&
+      spent.covers &&
       dismissedUsageLimits[usageNoticeAccount()]?.[currentChatConversationKey() ?? ""] !== spent.key
       ? spent
       : null;

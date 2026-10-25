@@ -469,8 +469,12 @@ also after it closes. `src/backend/antigravity-usage.ts` reads one group of the 
 "Quota Limits" section into the windows. Google can give a model a group of its own, such as Gemini 4
 Argon, so a read for a model takes the group whose "Models within this group" list names it (#3055),
 and a model that no group names has no reading. The dock's read, with no model, takes the "Gemini
-Models" group. The Claude and GPT models that Antigravity also runs share another limit, so
-`accountUsageCoversModel` covers only Gemini models. An older runtime, an
+Models" group. Each reading also carries every group by name and models (`AccountUsageLimit.groups`),
+so the usage popover shows one line per group and the composer notice uses the group of the agent's
+model (`usageGroupForModel`). The ring stays on the reading's own group. The Team API codecs do not
+send `groups`, so a remote client shows the one reading. The Claude and GPT models that Antigravity
+also runs share another limit, so `accountUsageCoversModel` keeps them out of the plan-limit hold. An
+older runtime, an
 API key sign-in ("Not applicable for current authentication method") and an answer that does not
 parse give no reading. A saved Gemini API key comes before the Google sign-in, so the provider
 status sets `apiKeyInUse`, and the API key section of the Gemini provider page says that the key,

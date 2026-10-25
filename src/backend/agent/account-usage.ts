@@ -1,6 +1,13 @@
-import type { AccountUsage, AccountUsageLimit, AccountUsageWindow } from "@openbot/contracts/ipc";
+import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import {
+  type AccountUsage,
+  type AccountUsageGroup,
+  type AccountUsageLimit,
+  type AccountUsageWindow,
+  MAX_USAGE_GROUPS,
+} from "@openbot/contracts/ipc";
 import { isNumber } from "@openbot/contracts/runtime-values";
-import type { AccountRateLimitResult, AccountRateLimitsReadResult } from "../protocol";
+import type { AccountRateLimitGroupResult, AccountRateLimitResult, AccountRateLimitsReadResult } from "../protocol";
 
 export function normalizeAccountUsage(rateLimits: AccountRateLimitsReadResult | null, model?: string): AccountUsage {
   const entries = rateLimits?.rateLimitsByLimitId
@@ -15,8 +22,20 @@ export function normalizeAccountUsage(rateLimits: AccountRateLimitsReadResult | 
   // Codex model window mixed into the same unlabeled list.
   const selectedEntries = model ? selectModelRateLimits(entries, model, fallback) : fallback ? [fallback] : entries;
   const limits = selectedEntries.map(([id, limit]) => normalizeAccountLimit(id, limit));
+  // Antigravity's groups belong to the one reading that it sends.
+  const groups = rateLimits?.groups?.slice(0, MAX_USAGE_GROUPS).map(normalizeUsageGroup);
+  if (groups?.length && limits.length === 1 && limits[0]) limits[0] = { ...limits[0], groups };
 
   return { limits };
+}
+
+function normalizeUsageGroup(group: AccountRateLimitGroupResult): AccountUsageGroup {
+  return {
+    name: group.name.slice(0, INPUT_LIMITS.identifier),
+    models: group.models.slice(0, MAX_USAGE_GROUPS).map((model) => model.slice(0, INPUT_LIMITS.identifier)),
+    primary: normalizeUsageWindow(group.primary),
+    secondary: normalizeUsageWindow(group.secondary),
+  };
 }
 
 function selectModelRateLimits(

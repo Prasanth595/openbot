@@ -1,3 +1,8 @@
+### Added
+
+- The usage list shows each Gemini limit on its own line, such as Gemini Models, Gemini 4 Argon, and
+  Claude and GPT models. The warning above the message box uses the limit of the agent's model.
+
 ### Fixed
 
 - Gemini usage now follows the limit of the model that an agent uses. Google can give a model, such
