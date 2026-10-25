@@ -176,6 +176,8 @@ export function WorkflowInAppStory(props: { workflows: readonly StoryWorkflow[];
       <PageRail
         hidden={false}
         current={page()}
+        pinned={["routines", "workflows", "usage"]}
+        onPinChange={fn()}
         usageRows={usageRows}
         onAgents={() => setPage("agents")}
         onRoutines={() => setPage("routines")}

@@ -1,7 +1,9 @@
 import type { AppInfo } from "@openbot/contracts/ipc";
 import type { ServerView } from "@openbot/ui/features/servers/ServerMenu";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
+import type { PageRailPinnablePage } from "@openbot/ui/features/window/PageRail";
 import { createEffect, createMemo, createSignal, onSettled } from "solid-js";
+import { z } from "zod";
 import { readPanelWidth } from "./components/panel-width-storage";
 import {
   CONVERSATION_MIN_WIDTH,
@@ -12,6 +14,7 @@ import {
   LEFT_PANEL_STORAGE_KEY,
   MAC_SERVER_RAIL_WIDTH,
   NARROW_SERVER_RAIL_WIDTH,
+  RAIL_PINS_STORAGE_KEY,
   SERVER_RAIL_WIDTH,
   SERVER_VIEW_STORAGE_KEY,
   SIDEBAR_VIEW_STORAGE_KEY,
@@ -43,6 +46,36 @@ function shouldAutoCompactSidebar(
   return window.innerWidth - serverRailWidth - panelWidth < CONVERSATION_MIN_WIDTH;
 }
 
+/** The pages that the user can pin, in rail order. */
+const RAIL_PIN_PAGES: readonly PageRailPinnablePage[] = ["routines", "workflows", "tasks", "schedule", "usage"];
+/** The pages in the rail until the user chooses. The others start in the More menu. */
+const RAIL_PINNED_BY_DEFAULT: ReadonlySet<PageRailPinnablePage> = new Set(["workflows", "usage"]);
+
+const railPinChoicesSchema = z.object({
+  routines: z.boolean().optional().catch(undefined),
+  workflows: z.boolean().optional().catch(undefined),
+  tasks: z.boolean().optional().catch(undefined),
+  schedule: z.boolean().optional().catch(undefined),
+  usage: z.boolean().optional().catch(undefined),
+}) satisfies z.ZodType<Partial<Record<PageRailPinnablePage, boolean>>>;
+
+type RailPinChoices = z.infer<typeof railPinChoicesSchema>;
+
+/**
+ * The pin choices that the user made on this computer. Only a choice is saved, so a page that a later
+ * version adds gets its default. Blocked storage or a damaged value reads as no choice.
+ */
+function readRailPinChoices(): RailPinChoices {
+  try {
+    const parsed = railPinChoicesSchema.safeParse(
+      JSON.parse(window.localStorage.getItem(RAIL_PINS_STORAGE_KEY) ?? "{}"),
+    );
+    return parsed.success ? parsed.data : {};
+  } catch {
+    return {};
+  }
+}
+
 /**
  * The width of the workspace sidebar, and the two independent reasons it can be
  * narrow: the user collapsed it, or the window is too small to keep it open.
@@ -58,6 +91,9 @@ function shouldAutoCompactSidebar(
  * persisted on this computer. A compact sidebar hides the server name, so in the
  * menu view the user expands the sidebar to switch servers; the rail does not
  * come back.
+ *
+ * The user also pins pages to the page rail. Pages that are not pinned are in its More menu. The
+ * choice is saved on this computer.
  *
  * The geometry itself is in `layout-constants.ts`; the view imports it directly
  * rather than reading constants through a context.
@@ -80,6 +116,11 @@ const Layout = createSimpleContext({
     const [sidebarView, setSidebarViewSignal] = createSignal<SidebarView>(
       window.localStorage.getItem(SIDEBAR_VIEW_STORAGE_KEY) === "routines" ? "routines" : "agents",
     );
+    const [railPinChoices, setRailPinChoices] = createSignal<RailPinChoices>(readRailPinChoices());
+    const railPinned = createMemo(() => {
+      const choices = railPinChoices();
+      return RAIL_PIN_PAGES.filter((page) => choices[page] ?? RAIL_PINNED_BY_DEFAULT.has(page));
+    });
     const [leftPanelAutoCompact, setLeftPanelAutoCompact] = createSignal(false);
     const leftPanelCompact = createMemo(() => leftPanelCollapsed() || leftPanelAutoCompact());
     /**
@@ -120,6 +161,16 @@ const Layout = createSimpleContext({
       window.localStorage.setItem(SIDEBAR_VIEW_STORAGE_KEY, view);
     }
 
+    function setRailPinned(page: PageRailPinnablePage, pinned: boolean): void {
+      const choices = { ...railPinChoices(), [page]: pinned };
+      setRailPinChoices(choices);
+      try {
+        window.localStorage.setItem(RAIL_PINS_STORAGE_KEY, JSON.stringify(choices));
+      } catch {
+        // Blocked or full storage keeps the choice for this window only.
+      }
+    }
+
     function expandSidebar(): void {
       setSidebarCollapsed(false);
       setLeftPanelAutoCompact(false);
@@ -136,6 +187,8 @@ const Layout = createSimpleContext({
       serverRailVisible,
       sidebarView,
       setSidebarView,
+      railPinned,
+      setRailPinned,
     };
   },
 });

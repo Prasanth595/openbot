@@ -4,8 +4,11 @@ import {
   Button,
   CalendarClock,
   ChartArea,
+  DropdownMenu,
+  Ellipsis,
   ListChecks,
   MotionTooltip,
+  Pin,
   Settings,
   Store,
   Waypoints,
@@ -14,8 +17,8 @@ import {
 import { AccountUsageDetails } from "@openbot/ui/features/account/AccountUsageDetails";
 import { type AccountUsageProviderRow, accountUsageRowKey } from "@openbot/ui/features/account/account-usage-view";
 import { useText } from "@openbot/ui/text";
-import type { JSX } from "@solidjs/web";
-import { For, Show } from "solid-js";
+import { Dynamic, type JSX } from "@solidjs/web";
+import { createSignal, For, Show } from "solid-js";
 
 /** One rail button. Its name shows as a tooltip, unless it has a `card`: the card shows instead. */
 function RailButton(props: {
@@ -166,10 +169,16 @@ export type PageRailPage =
   | "marketplace"
   | "settings";
 
+/** The pages that the user can pin to the rail. The others are in the More menu. Agents always shows. */
+export type PageRailPinnablePage = Extract<PageRailPage, "routines" | "workflows" | "tasks" | "schedule" | "usage">;
+
 export interface PageRailProps {
   hidden: boolean;
   /** The page in the card, or `null` while a page that the rail does not open shows. */
   current: PageRailPage | null;
+  /** The pages that show as rail buttons. The More menu has all pages, with a pin for each one. */
+  pinned: readonly PageRailPinnablePage[];
+  onPinChange: (page: PageRailPinnablePage, pinned: boolean) => void;
   /** The plan limits of each provider account. Each one with a reported window shows as rings. */
   usageRows: readonly AccountUsageProviderRow[];
   /** The answers of the custom agents on this computer that have a usage prompt. Absent on the web. */
@@ -196,6 +205,72 @@ export interface PageRailProps {
    * `href`, the logo is a link to the OpenBot site.
    */
   logo?: { variant: AppLogoVariant; href?: string | undefined } | undefined;
+}
+
+/** A page that the user can pin to the rail. */
+interface RailPage {
+  id: PageRailPinnablePage;
+  label: string;
+  icon: typeof Bot;
+  open: (button: HTMLElement) => void;
+}
+
+/**
+ * The More button of the rail. Its menu lists every page that the user can pin. A row opens its page;
+ * the pin at the end of the row pins or unpins it, and the menu stays open. When the open page has no
+ * rail button, the More button shows as the current page.
+ */
+function RailMoreMenu(props: {
+  pages: readonly RailPage[];
+  current: PageRailPage | null;
+  pinned: readonly PageRailPinnablePage[];
+  onPinChange: (page: PageRailPinnablePage, pinned: boolean) => void;
+}) {
+  const { t } = useText();
+  const [open, setOpen] = createSignal(false);
+  let trigger: HTMLElement | undefined;
+  const pinned = (page: PageRailPinnablePage) => props.pinned.includes(page);
+  const currentInMenu = () => props.pages.some((page) => page.id === props.current && !pinned(page.id));
+  return (
+    <DropdownMenu.Root placement="right-start" gutter={10} onOpenChange={setOpen}>
+      <MotionTooltip content={t("app.rail.more")} suppressed={open()}>
+        <DropdownMenu.Trigger
+          ref={(element: HTMLElement) => {
+            trigger = element;
+          }}
+          class="window-rail-button"
+          aria-label={t("app.rail.more")}
+          aria-current={currentInMenu() ? "page" : undefined}
+        >
+          <Ellipsis aria-hidden="true" />
+        </DropdownMenu.Trigger>
+      </MotionTooltip>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content class="agent-context-menu window-rail-more-menu" aria-label={t("app.rail.more")}>
+          <For each={props.pages} keyed={(page) => page.id}>
+            {(page) => (
+              // The pin is its own menu item beside the page, so the keyboard reaches it.
+              <div role="none" class="window-rail-more-row" data-pinned={pinned(page().id) ? "" : undefined}>
+                <DropdownMenu.Item onSelect={() => trigger && page().open(trigger)}>
+                  <Dynamic component={page().icon} class="agent-context-icon size-4" aria-hidden="true" />
+                  <span>{page().label}</span>
+                </DropdownMenu.Item>
+                <DropdownMenu.CheckboxItem
+                  class="window-rail-more-pin"
+                  closeOnSelect={false}
+                  checked={pinned(page().id)}
+                  onChange={(checked: boolean) => props.onPinChange(page().id, checked)}
+                  aria-label={t("app.rail.pinPage", { name: page().label })}
+                >
+                  <Pin class="agent-context-icon size-4" aria-hidden="true" />
+                </DropdownMenu.CheckboxItem>
+              </div>
+            )}
+          </For>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
 }
 
 /** The logo in the top row of the rail, in line with the icons of the rail and the server logo of the sidebar. */
@@ -228,6 +303,40 @@ function RailLogo(props: { variant: AppLogoVariant; href: string | undefined }) 
  */
 export function PageRail(props: PageRailProps) {
   const { t } = useText();
+  /** The pages that this server has, in rail order. */
+  const pages = (): RailPage[] => {
+    const list: RailPage[] = [];
+    const { onRoutines, onWorkflows, onTasks, onSchedule } = props;
+    if (onRoutines) {
+      list.push({
+        id: "routines",
+        label: t("sidebar.view.routines"),
+        icon: Workflow,
+        open: () => onRoutines(),
+      });
+    }
+    if (onWorkflows) {
+      list.push({
+        id: "workflows",
+        label: t("app.rail.workflows"),
+        icon: Waypoints,
+        open: () => onWorkflows(),
+      });
+    }
+    if (onTasks) {
+      list.push({ id: "tasks", label: t("app.rail.tasks"), icon: ListChecks, open: onTasks });
+    }
+    if (onSchedule) {
+      list.push({
+        id: "schedule",
+        label: t("app.rail.schedule"),
+        icon: CalendarClock,
+        open: onSchedule,
+      });
+    }
+    list.push({ id: "usage", label: t("app.rail.usage"), icon: ChartArea, open: props.onUsage });
+    return list;
+  };
   return (
     <nav class="window-rail" aria-label={t("app.rail.label")} hidden={props.hidden}>
       <Show when={props.logo}>{(logo) => <RailLogo variant={logo().variant} href={logo().href} />}</Show>
@@ -235,53 +344,14 @@ export function PageRail(props: PageRailProps) {
         <RailButton label={t("app.rail.agents")} current={props.current === "agents"} onClick={props.onAgents}>
           <Bot aria-hidden="true" />
         </RailButton>
-        <Show when={props.onRoutines}>
-          {(onRoutines) => (
-            <RailButton
-              label={t("sidebar.view.routines")}
-              current={props.current === "routines"}
-              onClick={() => onRoutines()()}
-            >
-              <Workflow aria-hidden="true" />
+        <For each={pages().filter((page) => props.pinned.includes(page.id))} keyed={(page) => page.id}>
+          {(page) => (
+            <RailButton label={page().label} current={props.current === page().id} onClick={page().open}>
+              <Dynamic component={page().icon} aria-hidden="true" />
             </RailButton>
           )}
-        </Show>
-        <Show when={props.onWorkflows}>
-          {(onWorkflows) => (
-            <RailButton
-              label={t("app.rail.workflows")}
-              current={props.current === "workflows"}
-              onClick={() => onWorkflows()()}
-            >
-              <Waypoints aria-hidden="true" />
-            </RailButton>
-          )}
-        </Show>
-        <Show when={props.onTasks}>
-          {(onTasks) => (
-            <RailButton
-              label={t("app.rail.tasks")}
-              current={props.current === "tasks"}
-              onClick={(button) => onTasks()(button)}
-            >
-              <ListChecks aria-hidden="true" />
-            </RailButton>
-          )}
-        </Show>
-        <Show when={props.onSchedule}>
-          {(onSchedule) => (
-            <RailButton
-              label={t("app.rail.schedule")}
-              current={props.current === "schedule"}
-              onClick={(button) => onSchedule()(button)}
-            >
-              <CalendarClock aria-hidden="true" />
-            </RailButton>
-          )}
-        </Show>
-        <RailButton label={t("app.rail.usage")} current={props.current === "usage"} onClick={props.onUsage}>
-          <ChartArea aria-hidden="true" />
-        </RailButton>
+        </For>
+        <RailMoreMenu pages={pages()} current={props.current} pinned={props.pinned} onPinChange={props.onPinChange} />
       </div>
       <div class="window-rail-group">
         {/* A status update builds new rows. The key keeps each ring, and its open hover card, mounted. */}

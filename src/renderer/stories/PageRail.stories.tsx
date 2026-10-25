@@ -4,6 +4,7 @@ import {
   type CustomAgentUsageRailRow,
   PageRail,
   type PageRailPage,
+  type PageRailPinnablePage,
   type PageRailProps,
 } from "@openbot/ui/features/window/PageRail";
 import { useText } from "@openbot/ui/text";
@@ -41,6 +42,7 @@ function RailPreview(props: {
 }) {
   const { t } = useText();
   const [current, setCurrent] = createSignal<PageRailPage | null>("agents");
+  const [pinned, setPinned] = createSignal<readonly PageRailPinnablePage[]>(["usage"]);
   return (
     // The extra box keeps the rail out of the rule that hides it in a narrow window.
     <div class="app-window" style={{ height: "100vh" }}>
@@ -48,6 +50,10 @@ function RailPreview(props: {
         <PageRail
           hidden={false}
           current={current()}
+          pinned={pinned()}
+          onPinChange={(page, pin) =>
+            setPinned((pages) => (pin ? [...pages, page] : pages.filter((other) => other !== page)))
+          }
           usageRows={usageRows}
           customAgentUsage={props.customAgentUsage}
           onAgents={() => setCurrent("agents")}
