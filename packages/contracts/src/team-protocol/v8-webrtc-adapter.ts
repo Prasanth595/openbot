@@ -53,6 +53,7 @@ export function encodeTeamProtocolV8WebRtcHttpResponse(
     historyExtent?: boolean;
     uiBlocks?: boolean;
     subagents?: boolean;
+    promptMultiSelect?: boolean;
   } = {},
 ) {
   if (status === 204) return {};
@@ -72,8 +73,10 @@ export function createTeamProtocolV8Event(
   options: {
     preserveSemanticTags?: boolean;
     preserveBrowserSecrets?: boolean;
+    browserSignIn?: boolean;
     uiBlocks?: boolean;
     subagents?: boolean;
+    promptMultiSelect?: boolean;
   } = {},
 ): TeamProtocolV2EventFrame {
   const decoded = decodeTeamProtocolV8BaseCurrentEvent(value);

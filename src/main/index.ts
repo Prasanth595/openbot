@@ -15,12 +15,14 @@ import { Effect, Semaphore } from "effect";
 import {
   app,
   BrowserWindow,
+  crashReporter,
   dialog,
   type NativeImage,
   Notification,
   nativeImage,
   net,
   powerMonitor,
+  powerSaveBlocker,
   protocol,
   screen,
   shell,
@@ -89,7 +91,9 @@ import { skillIpcHandlers } from "./ipc/skill-handlers";
 import { storageIpcHandlers } from "./ipc/storage-handlers";
 import { teamIpcHandlers } from "./ipc/team-handlers";
 import { updateIpcHandlers } from "./ipc/update-handlers";
+import { vaultIpcHandlers } from "./ipc/vault-handlers";
 import { voiceIpcHandlers } from "./ipc/voice-handlers";
+import { KeepAwake } from "./keep-awake";
 import { installLinuxDesktopEntry } from "./linux-desktop-entry";
 import { configureLinuxGpu } from "./linux-gpu-mode";
 import { configureLinuxPasswordStore } from "./linux-password-store";
@@ -102,6 +106,7 @@ import {
 } from "./main-window";
 import { ensureMacApplicationPresence, secondLaunchResponse } from "./main-window-state";
 import { MessageLinkRelay, openHttpLink } from "./message-link-relay";
+import { startMainLog } from "./provider-log";
 import { watchRemoteHostDirectory } from "./remote-server-host-directory";
 import { createRendererForwarders } from "./renderer-forwarders";
 import { sendToRenderer } from "./renderer-ipc";
@@ -112,6 +117,7 @@ import { trustSystemCertificates } from "./system-certificates";
 import { TeardownRegistry } from "./teardown-registry";
 import type { TraceFile } from "./trace-file";
 import { setIpcCallObserver } from "./trusted-ipc";
+import { setWindowAppearance } from "./window-appearance";
 
 const logger = createOpenBotLogger("main");
 
@@ -121,6 +127,23 @@ const logger = createOpenBotLogger("main");
 let crashTrace: TraceFile | null = null;
 process.on("unhandledRejection", (reason) => reportMainProcessFailure("unhandledRejection", reason));
 process.on("uncaughtExceptionMonitor", (error, origin) => reportMainProcessFailure(origin, error));
+
+type ExitReason = "main_window_closed" | "signal" | "session_end" | "quit";
+let exitRecorded = false;
+
+/**
+ * Records once why OpenBot quits, in the main log and in the trace, before the teardown closes the
+ * trace. The first reason wins: closing the window then also quits. A process that ends with no such
+ * line and no crash dump stopped from outside, such as Task Manager.
+ */
+function recordExit(reason: ExitReason): void {
+  if (exitRecorded) return;
+  exitRecorded = true;
+  logger.info(`Quitting: ${reason}.`);
+  if (!crashTrace) return;
+  crashTrace.record({ kind: "exit", name: reason, durationMs: 0, outcome: "requested" });
+  Effect.runFork(crashTrace.flush());
+}
 
 function reportMainProcessFailure(origin: "uncaughtException" | "unhandledRejection", error: unknown): void {
   logger.error(`Main process ${origin}:`, toLogValue(error));
@@ -184,6 +207,13 @@ app.setName("OpenBot");
 app.enableSandbox();
 if (process.platform === "win32") app.setAppUserModelId("app.openbot.desktop");
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
+// A second launch exits at once and must not write into the files of the instance that runs.
+if (hasSingleInstanceLock) {
+  startMainLog(join(app.getPath("userData"), "logs"));
+  // Crash dumps stay in `crashDumps` on this computer. Crashpad removes old reports itself. Without
+  // them, a window that disappeared on Windows left nothing to tell a crash from a quit (#2675).
+  crashReporter.start({ uploadToServer: false });
+}
 // Linux: the GPU stays on until it fails on this computer (#992). `userData` has its final path here.
 configureLinuxGpu({
   userDataPath: app.getPath("userData"),
@@ -286,6 +316,7 @@ const MAIN_WINDOW_STATE_FILE = "openbot-main-window-state-v1.json";
 // (`scripts/hosting/openbot-boat-pre-stop`).
 if (!app.isPackaged || hostedServer || serverMode) {
   const quitAfterSignal = () => {
+    recordExit("signal");
     // Before `app.quit()`: the same signal can stop the Computer Use driver first.
     quitStarted = true;
     app.quit();
@@ -320,6 +351,7 @@ const {
   forwardGitHubConnectorStatus,
   forwardOnePasswordConnectorStatus,
   forwardBitwardenConnectorStatus,
+  forwardVaultState,
   forwardHostStatus,
   forwardRemoteDesktopSessions,
   forwardServers,
@@ -328,6 +360,8 @@ const {
   forwardDirectTyping,
 } = createRendererForwarders({
   getMainWindow: () => windowHolder.current,
+  // A function: the window controller is made after the forwarders, and no event comes before it.
+  getChatWindows: () => windows.getChatWindows(),
   getAgentService: () => services?.service ?? null,
   getHostService: () => services?.host ?? null,
   getHostAnalytics: () => services?.analytics ?? null,
@@ -353,7 +387,6 @@ const windows = createMainWindowController({
   keepRunningInBackground: () => services?.appBehavior.keepRunningInBackground ?? false,
   getServices: () => services,
   getTranslate: () => services?.language.translate ?? translateFor(resolveLocale("system", app.getLocale())),
-  forwardAgentEvent,
   onRendererLoadStarted: () => {
     deepLinkReceiverReady = false;
     filePreviewPages.clear();
@@ -416,6 +449,7 @@ function applyAppIconColor(color: AppLogoColor): void {
 function attachQuitOnMainWindowClose(window: BrowserWindow): void {
   if (process.platform === "darwin") return;
   window.on("closed", () => {
+    recordExit("main_window_closed");
     // `quit`, not a teardown of its own: `before-quit` below is what OpenBot shuts down through,
     // and it already ignores a second request while the first one runs.
     app.quit();
@@ -450,6 +484,7 @@ function attachWindowsSessionEndHandlers(window: BrowserWindow): void {
       );
   });
   window.on("session-end", () => {
+    recordExit("session_end");
     systemSessionEnding = true;
     isQuitting = true;
     // Windows can stop the Computer Use driver first, and sends no `before-quit` for a session end.
@@ -478,6 +513,7 @@ function registerIpcHandlers({
   mailbox,
   browser,
   browserPictureInPicture,
+  localSignIn,
   browserDock,
   browserView,
   updater,
@@ -489,16 +525,21 @@ function registerIpcHandlers({
   approvalAutomation,
   agentAdminSettings,
   agentHostSettings,
+  browserProfiles,
   language,
   logoColor,
+  appearance,
   interfaceSize,
   notificationPreference,
   busyMessageMode,
+  agentDefaults,
   agentMemoryLimit,
   agentAccess,
   teamStore,
   serverTimezone,
+  promptCacheTtl,
   remoteSessionReuse,
+  remoteNetworkRoute,
   remoteSessionCache,
   appBehavior,
   agentInitialization,
@@ -512,6 +553,7 @@ function registerIpcHandlers({
   githubConnector,
   onePasswordConnector,
   bitwardenConnector,
+  vault,
   billing,
   license,
   hostedServers,
@@ -544,7 +586,9 @@ function registerIpcHandlers({
   // a domain's whole surface in one file rather than find it interleaved with window and lifecycle
   // code. `registerIpcGroups` takes one entry per group in `IPC_ENDPOINTS`, so a group no registrar
   // covers - or a registrar that stops covering one - fails to compile here, naming the group.
-  const getMainWindow = () => windowHolder.current;
+  // Every handler below reads this only as the parent of a native dialog. A dialog opens on the
+  // window that the user works in: when a chat window has focus, the main window can be hidden.
+  const getDialogParent = () => windows.getChatWindows().find((window) => window.isFocused()) ?? windowHolder.current;
 
   registerIpcGroups({
     ...appIpcHandlers({
@@ -556,17 +600,23 @@ function registerIpcHandlers({
       analyticsPreferenceFile,
       approvalAutomation,
       busyMessageMode,
+      agentDefaults,
       agentMemoryLimit,
       remoteSessionReuse,
+      remoteNetworkRoute,
+      applyRemoteNetworkRoute: () => runCauseEffect(host.applyNetworkRoute()),
       remoteSessionCache,
       appBehavior,
       language,
       logoColor,
+      appearance,
       interfaceSize,
       initializeAgent: () => runCauseEffect(agentInitialization.start()),
       appVariant,
       analyticsCaptureUrl,
-      getMainWindow,
+      getMainWindow: getDialogParent,
+      openChatWindow: windows.openChatWindow,
+      chatWindowTargets: windows.chatWindowTargets,
       setAnalyticsTrackingEnabled: (enabled) => analytics.setTrackingEnabled(enabled),
       trace,
       resources: resourceMonitor,
@@ -581,11 +631,17 @@ function registerIpcHandlers({
     ...providerIpcHandlers({ service, providerRuntimes, credentials: providerCredentials }),
     ...voiceIpcHandlers({ voice, speech, service }),
     ...accountIpcHandlers({ centralAuth, host }),
-    ...skillIpcHandlers({ skills, getMainWindow, translate: language.translate }),
-    ...hostedSiteIpcHandlers({ hostedSites, remoteServers, getMainWindow, translate: language.translate }),
+    ...skillIpcHandlers({ skills, getMainWindow: getDialogParent, translate: language.translate }),
+    ...hostedSiteIpcHandlers({
+      hostedSites,
+      remoteServers,
+      getMainWindow: getDialogParent,
+      translate: language.translate,
+    }),
     ...githubConnectorIpcHandlers({ githubConnector, remoteServers, openExternal: (url) => shell.openExternal(url) }),
     ...onePasswordConnectorIpcHandlers({ onePasswordConnector, remoteServers }),
-    ...bitwardenConnectorIpcHandlers({ bitwardenConnector }),
+    ...bitwardenConnectorIpcHandlers({ bitwardenConnector, remoteServers }),
+    ...vaultIpcHandlers({ vault, getMainWindow: getDialogParent, translate: language.translate }),
     ...billingIpcHandlers({ billing }),
     ...licenseIpcHandlers({ license }),
     ...routineFeedIpcHandlers({ routineFeed }),
@@ -604,13 +660,18 @@ function registerIpcHandlers({
       agentImport,
       hermesImport,
       remoteServers,
-      getMainWindow,
+      getMainWindow: getDialogParent,
       translate: language.translate,
       exportSkillDirectory: app.isPackaged
         ? join(process.resourcesPath, "agent-import")
         : resolve(__dirname, "../../resources/agent-import"),
     }),
-    ...instanceTransferIpcHandlers({ instanceTransfer, remoteServers, getMainWindow, translate: language.translate }),
+    ...instanceTransferIpcHandlers({
+      instanceTransfer,
+      remoteServers,
+      getMainWindow: getDialogParent,
+      translate: language.translate,
+    }),
     ...updateIpcHandlers({ updater, updatePreferenceFile, requestedUpdate, idleRestart }),
     ...notificationIpcHandlers({
       notificationPreference,
@@ -637,6 +698,7 @@ function registerIpcHandlers({
     ...agentAdminIpcHandlers({
       settings: agentAdminSettings,
       hostSettings: agentHostSettings,
+      browserProfiles,
       skills,
       marketplaceAgents,
       agentTemplates,
@@ -647,6 +709,7 @@ function registerIpcHandlers({
       remoteServers,
       serverTimezone,
       agentMemoryLimit,
+      promptCacheTtl,
       agentAccess,
       localServerId: () => teamStore.getIdentity()?.serverId,
       localAgentIds: () => service.listAgents().map((agent) => agent.id),
@@ -675,13 +738,19 @@ function registerIpcHandlers({
       toolRuntimes: () => providerRuntimes.mcpToolRuntimes(),
       relay: signInRelayClient,
     }),
-    ...attachmentIpcHandlers({ service, mailbox, remoteServers, getMainWindow, translate: language.translate }),
+    ...attachmentIpcHandlers({
+      service,
+      mailbox,
+      remoteServers,
+      getMainWindow: getDialogParent,
+      translate: language.translate,
+    }),
     ...storageIpcHandlers({
       storage: storageUsage,
       providerRuntimes,
       mailbox,
       remoteServers,
-      getMainWindow,
+      getMainWindow: getDialogParent,
       translate: language.translate,
       agents: () => service.listAgents(),
       openPath: (path) => shell.openPath(path),
@@ -699,7 +768,7 @@ function registerIpcHandlers({
       }),
       openExternal: (address) => shell.openExternal(address),
     }),
-    ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView }),
+    ...browserIpcHandlers({ browserPictureInPicture, browser, remoteServers, browserView, localSignIn }),
   });
 }
 
@@ -810,6 +879,8 @@ function forwardCentralAuth(state: CentralAuthState): void {
   ).catch((error) => {
     logger.error("Unable to synchronize the signed-in account:", toLogValue(error));
   });
+  // A chat window shows the workspace only while the account is signed in, as the main window does.
+  for (const chatWindow of windows.getChatWindows()) sendToRenderer(chatWindow, IPC_ENDPOINTS.auth.event, state);
   const window = windowHolder.current;
   if (!window || window.isDestroyed()) return;
   sendToRenderer(window, IPC_ENDPOINTS.auth.event, state);
@@ -1044,6 +1115,7 @@ if (!hasSingleInstanceLock) {
         teamStore,
         language,
         logoColor,
+        appearance,
         interfaceSize,
         trace,
         appBehavior,
@@ -1123,6 +1195,7 @@ if (!hasSingleInstanceLock) {
       built.githubConnector.onChanged(forwardGitHubConnectorStatus);
       built.onePasswordConnector.onChanged(forwardOnePasswordConnectorStatus);
       built.bitwardenConnector.onChanged(forwardBitwardenConnectorStatus);
+      built.vault.onChanged(forwardVaultState);
       remoteServers.on("changed", forwardServers);
       remoteServers.on("agent", (serverId, event, bufferedLive) => {
         forwardAgentEvent(serverId, event, bufferedLive);
@@ -1168,7 +1241,7 @@ if (!hasSingleInstanceLock) {
       });
       const tray = backgroundTray;
       tray.sync(appBehavior.keepRunningInBackground);
-      const unsubscribeBackgroundTray = appBehavior.subscribe(tray.sync);
+      const unsubscribeBackgroundTray = appBehavior.subscribe(() => tray.sync(appBehavior.keepRunningInBackground));
       teardown.push(0, "background tray", () => {
         unsubscribeBackgroundTray();
         tray.destroy();
@@ -1190,8 +1263,17 @@ if (!hasSingleInstanceLock) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appLogoColorPreference, preference);
         }
       });
+      setWindowAppearance(appearance.preference);
+      appearance.subscribe((preference) => {
+        setWindowAppearance(preference);
+        for (const window of BrowserWindow.getAllWindows()) {
+          sendToRenderer(window, IPC_ENDPOINTS.app.appAppearancePreference, preference);
+        }
+      });
       interfaceSize.subscribe((preference) => {
         windows.getMainWindow()?.webContents.setZoomFactor(interfaceSize.zoomFactor);
+        for (const chatWindow of windows.getChatWindows())
+          chatWindow.webContents.setZoomFactor(interfaceSize.zoomFactor);
         for (const window of BrowserWindow.getAllWindows()) {
           sendToRenderer(window, IPC_ENDPOINTS.app.appInterfaceSizePreference, preference);
         }
@@ -1221,6 +1303,25 @@ if (!hasSingleInstanceLock) {
       powerMonitor.on("suspend", () => routineWake.suspend());
       powerMonitor.on("resume", () => routineWake.resume());
       teardown.push(0, "routine wake", () => routineWake.dispose());
+      const keepAwake = new KeepAwake({
+        enabled: () => appBehavior.keepAwake,
+        onBatteryToo: () => appBehavior.keepAwakeOnBattery,
+        onBattery: () => powerMonitor.isOnBatteryPower(),
+        start: () => powerSaveBlocker.start("prevent-app-suspension"),
+        stop: (id) => powerSaveBlocker.stop(id),
+        log: (message) => logger.info(message),
+      });
+      const syncKeepAwake = () => keepAwake.sync();
+      syncKeepAwake();
+      const unsubscribeKeepAwake = appBehavior.subscribe(syncKeepAwake);
+      powerMonitor.on("on-ac", syncKeepAwake);
+      powerMonitor.on("on-battery", syncKeepAwake);
+      teardown.push(0, "keep awake", () => {
+        unsubscribeKeepAwake();
+        powerMonitor.off("on-ac", syncKeepAwake);
+        powerMonitor.off("on-battery", syncKeepAwake);
+        keepAwake.dispose();
+      });
       const teamIdentity = teamStore.getIdentity();
       if (built.serverMode) {
         const serverModeControl = built.serverMode;
@@ -1257,8 +1358,11 @@ if (!hasSingleInstanceLock) {
             ),
           );
       });
+      // A chat window is the app too (#2964): the user can move focus straight into it.
+      const isAppWindow = (window: BrowserWindow | null) =>
+        window !== null && (window === windowHolder.current || windows.getChatWindows().includes(window));
       app.on("browser-window-focus", (_event, window) => {
-        if (window === windowHolder.current) {
+        if (isAppWindow(window)) {
           startDirectoryWatch();
           void Effect.runPromise(remoteServers.setAppFocused(true));
         }
@@ -1276,7 +1380,7 @@ if (!hasSingleInstanceLock) {
         stopDirectoryWatch();
         stopDirectoryWatch = watchRemoteHostDirectory({
           isActive: () =>
-            Boolean(windowHolder.current?.isFocused()) && built.centralAuth.getState().status === "signed_in",
+            isAppWindow(BrowserWindow.getFocusedWindow()) && built.centralAuth.getState().status === "signed_in",
           refresh: () => directoryRefresh.refresh(),
         });
       };
@@ -1325,6 +1429,8 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", (event) => {
+  // Any other quit is recorded by `prepareForShutdown`.
+  if (systemSessionEnding) recordExit("session_end");
   isQuitting = true;
   quitStarted = true;
   if (systemSessionEnding) {
@@ -1375,6 +1481,8 @@ async function prepareForUpdateInstall(): Promise<void> {
  */
 async function prepareForShutdown(): Promise<void> {
   if (shutdownStarted) return;
+  // An update install runs this before its `app.quit()`, and the teardown closes the trace.
+  recordExit("quit");
   shutdownStarted = true;
   isQuitting = true;
   forceExitAfterShutdownDeadline();

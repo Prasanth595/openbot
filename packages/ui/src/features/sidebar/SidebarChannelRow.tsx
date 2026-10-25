@@ -9,7 +9,7 @@ import { Badge, buttonVariants, ContextMenu } from "@openbot/ui";
 import { Show } from "solid-js";
 import { useText } from "../../text";
 import { ChannelAvatar } from "../channels/ChannelAvatar";
-import { SidebarChannelContextMenu } from "./SidebarChannelContextMenu";
+import { SidebarChannelContextMenu, SidebarDeletedChannelContextMenu } from "./SidebarChannelContextMenu";
 import { sidebarMessageTime } from "./sidebar-filtering";
 import { useSidebarScope } from "./sidebar-scope";
 
@@ -97,7 +97,14 @@ export function SidebarChannelRow(rowProps: { channel: ChannelSummary }) {
             <span class="sr-only">{t("sidebar.channel.unread", { count: rowProps.channel.unreadCount })}</span>
           </Show>
         </ContextMenu.Trigger>
-        <Show when={!rowProps.channel.archived}>
+        <Show
+          when={!rowProps.channel.archived}
+          fallback={
+            <Show when={props.onRestoreChannel}>
+              <SidebarDeletedChannelContextMenu channel={rowProps.channel} />
+            </Show>
+          }
+        >
           <SidebarChannelContextMenu channel={rowProps.channel} pinned={false} />
         </Show>
       </ContextMenu.Root>

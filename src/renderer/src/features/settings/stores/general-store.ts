@@ -54,7 +54,13 @@ export function createSettingsGeneralStore(props: GeneralStoreProps) {
     ).map((provider) => {
       const agent = props.agentStatus?.providers?.find((candidate) => candidate.id === provider);
       const runtime = props.providerRuntimeStatuses?.[provider];
-      const keyStatus = provider === "opencode" ? props.openCodeKeyStatus?.() : undefined;
+      // The Gemini status says only whether a saved key serves the turns.
+      const keyStatus =
+        provider === "opencode"
+          ? props.openCodeKeyStatus?.()
+          : provider === "antigravity" && agent?.apiKeyInUse
+            ? ("saved" as const)
+            : undefined;
       return {
         id: provider,
         name: agentProviderName(provider),

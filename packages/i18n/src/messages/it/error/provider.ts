@@ -181,6 +181,10 @@ export const messages = {
     "La CLI di {provider} sta lavorando a un turno. Attendi che finisca, poi riconnetti.",
   "error.provider.opencodeCredentialsRejected":
     "Il provider del modello ha rifiutato la chiave API. Correggi la chiave di OpenCode in Impostazioni, oppure la chiave del provider con `opencode auth login`. Poi riprova o scegli un altro modello.\n{detail}",
+  "error.provider.opencodeAuthRequired":
+    'OpenCode non ha un accesso per il provider del modello "{provider}". Scegli un modello con l\'etichetta Gratuito, oppure collega il provider: incolla una chiave OpenCode Go nelle impostazioni di OpenCode, oppure esegui `opencode auth login` in un terminale. Poi riprova.',
+  "error.provider.opencodeAuthRequiredUnknown":
+    "OpenCode non ha un accesso per il provider di questo modello. Scegli un modello con l'etichetta Gratuito, oppure collega il provider: incolla una chiave OpenCode Go nelle impostazioni di OpenCode, oppure esegui `opencode auth login` in un terminale. Poi riprova.",
   "error.provider.opencodeKeyExpired":
     "La tua chiave API di OpenCode è scaduta. Crea una nuova chiave in OpenCode Console, incollala nelle impostazioni di OpenCode, poi riprova.",
   "error.provider.opencodeServiceFailure":
@@ -222,6 +226,8 @@ export const messages = {
   "error.provider.antigravitySignIn": "Accedi con Google per usare Gemini.",
   "error.provider.antigravityRateLimited":
     "Gemini ha rifiutato la richiesta perché è stato raggiunto un limite di richieste o la quota del piano. Attendi qualche minuto o scegli un altro modello, poi riprova.\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google segnala che è stato raggiunto un limite di utilizzo di Gemini. Il limite può valere per un solo modello, quindi la pagina di utilizzo del piano può mostrare altro disponibile. Scegli un altro modello Gemini o attendi il ripristino.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini non può usare questo modello al momento. Scegli un altro modello, poi riprova.\n{detail}",
   "error.provider.antigravityServiceFailure":
@@ -268,6 +274,8 @@ export const messages = {
     "L'ID di un agente deve contenere lettere minuscole, cifre o `-`, e non può essere l'ID di un provider integrato.",
   "error.provider.customAgentEnvInvalid":
     "Il nome di una variabile deve contenere lettere, cifre o `_` e non può iniziare con una cifra. Usa ogni nome una sola volta, al massimo 16 nomi.",
+  "error.provider.customAgentUsagePromptInvalid":
+    "Un comando di utilizzo deve essere una sola riga di massimo 256 caratteri.",
   "error.provider.customAgentCommandInvalid":
     "Il comando deve essere un percorso completo, un percorso che inizia con ~/, oppure il nome di un comando senza spazi.",
   "error.provider.customAgentArgsInvalid": "Un argomento non può contenere un a capo. Usa al massimo 32 argomenti.",
@@ -298,6 +306,8 @@ export const messages = {
   "error.provider.useChangeFailed": "OpenBot non è riuscito a modificare l'impostazione del provider.",
   "error.provider.accountsUnsupported": "{provider} può avere un solo account.",
   "error.provider.accountNeedsConnection": "Connetti {provider} prima di aggiungere un altro account.",
+  "error.provider.usageResetUnsupported": "{provider} non può azzerare i limiti di utilizzo.",
+  "error.provider.usageResetNotConnected": "Accedi di nuovo a questo account {provider} prima di azzerarne l'utilizzo.",
   "error.provider.accountLimit": "{provider} può avere al massimo {limit} account.",
   "error.provider.accountNotFound": "Questo account {provider} non è su questo computer. Aggiorna e riprova.",
   "error.provider.accountAlreadyAdded": "Questo account {provider} è già connesso.",

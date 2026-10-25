@@ -45,3 +45,17 @@ export function startAgentLog(logsDirectory: string): () => void {
     Effect.runFork(appendRemoteDiagnosticLog(directory, "agents", `${line}\n`));
   });
 }
+
+/**
+ * Keeps the lines of the main process logger in `<logs>/main/main.log`, with the same size limit:
+ * startup failures, uncaught errors, and why the app quit. Without it, a window that disappeared on
+ * Windows left no record of whether OpenBot quit or crashed (#2675). It runs for the life of the
+ * process, so the teardown's own lines reach the file too. The shutdown deadline exits before its
+ * line can be written.
+ */
+export function startMainLog(logsDirectory: string): void {
+  const directory = join(logsDirectory, "main");
+  teeLogLines(["main"], (line) => {
+    Effect.runFork(appendRemoteDiagnosticLog(directory, "main", `${line}\n`));
+  });
+}

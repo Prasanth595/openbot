@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import { sortConversationMessages } from "@openbot/contracts/conversation-order";
-import type { AgentEvent, AgentSummary, ConversationMessage, ConversationSnapshot } from "@openbot/contracts/ipc";
+import {
+  type AgentEvent,
+  type AgentSummary,
+  CONVERSATION_SNAPSHOT_MESSAGE_LIMIT,
+  type ConversationMessage,
+  type ConversationSnapshot,
+} from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import type { AgentClient } from "../agent-client";
 import type { AgentStore } from "../agent-store";
@@ -18,9 +24,6 @@ interface TransactionScope {
  * opened. A chat that goes is read again from the database when it is next needed, the same as a
  * chat that was not opened since the app started.
  */
-/** The most recent completed messages retained in the process for one conversation. */
-export const CONVERSATION_CACHE_MESSAGE_LIMIT = 100;
-
 /** The maximum serialized size retained for one completed conversation. */
 export const CONVERSATION_CACHE_BYTES_LIMIT = 8 * 1024 * 1024;
 
@@ -186,6 +189,11 @@ export class ConversationRuntime {
   readonly #forgottenExecutionThreads = new Set<string>();
   /** The execution threads that are tasks: they run beside the agent's own chat, not after it. */
   readonly #taskThreads = new Set<string>();
+  /**
+   * The open provider sessions of routine runs, with their agent. A routine run has its own session,
+   * which closes when the run ends, so the agent's long chat session does not grow with it.
+   */
+  readonly #routineSessions = new Map<string, string>();
 
   constructor(store: AgentStore, emit: (event: AgentEvent) => void, listAgents: () => AgentSummary[]) {
     this.#store = store;
@@ -789,6 +797,26 @@ export class ConversationRuntime {
     return open;
   }
 
+  /** Marks this provider session as the one routine run of the agent. Its items show in the agent's own chat. */
+  registerRoutineSession(agentId: string, externalThreadId: string): void {
+    this.#routineSessions.set(externalThreadId, agentId);
+  }
+
+  forgetRoutineSession(externalThreadId: string): void {
+    this.#routineSessions.delete(externalThreadId);
+  }
+
+  /** The newest open routine session of this agent. Its chat runs one turn at a time. */
+  routineSession(agentId: string): string | undefined {
+    let newest: string | undefined;
+    for (const [externalThreadId, owner] of this.#routineSessions) if (owner === agentId) newest = externalThreadId;
+    return newest;
+  }
+
+  isRoutineSession(externalThreadId: string): boolean {
+    return this.#routineSessions.has(externalThreadId);
+  }
+
   forgetExecutionThread(threadId: string): void {
     this.#forgottenExecutionThreads.add(threadId);
     this.#taskThreads.delete(threadId);
@@ -813,6 +841,8 @@ export class ConversationRuntime {
     const threadId = (this.#snapshots.get(agentId) ?? this.#evictedSnapshots.get(agentId))?.threadId;
     if (threadId) this.#conversationSignatures.delete(threadId);
     this.#snapshots.delete(agentId);
+    for (const [externalThreadId, owner] of this.#routineSessions)
+      if (owner === agentId) this.#routineSessions.delete(externalThreadId);
     this.#dropCachedSnapshot(agentId);
     this.#snapshotUsedAt.delete(agentId);
     this.#evictedSnapshots.delete(agentId);
@@ -885,7 +915,7 @@ function boundedConversationSnapshot(snapshot: ConversationSnapshot): CachedSnap
     ? snapshot.messages.filter((message) => isActiveMessage(message, snapshot.activeTurnId))
     : [];
   const allCompletedMessages = snapshot.messages.filter((message) => !activeMessages.includes(message));
-  const completedMessages = allCompletedMessages.slice(-CONVERSATION_CACHE_MESSAGE_LIMIT);
+  const completedMessages = allCompletedMessages.slice(-CONVERSATION_SNAPSHOT_MESSAGE_LIMIT);
   const completedSnapshot = { ...snapshot, messages: completedMessages };
   let completedBytes = conversationSnapshotBytes(completedSnapshot);
   if (completedBytes > CONVERSATION_CACHE_BYTES_LIMIT) {

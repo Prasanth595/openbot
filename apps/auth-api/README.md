@@ -121,6 +121,22 @@ article uses. `content-art/manifest.json` records a hash of the inputs of each
 image. The build compares those hashes with the articles and fails when an image
 is missing, out of date, or belongs to no article.
 
+## Home page beam
+
+The home page beam is a SolidJS port of
+[LaserFlow from React Bits](https://reactbits.dev/animations/laser-flow). Its license lets the
+website use it, but does not let this public repository contain it. The port is in the private
+`nightly-labs/openbot-laser-flow` repository. Git ignores its path here, and a checkout without it
+builds a home page with no beam. To see the beam locally, clone it into that path:
+
+```bash
+git clone git@github.com:nightly-labs/openbot-laser-flow.git apps/auth-api/src/vendor/laser-flow
+```
+
+CI checks it out with the read-only deploy key in the `LASER_FLOW_DEPLOY_KEY` secret. Pull request
+previews from forks have no beam. A production deploy, from CI or from `bun run deploy`, stops
+before any change when the port is missing. Never copy the file into this repository.
+
 ## Email delivery
 
 Private Email SMTP is the primary delivery method. Use a separate app password.

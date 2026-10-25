@@ -8,6 +8,8 @@ export const messages = {
   "notification.needsApprovalFor": "承認が必要です: {action}",
   "notification.finished": "作業が完了しました。",
   "notification.failed": "エラーで停止しました。",
+  "notification.channelTitle": "{channel} の {agent}",
+  "notification.channelMessage": "メッセージを送信しました。",
   "notification.usageLimit.title": "{provider} のアカウントが上限に達しました",
   "notification.usageLimit.body": { other: "エージェント {count} 件が待機中です。OpenBot は後でもう一度試します。" },
   "notification.usageLimit.bodyResets": { other: "エージェント {count} 件が待機中です。{reset} にリセットされます。" },

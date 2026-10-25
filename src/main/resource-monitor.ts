@@ -108,6 +108,7 @@ export class ResourceMonitor implements AnalyticsResourceSource {
   /**
    * Process exits since the last sample. A stop signal can end the child processes before the main
    * process starts its teardown, so an exit counts only when the app still runs at the next sample.
+   * The trace gets each exit at once: a main process that stops within the minute would lose it.
    */
   #gone: { kind: "renderer" | "child"; reason: GoneReason }[] = [];
   #persistedAt = 0;
@@ -246,14 +247,16 @@ export class ResourceMonitor implements AnalyticsResourceSource {
 
   #recordGone(kind: "renderer" | "child", reason: string): void {
     const known = goneReason(reason);
-    if (known && this.#gone.length < MAX_PENDING_GONE) this.#gone.push({ kind, reason: known });
+    if (!known) return;
+    this.#options.trace.record({ kind: "crash", name: `${kind}_gone`, durationMs: 0, outcome: known });
+    Effect.runFork(this.#options.trace.flush());
+    if (this.#gone.length < MAX_PENDING_GONE) this.#gone.push({ kind, reason: known });
   }
 
   #countGone(day: ResourceDay): void {
     for (const { kind, reason } of this.#gone) {
       addCount(day, kind === "renderer" ? COUNTER.rendererGone : COUNTER.childGone);
       addCount(day, COUNTER.goneReason(reason));
-      this.#options.trace.record({ kind: "crash", name: `${kind}_gone`, durationMs: 0, outcome: reason });
     }
     this.#gone = [];
   }

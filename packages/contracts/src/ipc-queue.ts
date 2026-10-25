@@ -134,9 +134,9 @@ export type QueueHoldReason = (typeof QUEUE_HOLD_REASONS)[number];
 /**
  * Why a queue is waiting for something other than its own running turn.
  *
- * A channel assignment reserves the whole host, so an agent with nothing running of its own can
- * still be unable to start the message the user just sent it. Without this the wait has no visible
- * cause: the channel turn's events are not the agent's own, so the agent reads as idle.
+ * A channel assignment holds the member agent that does it, so an agent with nothing running in its
+ * own chat can still be unable to start the message the user just sent it. Without this the wait has
+ * no visible cause: the channel turn's events are not the agent's own, so the agent reads as idle.
  */
 export interface QueueHold {
   reason: QueueHoldReason;

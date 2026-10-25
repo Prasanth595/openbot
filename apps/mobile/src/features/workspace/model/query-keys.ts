@@ -24,6 +24,8 @@ export const queryKeys = {
   accountSessions: (...scope: [QueryScope] | []) => ["account-sessions", ...(scope[0] ?? [])],
   hostedServerPlans: (...scope: [QueryScope] | []) => ["hosted-server-plans", ...(scope[0] ?? [])],
   agentTemplate: (apiUrl: string | null, templateId: string | null) => ["agent-template", apiUrl, templateId],
+  /** The public Marketplace catalog of one account service: a list read, or one listing. */
+  marketplace: (apiUrl: string | null, ...parts: (string | null)[]) => ["marketplace", apiUrl, ...parts],
 
   /** Every agent record. Without a scope, the records of all accounts and servers. */
   agentInfo: (
@@ -52,6 +54,16 @@ export const queryKeys = {
     ...queryKeys.agentRecord(scope, serverId, agentId, "routines"),
     "events",
   ],
+  /** Under the agent's routines, so the routine change events reload them too. */
+  agentRoutineResultOptions: (scope: QueryScope, serverId: string, agentId: string) => [
+    ...queryKeys.agentRecord(scope, serverId, agentId, "routines"),
+    "result-options",
+  ],
+  agentRoutineResultDestination: (scope: QueryScope, serverId: string, agentId: string, routineId: string) => [
+    ...queryKeys.agentRecord(scope, serverId, agentId, "routines"),
+    "result-destination",
+    routineId,
+  ],
   agentProviderAccounts: (scope: QueryScope, serverId: string, agentId: string) => [
     ...queryKeys.agentInfo(scope, serverId, agentId),
     "provider-accounts",
@@ -66,6 +78,14 @@ export const queryKeys = {
   ) => [...queryKeys.agentInfo(scope, serverId, agentId), provider, model, "session-settings"],
   /** Under the server's agent records, so the host's agent events refresh it. */
   sharedTables: (scope: QueryScope, serverId: string) => [...queryKeys.agentInfo(scope, serverId), "tables"],
+  /** The settings of a channel. Its memory and routine events invalidate the part they change. */
+  channelInfo: (scope: QueryScope, serverId: string, channelId: string, ...part: [] | ["memories" | "routines"]) => [
+    "channel-info",
+    ...scope,
+    serverId,
+    channelId,
+    ...part,
+  ],
   agentAvatar: (
     scope: QueryScope,
     serverId: string | undefined,
@@ -103,6 +123,8 @@ export const queryKeys = {
     serverId,
     ...logo,
   ],
+  /** The plan limits of a server's providers. The host's `usage-changed` event writes the providers' own sign-ins. */
+  planLimits: (scope: QueryScope, serverId: string) => ["plan-limits", ...scope, serverId],
   serverUsage: (scope: QueryScope, serverId: string, range: unknown, agentId: string | undefined) => [
     "server-usage",
     ...scope,
@@ -149,5 +171,5 @@ export const queryKeys = {
   ],
   chatQueue: (...target: [] | [serverId: string] | [serverId: string, agentId: string]) => ["chat-queue", ...target],
   chatAttachment: (serverId: string, attachmentId: string) => ["chat-attachment", serverId, attachmentId],
-  chatVideoFile: (serverId: string, attachmentId: string) => ["chat-video-file", serverId, attachmentId],
+  chatMediaFile: (serverId: string, attachmentId: string) => ["chat-media-file", serverId, attachmentId],
 };

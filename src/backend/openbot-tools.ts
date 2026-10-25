@@ -1,4 +1,5 @@
 import {
+  CHAT_VISUAL_CONTEXT_LIMIT,
   CHAT_VISUAL_HTML_LIMIT,
   CHAT_VISUAL_MAX_HEIGHT,
   CHAT_VISUAL_MIN_HEIGHT,
@@ -16,9 +17,10 @@ import {
   createAgentToolSchema,
   listModelsToolSchema,
   readAgentToolSchema,
+  updateAgentsToolSchema,
   updateProfileToolSchema,
 } from "./agent/profile-tools";
-import { ROUTINE_NO_UPDATE_TOOL } from "./agent/routine-quiet-runs";
+import { ROUTINE_NO_UPDATE_TOOL, ROUTINE_REPORT_FAILURE_TOOL } from "./agent/routine-quiet-runs";
 import { captureScreenToolShape } from "./agent/screen-capture";
 import {
   assignAgentSectionToolSchema,
@@ -27,19 +29,28 @@ import {
   renameSectionToolSchema,
 } from "./agent/sidebar-tools";
 import { LOCAL_SKILL_TOOL_DEFINITIONS } from "./agent/skill-tools";
+import { CREATE_WEBHOOK_ROUTINE_TOOL, UPDATE_WEBHOOK_ROUTINE_TOOL } from "./agent/webhook-routine-tool";
+import { API_KEY_NAME_PATTERN } from "./agent-api-keys";
 import { START_TASK_TOOL, startTaskToolSchema } from "./agent-tasks/agent-tasks";
 import {
   AWAIT_EVENT_TOOL,
   awaitEventToolSchema,
   CLOSE_WAIT_TOOL,
   closeWaitToolSchema,
+  LIST_WAITS_TOOL,
+  listWaitsToolSchema,
 } from "./agent-waits/agent-waits";
+import { CHANNEL_TOOL_DEFINITIONS } from "./channel-tools";
 import { MESSAGING_TOOL_DEFINITIONS } from "./messaging/messaging-tools";
 import { ROUTINE_FLOW_TOOL_DEFINITIONS } from "./routine-flows/routine-flow-tools";
 import {
+  ROUTINE_INSTRUCTION_RULE,
+  routineInstructionZodSchema,
   routineLimitPolicyZodSchema,
   routineMissedPolicyZodSchema,
   routineScheduleZodSchema,
+  webhookEventTypeZodSchema,
+  webhookFiltersZodSchema,
 } from "./routine-tool-schema";
 
 interface OpenBotToolDefinition {
@@ -51,10 +62,17 @@ interface OpenBotToolDefinition {
 /** The page rules for `html_render` and `html_preview`. The names match the variables that `ChatVisual` sends. */
 const VISUAL_PAGE_RULES = [
   "Write one self-contained HTML document with inline <style> and <script>. Remote http(s) files, such as a chart library from a CDN, load as they are; local file paths do not load.",
-  "The page runs in a sandbox: it cannot use cookies, storage, pop-up windows or the OpenBot app. A click on an http(s) link opens the link in the user's browser.",
+  "The page runs in a sandbox: it cannot use cookies, storage or pop-up windows. A click on an http(s) link opens the link in the user's browser.",
   "The frame has no border and sits on the chat background, as wide as the reply column (about 360px on phones). Leave html and body with no background, use a fluid width and no outer card or banner title: the page is part of your reply.",
   "Give charts fixed pixel heights. Let the content set the page height; do not use 100vh or height:100% on html or body. The frame cuts what is outside the page box, so highlight a box with its border, not an outline or an outer shadow.",
   "OpenBot sets these CSS variables on :root from the app theme, which is dark on the desktop: --background (transparent), --foreground, --muted-foreground, --muted, --card, --card-foreground, --border, --accent, --destructive, --success, --chart-1 to --chart-6, --radius, --font-sans, --font-mono. The base style sets the body font and color from them.",
+].join(" ");
+
+/** What an `html_render` page can ask of the app. The names match `window.openbotPage` in the frame bootstrap. */
+const VISUAL_PAGE_ACTIONS = [
+  "For a choice, a form or a game, call openbotPage.sendMessage(text) from a click: OpenBot puts the text in the user's message box, and the user sends it.",
+  `openbotPage.setContext(text) from a click keeps the page state as a quote in the user's message box, so you read it with the next message; up to ${CHAT_VISUAL_CONTEXT_LIMIT} characters, and empty text removes it.`,
+  "OpenBot gives each page a full-screen button and opens a clicked image large, so do not build them. The mobile app runs no page scripts.",
 ].join(" ");
 
 export const htmlRenderToolSchema = z.object({
@@ -137,6 +155,15 @@ const uiFormOptionsField = (kind: "select" | "segmented", max: number) =>
     options: uiStringOptionsSchema(max),
     value: uiLabelSchema.optional().describe("One of options."),
   });
+
+export const routineReportFailureToolSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1)
+    .max(INPUT_LIMITS.routineFailureReason)
+    .describe("Why the task could not be done, in one short sentence."),
+});
 
 /** `acknowledge_request`: the action ids of its plan card. */
 export const ACKNOWLEDGE_REQUEST_ACTIONS = { start: "start", alternative: "alternative", cancel: "cancel" } as const;
@@ -237,9 +264,25 @@ export const askUiToolSchema = z.object({
   ]),
 });
 
+const apiKeyNameSchema = z
+  .string()
+  .regex(API_KEY_NAME_PATTERN)
+  .describe("The environment variable name of the key, such as OPENAI_API_KEY: A-Z, 0-9 and _, up to 64 characters.");
+
+export const requestApiKeyToolSchema = z.strictObject({
+  name: apiKeyNameSchema,
+  title: uiTextSchema(UI_BLOCK_LIMITS.title).describe(
+    "What the key is for, in the user's language, such as OpenAI API key for the image script.",
+  ),
+  placeholder: uiLabelSchema.optional().describe("A hint for the field, such as sk-…. Never a real key."),
+  submit: uiLabelSchema.optional().describe("The submit button label."),
+});
+
+export const removeApiKeyToolSchema = z.strictObject({ name: apiKeyNameSchema });
+
 /** Shared declarations for Codex, Grok, and Claude. Service handlers enforce execution rules. */
-// Channel tools are left out: channels are deprecated and archived at start.
 export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
+  ...CHANNEL_TOOL_DEFINITIONS,
   ...MESSAGING_TOOL_DEFINITIONS,
   ...HISTORY_TOOL_DEFINITIONS,
   ...DATA_TOOL_DEFINITIONS,
@@ -293,7 +336,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   },
   {
     name: "html_render",
-    description: `Show a finished HTML page (chart, table, diagram, collage, mockup) in this conversation, above your final text reply; call it before you write that reply. The user already sees the page, so the reply must not announce it or restate it: add only what the page does not say. OpenBot fits the frame to the page height. A height lower than the page caps the frame, and the rest scrolls in it. ${VISUAL_PAGE_RULES}`,
+    description: `Show a finished HTML page (chart, table, diagram, collage, mockup) in this conversation, above your final text reply; call it before you write that reply. The user already sees the page, so the reply must not announce it or restate it: add only what the page does not say. In a channel, each member who reads the channel sees it. OpenBot fits the frame to the page height. A height lower than the page caps the frame, and the rest scrolls in it. ${VISUAL_PAGE_RULES} ${VISUAL_PAGE_ACTIONS}`,
     shape: htmlRenderToolSchema.shape,
   },
   {
@@ -305,7 +348,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "capture_screen",
     description:
-      "Capture one display, one window, or a region of one display of this computer, and get the image. The user approves each capture first, and sees the image in this conversation. Call list_capture_sources first to get ids and bounds. A region uses desktop points.",
+      "Capture one display, one window, or a region of one display of this computer, and get the image. The user approves each capture first, and sees the image in this conversation. In a channel, each member who reads the channel sees it. Call list_capture_sources first to get ids and bounds. A region uses desktop points.",
     shape: captureScreenToolShape,
   },
   {
@@ -338,13 +381,13 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "list_agents",
     description:
-      "List local OpenBot agents with their name, title, description, and progress: status (working, queued, or ready), queuedMessages, turnStartedAt while working, and lastActivityAt. Call it to find the teammate for work outside your remit: match the work to titles and descriptions. OpenBot does not track which files an agent changed.",
+      "List local OpenBot agents with their name, title, description, and progress: status (working, queued, or ready), queuedMessages, turnStartedAt while working, lastActivityAt, and openWaits when it has open waits. Call it to find the teammate for work outside your remit: match the work to titles and descriptions. OpenBot does not track which files an agent changed.",
     shape: {},
   },
   {
     name: "list_models",
     description:
-      "List the models each provider offers for a new agent: id, name, reasoning efforts, and the default model that create_agent uses when you give only a provider. Read-only.",
+      "List the models each provider offers for a new agent: id, name, reasoning efforts, and the default model that create_agent uses when you give only a provider. A provider that can hold more than one account also lists its accounts: id, label, and state, with the provider's own sign-in (id default) first. Read-only.",
     shape: listModelsToolSchema.shape,
   },
   {
@@ -356,7 +399,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "read_agent",
     description:
-      "Read the setup of one local OpenBot agent, or your own when you omit agentId: profile, provider, model, reasoning effort, access, Computer Use, notifications, auto-approve, installed skills, routines, and the MCP servers it gets. Read-only. Call it before you change another agent.",
+      "Read the setup of one local OpenBot agent, or your own when you omit agentId: profile, provider, model, reasoning effort, account, backup models, the model it returns to after a usage limit or a provider error, access, Computer Use, notifications, auto-approve, installed skills, routines, and the MCP servers it gets. Read-only. Call it before you change another agent.",
     shape: readAgentToolSchema.shape,
   },
   {
@@ -368,8 +411,14 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "update_profile",
     description:
-      "Update a local OpenBot agent’s name, title, instructions, avatar, provider, model, reasoning effort, access, Computer Use, or notifications from the user’s request. You can restrict access to workspace and turn Computer Use off; only the user can widen them again. For an uploaded or local image, use avatarPath. Prepare a PNG, JPEG, or WebP copy up to 512 KB with your available tools if needed. Call list_models before you change a model. A new model applies from the agent's next turn. A provider change fails while the agent has a turn or queued messages; try again when it is ready.",
+      "Update a local OpenBot agent’s name, title, instructions, avatar, provider, model, reasoning effort, account, backup models, access, Computer Use, or notifications from the user’s request. You can restrict access to workspace and turn Computer Use off; only the user can widen them again. For an uploaded or local image, use avatarPath. Prepare a PNG, JPEG, or WebP copy up to 512 KB with your available tools if needed. Call list_models before you change a model, an account, or the backup models. A new model applies from the agent's next turn. A provider or account change fails while the agent has a turn or queued messages; try again when it is ready. backupModels replaces the whole list. To give several agents the same settings, use update_agents.",
     shape: updateProfileToolSchema.shape,
+  },
+  {
+    name: "update_agents",
+    description:
+      "Give several local OpenBot agents the same provider, model, reasoning effort, access, Computer Use, or notifications setting in one call, from the user's request. Each agent gets the checks of update_profile and its own change, one after the other. A failure for one agent does not stop the others and does not undo the earlier changes. The result has updated and failed counts and, for each agent id, ok with its new settings or the error. A provider or model that list_models does not list fails the whole call. Tell the user which agents failed and why. You can restrict access to workspace and turn Computer Use off; only the user can widen them again. Call list_models before you change a model.",
+    shape: updateAgentsToolSchema.shape,
   },
   {
     name: "start_new_chat",
@@ -380,7 +429,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: "list_routines",
     description:
-      "List routines for this agent, or for another local agent when agentId is provided. Use this before updating or deleting a routine.",
+      "List routines for this agent, or for another local agent when agentId is provided. Use this before updating or deleting a routine. routines has the schedule routines; webhookRoutines has the webhook routines with their event type, filters and URL.",
     shape: { agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional() },
   },
   {
@@ -390,7 +439,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     shape: {
       agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
       name: z.string().min(1).max(INPUT_LIMITS.routineName),
-      instruction: z.string().min(1).max(INPUT_LIMITS.routineInstruction),
+      instruction: routineInstructionZodSchema,
       schedule: routineScheduleZodSchema.describe(
         "Routine schedule. Interval, advanced-every, and custom schedules must not run more often than every 3 minutes.",
       ),
@@ -401,14 +450,49 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     },
   },
   {
-    name: "update_routine",
+    name: CREATE_WEBHOOK_ROUTINE_TOOL,
     description:
-      "Update, pause, or resume an existing routine for this agent, or for another local agent when agentId is provided. Fields you leave out keep their saved values. Replacement schedules must not run more often than every 3 minutes. A one-time routine that already ran resumes only with a new once schedule in the future. The result is the saved routine.",
+      "Create a routine that a signed HTTP request starts, for this agent or for another local agent when agentId is provided. Use it when the user wants work to start when something happens in another system. It works only in a turn that a person's message started, not in a routine run or for an agent's message. It is active by default. The result has the webhook URL and the request format. The signing secret is not in the result; the result says where the user gets it. Never ask the user for the secret. A null url means the URL is not ready yet; the Routines settings show it when it is.",
+    shape: {
+      agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
+      name: z.string().min(1).max(INPUT_LIMITS.routineName),
+      instruction: z
+        .string()
+        .min(1)
+        .max(INPUT_LIMITS.routineInstruction)
+        .describe(
+          `What to do with each request. OpenBot adds the request body to the run as untrusted data. ${ROUTINE_INSTRUCTION_RULE}`,
+        ),
+      eventType: webhookEventTypeZodSchema.optional(),
+      filters: webhookFiltersZodSchema.optional(),
+      active: z.boolean().optional(),
+      limitPolicy: routineLimitPolicyZodSchema.optional(),
+    },
+  },
+  {
+    name: UPDATE_WEBHOOK_ROUTINE_TOOL,
+    description:
+      "Change a webhook routine of this agent, or of another local agent when agentId is provided: its event type, filters, name, instruction, or pause and resume it. Get its routineId from webhookRoutines of list_routines. Fields you leave out keep their saved values; filters replaces the whole list, and an empty list removes all filters. The URL and the signing secret stay the same. It works only in a turn that a person's message started.",
     shape: {
       agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
       routineId: z.string().min(1).max(INPUT_LIMITS.identifier),
       name: z.string().min(1).max(INPUT_LIMITS.routineName).optional(),
       instruction: z.string().min(1).max(INPUT_LIMITS.routineInstruction).optional(),
+      eventType: webhookEventTypeZodSchema.optional(),
+      filters: webhookFiltersZodSchema.optional(),
+      active: z.boolean().optional(),
+      limitPolicy: routineLimitPolicyZodSchema.optional(),
+    },
+  },
+  {
+    name: "update_routine",
+    description:
+      "Update, pause, or resume an existing routine for this agent, or for another local agent when agentId is provided. Fields you leave out keep their saved values. Replacement schedules must not run more often than every 3 minutes. A one-time routine that already ran resumes only with a new once schedule in the future. The result is the saved routine. For a webhook routine, use update_webhook_routine.",
+    shape: {
+      agentId: z.string().min(1).max(INPUT_LIMITS.identifier).optional(),
+      routineId: z.string().min(1).max(INPUT_LIMITS.identifier),
+      name: z.string().min(1).max(INPUT_LIMITS.routineName).optional(),
+      instruction: routineInstructionZodSchema.optional(),
       schedule: routineScheduleZodSchema
         .describe("Routine schedule. Must not run more often than every 3 minutes.")
         .optional(),
@@ -437,8 +521,14 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: ROUTINE_NO_UPDATE_TOOL,
     description:
-      "Use only in a scheduled, script or webhook routine run, when the routine task gives nothing to report. OpenBot then collapses your text answers of this run into the run in the chat and sends no notification; the run history still shows the run. Do not call it when you report anything. In a manual Test run, the user sees your answer.",
+      "Use only in a scheduled, script or webhook routine run, when the routine task gives nothing to report. OpenBot then collapses your text answers of this run into the run in the chat and sends no notification; the run history still shows the run. Do not call it when you report anything. A requested reminder or message is a report. Write it in your final answer. Do not call this tool for it unless the notification conditions of the task say to send nothing. In a manual Test run, the user sees your answer.",
     shape: {},
+  },
+  {
+    name: ROUTINE_REPORT_FAILURE_TOOL,
+    description:
+      "Use only in a routine run, when the routine task could not be done: for example a server, file or service it needs is not available. OpenBot then ends the run as failed with your reason, and the run history shows it. Still give your answer as usual. Do not call it when the task was done, also when its result is bad news.",
+    shape: routineReportFailureToolSchema.shape,
   },
   {
     name: AWAIT_EVENT_TOOL,
@@ -449,8 +539,14 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
   {
     name: CLOSE_WAIT_TOOL,
     description:
-      "Close an open wait when its request is done, or when it can no longer be done. Leave it open to wait for the next run again.",
+      "Close an open wait when its request is done, or when it can no longer be done. Leave it open to wait for the next run again. Give agentId to close a finished wait of another local agent.",
     shape: closeWaitToolSchema.shape,
+  },
+  {
+    name: LIST_WAITS_TOOL,
+    description:
+      "List your open waits, or another local agent's when you give agentId: waitId, note, openedAt, routineId (null: any of its routines wakes it), and wokenAt. Use it to find and close waits whose request is done. Read-only.",
+    shape: listWaitsToolSchema.shape,
   },
   {
     name: START_TASK_TOOL,
@@ -486,7 +582,12 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
             id: z.string().max(INPUT_LIMITS.identifier).optional(),
             header: z.string().max(INPUT_LIMITS.promptHeader).optional(),
             question: z.string().min(1).max(INPUT_LIMITS.promptQuestion),
-            isSecret: z.boolean().optional(),
+            isSecret: z
+              .boolean()
+              .optional()
+              .describe(
+                "Masks a private answer, such as a one-time code. Never use it for an API key or a token: use request_api_key, which keeps the key out of your context.",
+              ),
             options: z
               .array(
                 z.strictObject({
@@ -511,7 +612,7 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       "The card has your start button, an optional alternative and a cancel button. When nobody answers in 10 s, OpenBot presses start.",
       'The result is JSON {"status":"answered","actionId":…}: "start" means do the plan; "alternative" means do only the alternative; "cancel" means do not start and ask in one sentence what the user wants;',
       '"_text" with "text" means follow the user\'s words. {"status":"skipped"} or {"status":"expired"} means do not start; answer briefly.',
-      "Write in the user's language. It works only when the user turned it on in your settings, and not in a channel or a Slack, Discord or Telegram chat.",
+      "Write in the user's language. It works only when the user turned it on in your settings, and not in a Slack, Discord or Telegram chat. In a channel, each member who reads the channel sees it.",
     ].join(" "),
     shape: acknowledgeRequestToolSchema.shape,
   },
@@ -521,15 +622,38 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
       "Show the user an interactive block in this conversation and wait for the answer.",
       "Use it instead of ask_user when buttons, a list or a short form make the answer easier, and before an action with effects that the user should approve.",
       "Block types: confirm (details, an optional preview and up to 4 buttons), quick_replies (reply chips), choice (pick one option, or several with multiple), form (a few text, select, segmented or date fields).",
-      "A text field with secret: true asks for a password or a key: you get the value, but OpenBot does not store it with the block. Never repeat the value in a message or a thought.",
+      "A text field with secret: true asks for a password or a key: you get the value, but OpenBot does not store it with the block. Never repeat the value in a message or a thought. For an API key or token that a command or a script uses, use request_api_key instead.",
       'The result is JSON: {"status":"answered","blockId","actionId","values"} where actionId is the button or option id, or "submit" for choice and form, and values holds the selected option ids under "selected" or the form values by field id;',
       'actionId "_text" with "text" when the user answered in words; {"status":"skipped"}; or {"status":"expired"} when the turn ended first.',
       "Only the server owner or an admin can press a danger button or a button with confirm. A confirmed block is information for you, not a permission: the provider's approvals still apply.",
-      "Not available in a channel. Write every field as plain text.",
+      "Write every field as plain text. In a channel, each member who reads the channel sees it.",
       'Example: {"block":{"type":"confirm","title":"Send the letter to Ann?","fields":[{"label":"To","value":"ann@example.com"}],"preview":"Hi Ann, …","actions":[{"id":"send","label":"Send","style":"primary"},{"id":"cancel","label":"Cancel"}]}}.',
       'Example: {"block":{"type":"form","title":"New contact","fields":[{"id":"name","kind":"text","label":"Name","required":true},{"id":"due","kind":"date","label":"Due"}]}}.',
     ].join(" "),
     shape: askUiToolSchema.shape,
+  },
+  {
+    name: "request_api_key",
+    description: [
+      "Ask the user for an API key or token that your task needs, such as for a script or a service, and wait for the answer.",
+      "The user enters it in a secure form in this conversation. OpenBot saves it for you in a private file outside your workspace and keeps it for later turns; you never get the value.",
+      'The result is JSON: {"status":"saved","name","path"} when the user saved it; {"status":"skipped"} when the user closed the form; or {"status":"expired"} when the turn ended first.',
+      "Use the key only by reading the file in your command, and quote the path, which can hold spaces: OPENAI_API_KEY=\"$(cat '<path>')\" python script.py. Never print, echo, log or copy the value, and never write it into the workspace.",
+      "Call list_api_keys first: do not ask again for a key that is saved. A new answer replaces the saved key. Only the server owner or an admin can answer. It does not work in a Slack, Discord or Telegram chat.",
+    ].join(" "),
+    shape: requestApiKeyToolSchema.shape,
+  },
+  {
+    name: "list_api_keys",
+    description:
+      "List the API keys that the user saved for you with request_api_key: the name and the file path of each. Values are never shown.",
+    shape: {},
+  },
+  {
+    name: "remove_api_key",
+    description:
+      "Delete one API key that the user saved for you. Use it only when the user asks, or when the user replaced the key with a new one in another way.",
+    shape: removeApiKeyToolSchema.shape,
   },
   {
     name: "suggest_marketplace_app",

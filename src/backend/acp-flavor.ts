@@ -8,16 +8,24 @@ import { isRecord } from "./protocol";
  * only for an observed agent version, and name that version where the hook is set.
  */
 export interface AcpFlavor {
+  /** The `clientInfo` that `initialize` sends. Absent: `OPENBOT_ACP_CLIENT_INFO`. */
+  clientInfo?: { name: string; title: string; version: string };
   /**
    * Whether an error names this missing session. `null` gives the decision to the protocol's
    * `-32002` rule. Another error code or another session must never replace a provider session.
    */
   sessionNotFound?(error: RequestError, sessionId: string): boolean | null;
   /**
-   * The message of a failed turn, from the redacted failure text. `redact` masks more text, and `log`
-   * writes a diagnostic that it redacts first.
+   * The message of a failed turn, from the redacted failure text. `redact` masks more text, `log`
+   * writes a diagnostic that it redacts first, and `model` is the session's model.
    */
-  turnFailure?(error: unknown, detail: string, redact: (text: string) => string, log: (text: string) => void): string;
+  turnFailure?(
+    error: unknown,
+    detail: string,
+    redact: (text: string) => string,
+    log: (text: string) => void,
+    model: string | null,
+  ): string;
   /** The message of a turn that ended with no answer text. Absent: such a turn succeeds. */
   emptyAnswerFailure?(reasoned: boolean): string;
   /**
@@ -44,6 +52,13 @@ export interface AcpFlavor {
   interruptToolsOnStop?: true;
   /** Answer text is shown at once, not only when `session/prompt` answers. */
   streamAnswerBeforePromptReturns?: true;
+  /**
+   * `session/prompt` stays open with no update while background tasks run, so a silent turn is not
+   * stalled and OpenBot does not end it (`ACP_TURN_STALL_MS`).
+   */
+  promptOpenForBackgroundTasks?: true;
+  /** OpenBot compacts by replacing the session, for an agent that reports `usage_update` and has no compact request. */
+  contextCompaction?: "handoff";
 }
 
 /** The protocol's own behavior: Grok and Cline. */

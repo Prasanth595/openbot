@@ -182,6 +182,10 @@ export const messages = {
   "error.provider.cliBusyReconnect": "{provider} CLI はターンを処理中です。終わるまで待ってから再接続してください。",
   "error.provider.opencodeCredentialsRejected":
     "モデルプロバイダーが API キーを拒否しました。設定で OpenCode のキーを修正するか、`opencode auth login` でプロバイダーのキーを修正してください。その後、もう一度お試しいただくか、別のモデルを選択してください。\n{detail}",
+  "error.provider.opencodeAuthRequired":
+    "OpenCode はモデルプロバイダー「{provider}」にサインインしていません。「無料」ラベルのモデルを選択するか、プロバイダーを接続してください。OpenCode の設定に OpenCode Go のキーを貼り付けるか、ターミナルで `opencode auth login` を実行します。その後、もう一度お試しください。",
+  "error.provider.opencodeAuthRequiredUnknown":
+    "OpenCode はこのモデルのプロバイダーにサインインしていません。「無料」ラベルのモデルを選択するか、プロバイダーを接続してください。OpenCode の設定に OpenCode Go のキーを貼り付けるか、ターミナルで `opencode auth login` を実行します。その後、もう一度お試しください。",
   "error.provider.opencodeKeyExpired":
     "OpenCode の API キーの有効期限が切れました。OpenCode Console で新しいキーを作成し、OpenCode の設定に貼り付けてから、もう一度お試しください。",
   "error.provider.opencodeServiceFailure":
@@ -224,6 +228,8 @@ export const messages = {
   "error.provider.antigravitySignIn": "Gemini を使うには Google でサインインしてください。",
   "error.provider.antigravityRateLimited":
     "レート制限またはプランの割り当てに達したため、Gemini がリクエストを拒否しました。数分待つか別のモデルを選んでから、もう一度お試しください。\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google から Gemini の使用上限に達したと通知されました。上限は 1 つのモデルだけのものである場合があるため、プランの使用状況ページにはまだ残りが表示されることがあります。別の Gemini モデルを選ぶか、リセットまでお待ちください。\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini は現在このモデルを使用できません。別のモデルを選んでから、もう一度お試しください。\n{detail}",
   "error.provider.antigravityServiceFailure":
@@ -270,6 +276,7 @@ export const messages = {
     "エージェント ID には英小文字、数字、`-` のみを使用してください。組み込みプロバイダーの ID は使用できません。",
   "error.provider.customAgentEnvInvalid":
     "変数名には英字、数字、`_` のみを使用し、数字で始めないでください。各名前は 1 回だけ、最大 16 個まで使用できます。",
+  "error.provider.customAgentUsagePromptInvalid": "使用量コマンドは 256 文字以内の 1 行にしてください。",
   "error.provider.customAgentCommandInvalid":
     "コマンドは完全なパス、~/ で始まるパス、またはスペースを含まないコマンド名にしてください。",
   "error.provider.customAgentArgsInvalid": "引数に改行は使用できません。引数は最大 32 個までです。",
@@ -304,6 +311,9 @@ export const messages = {
   "error.provider.useChangeFailed": "OpenBot はプロバイダーの設定を変更できませんでした。",
   "error.provider.accountsUnsupported": "{provider} で使えるアカウントは 1 つだけです。",
   "error.provider.accountNeedsConnection": "別のアカウントを追加する前に {provider} に接続してください。",
+  "error.provider.usageResetUnsupported": "{provider} は使用量の上限をリセットできません。",
+  "error.provider.usageResetNotConnected":
+    "使用量をリセットする前に、この {provider} アカウントにもう一度サインインしてください。",
   "error.provider.accountLimit": "{provider} で使えるアカウントは最大 {limit} 個です。",
   "error.provider.accountNotFound":
     "この {provider} アカウントはこのコンピューターにありません。更新してからもう一度お試しください。",

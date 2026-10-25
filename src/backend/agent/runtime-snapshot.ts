@@ -33,6 +33,7 @@ export function compactRuntimeQuestion(
         label: option.label,
         description: option.description.slice(0, AGENT_RUNTIME_QUESTION_DESCRIPTION_LIMIT),
       })) ?? null,
+    ...(question.multiSelect ? { multiSelect: true } : {}),
   };
 }
 

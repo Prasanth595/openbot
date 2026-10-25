@@ -1,6 +1,11 @@
 import type { AgentEvent, ClientAgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
 import type { AppTranslate } from "@openbot/i18n";
-import { notificationForAgentEvent, notificationRequestKey } from "@openbot/team-client/agent-notifications";
+import {
+  type AgentNotificationChannel,
+  notificationForAgentEvent,
+  notificationRequestKey,
+} from "@openbot/team-client/agent-notifications";
+import type { ChannelNotificationContent } from "@openbot/team-client/channel-notifications";
 
 const PERMISSION_ASKED_KEY = "openbot.web.notification-permission-asked";
 /** The tab of this browser that has focus. The tab that speaks for a host is often in the background. */
@@ -111,10 +116,19 @@ export function showWebAgentNotification(options: {
   agents: ClientAgentSummary[];
   level: ServerNotificationLevel;
   translate: AppTranslate;
-  onOpen(agentId: string): void;
+  /** The channel whose thread the event came from, or null. */
+  channel: AgentNotificationChannel | null;
+  onOpen(agentId: string, channelId: string | undefined): void;
 }): void {
   if (typeof Notification === "undefined" || Notification.permission !== "granted" || browserFocused()) return;
-  const content = notificationForAgentEvent(options.event, options.agents, options.translate, options.level);
+  const content = notificationForAgentEvent(
+    options.event,
+    options.agents,
+    options.translate,
+    options.level,
+    null,
+    options.channel,
+  );
   if (!content) return;
   const key = notificationRequestKey(options.hostId, options.event);
   try {
@@ -135,9 +149,39 @@ export function showWebAgentNotification(options: {
     notification.addEventListener("click", () => {
       window.focus();
       notification.close();
-      options.onOpen(content.agentId);
+      options.onOpen(content.agentId, content.channelId);
     });
   } catch {
     // Some mobile browsers show notifications only from a service worker.
+  }
+}
+
+/** The shown reply notification of each channel, by host. A newer reply in the channel replaces it. */
+const channelNotifications = new Map<string, Notification>();
+
+/** Shows channel replies as browser notifications while no tab of the app has focus, as the desktop does. */
+export function showWebChannelNotifications(options: {
+  hostId: string;
+  replies: readonly ChannelNotificationContent[];
+  onOpen(channelId: string): void;
+}): void {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted" || browserFocused()) return;
+  for (const reply of options.replies) {
+    const key = `${options.hostId}\n${reply.channelId}`;
+    try {
+      const notification = new Notification(reply.title, { body: reply.body });
+      channelNotifications.get(key)?.close();
+      channelNotifications.set(key, notification);
+      notification.addEventListener("close", () => {
+        if (channelNotifications.get(key) === notification) channelNotifications.delete(key);
+      });
+      notification.addEventListener("click", () => {
+        window.focus();
+        notification.close();
+        options.onOpen(reply.channelId);
+      });
+    } catch {
+      // As above.
+    }
   }
 }

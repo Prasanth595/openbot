@@ -369,8 +369,9 @@ unchanged. People and desktop-only settings remain outside the implemented web c
 
 ### Channels
 
-The browser uses the desktop channel UI: the sidebar rows and menus, `ChannelCreateDialog`,
-`ChannelConversation`, and channel settings with memories and routines. `createChannelsController`
+The browser uses the desktop channel UI: the sidebar rows and menus, `ChannelCreateDialog`, the
+shared `Conversation` view with the channel source of `createChannelConversation`, and channel
+settings with memories and routines. `createChannelsController`
 holds the channel logic for both clients. Each client gives it a `ChannelsEnvironment` and a
 `ChannelsPort` runtime: the desktop uses preload, and the browser uses `createWebChannelsPort`
 over the host connection. The Team API calls come from `teamChannelsApi` in
@@ -388,7 +389,9 @@ local storage for each account and host, as on desktop.
 The browser uses the shared Sidebar context menu and delete confirmation for duplicate/delete.
 Duplication requires the existing host capability. Its operation ID remains stable when a response
 is uncertain, so an explicit retry can use the host's existing idempotency contract. No automatic
-retry is made. Deletion refreshes host state and removes the deleted agent's local draft and pins.
+retry is made. The section menu also offers Duplicate for a custom section when the host has the
+`agent-duplication` and `sidebar-layout` capabilities. It calls the same agent duplicate once for each
+agent of the section, with no new Team API route. Deletion refreshes host state and removes the deleted agent's local draft and pins.
 The same desktop activity and avatar-state functions now consume loaded web conversation state
 and pending prompts/approvals; unloaded conversations do not invent activity or unread counts.
 

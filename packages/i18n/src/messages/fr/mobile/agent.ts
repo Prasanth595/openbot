@@ -216,6 +216,7 @@ export const messages = {
   "mobile.agent.webhook.activity.ignoredEventType": "Ignoré : autre type d’événement",
   "mobile.agent.webhook.activity.ignoredFilter": "Ignoré : les filtres ne correspondent pas",
   "mobile.agent.webhook.activity.ignoredInactive": "Ignoré : routine en pause",
+  "mobile.agent.record.channelInstructionsPlaceholder": "Décrivez ce que ce canal doit faire.",
   "mobile.agent.record.agentInstructionsPlaceholder": "Décrivez ce que cet agent doit faire.",
   "mobile.agent.record.schedule.daily": "Tous les jours",
   "mobile.agent.record.schedule.weekdays": "Jours ouvrés",
@@ -243,7 +244,6 @@ export const messages = {
   "mobile.agent.record.lateMonthDay": "Les mois sans jour {day} sont ignorés.",
   "mobile.agent.record.cronHint":
     "Cinq champs : minute, heure, jour du mois, mois et jour de la semaine. Par exemple, 0 9 * * 1-5 s’exécute à 9 h 00 en semaine.",
-  "mobile.agent.record.problem.endBeforeStart": "L’heure de fin doit être après l’heure de début.",
   "mobile.agent.record.problem.invalidDate": "Ce mois n’a pas ce jour.",
   "mobile.agent.record.problem.cronRequired": "Saisissez une expression cron.",
   "mobile.agent.record.problem.cronTooLong": "L’expression cron est trop longue.",
@@ -254,6 +254,20 @@ export const messages = {
   "mobile.agent.record.dayOfMonth": "Jour du mois",
   "mobile.agent.record.minute": "Minute",
   "mobile.agent.record.timeZone": "Fuseau horaire",
+  "mobile.agent.record.missedPolicy": "Si le serveur était éteint à l’heure prévue",
+  "mobile.agent.record.missedPolicy.skip": "Ignorer cette exécution",
+  "mobile.agent.record.missedPolicy.runOnce": "Exécuter une fois au retour du serveur",
+  "mobile.agent.record.resultDestination": "Envoyer les réponses à",
+  "mobile.agent.record.resultDestination.none": "Seulement cette discussion",
+  "mobile.agent.record.resultDestination.unavailable": "{place} (désactivé)",
+  "mobile.agent.record.resultDestination.placesFailed": "Impossible de charger les emplacements de {connection}.",
+  "mobile.agent.record.resultDestination.loadFailed": "Impossible de charger les emplacements de messagerie.",
+  "mobile.agent.record.resultDestination.saveFailed":
+    "Impossible d’enregistrer l’emplacement de messagerie. Réessayez.",
+  "mobile.agent.record.resultDestination.createFailed":
+    "La routine est enregistrée, mais pas son emplacement de messagerie. Ouvrez la routine pour choisir à nouveau l’emplacement.",
+  "mobile.agent.record.resultDestinationUnsupported":
+    "Cet hôte ne peut pas envoyer les réponses des routines vers un emplacement de messagerie. Mettez à jour OpenBot sur l’hôte.",
   "mobile.agent.record.enabled": "Activée",
   "mobile.agent.record.routine": "Routine",
   "mobile.agent.record.testStarting": "Démarrage…",
@@ -395,7 +409,7 @@ export const messages = {
   "mobile.agent.publish.unpublishFailed": "Impossible de retirer la publication de l’agent",
   "mobile.agent.publish.failedBody": "L’hôte n’a pas pu terminer cette action.",
   "mobile.agent.publish.unsupported": "Cet hôte ne peut pas publier d’agents depuis un appareil distant.",
-  "mobile.agent.usage.processedTokens": "Jetons traités",
+  "mobile.agent.usage.tokensWithoutCacheReads": "Jetons hors lectures du cache",
   "mobile.agent.usage.estimatedCost": "Coût estimé",
   "mobile.agent.usage.daily": "Utilisation quotidienne",
   "mobile.agent.usage.tokens": "Jetons",
@@ -426,6 +440,8 @@ export const messages = {
     "Données partielles : tours sans utilisation : {missingUsage}, enregistrements incomplets : {incomplete}, enregistrements sans estimation de coût : {unpriced}.",
   "mobile.agent.usage.costNote":
     "Coût équivalent API en USD. Cette estimation exclut les abonnements, les outils et les frais de médias.",
+  "mobile.agent.usage.tokensNote":
+    "Les nombres de jetons n’incluent pas les lectures du cache. Chaque requête au modèle dans un tour relit la conversation en cache : les lectures du cache peuvent donc dépasser largement les autres jetons. La répartition des jetons les affiche comme « Entrée mise en cache ».",
   "mobile.agent.usage.collection": "Collecte commencée {started}. Mise à jour {updated}.",
   "mobile.agent.usage.never": "jamais",
   "mobile.agent.record.time": "Heure",
@@ -473,6 +489,9 @@ export const messages = {
   "mobile.agent.edit.titlePlaceholder": "Décrivez ce que fait votre agent",
   "mobile.agent.edit.instructions": "Instructions",
   "mobile.agent.edit.instructionsPlaceholder": "À quoi sert cet agent",
+  "mobile.agent.instructions.length": "{length} / {limit}",
+  "mobile.agent.instructions.tooLong":
+    "Raccourcissez les instructions à {limit} caractères. Les instructions plus longues ne sont pas enregistrées.",
   "mobile.agent.edit.unavailable":
     "Cet agent est indisponible. Vos modifications sont conservées jusqu’à la fermeture de cette feuille.",
   "mobile.agent.sectionForm.saveFailed": "Impossible d’enregistrer la section. Veuillez réessayer.",
@@ -494,6 +513,7 @@ export const messages = {
   "mobile.agent.home.connecting": "Connexion au serveur",
   "mobile.agent.home.loadingServers": "Chargement de vos serveurs",
   "mobile.agent.home.addAgent": "Ajouter un agent",
+  "mobile.agent.home.newChannel": "Nouveau canal",
   "mobile.agent.home.retrySections": "Recharger les sections",
   "mobile.agent.home.serversFailed": "Impossible de charger vos serveurs",
   "mobile.agent.home.serversFailedBody": "Vérifiez que l’application de bureau fonctionne, puis réessayez.",

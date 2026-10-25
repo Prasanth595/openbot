@@ -1,12 +1,13 @@
 import { Stack } from "expo-router/stack";
 import { useCSSVariable } from "uniwind";
 import { androidBackOptions } from "@/shared/components/android-header-button";
+import { headerFontOptions } from "@/shared/lib/app-font";
 import { isIOS } from "@/shared/lib/platform";
 import { sheetBackHaptics } from "@/shared/lib/sheet-back-haptics";
 import { sheetHeaderInsetOptions } from "@/shared/lib/sheet-header";
 import { useText } from "@/shared/lib/text";
 
-export const unstable_settings = { initialRouteName: "index" };
+export const unstable_settings = { anchor: "index" };
 
 export default function ServerSettingsLayout() {
   const { t } = useText();
@@ -19,6 +20,7 @@ export default function ServerSettingsLayout() {
         ...sheetHeaderInsetOptions,
         presentation: "card",
         headerBackButtonDisplayMode: "minimal",
+        ...headerFontOptions,
         headerShadowVisible: false,
         headerTransparent: isIOS,
         headerStyle: { backgroundColor: isIOS ? "transparent" : background },
@@ -31,6 +33,7 @@ export default function ServerSettingsLayout() {
       <Stack.Screen name="members" options={{ title: t("mobile.app.route.members") }} />
       <Stack.Screen name="invite" options={{ title: t("mobile.server.route.invite") }} />
       <Stack.Screen name="member" options={{ title: t("mobile.server.route.member") }} />
+      <Stack.Screen name="member-roles" options={{ title: t("mobile.server.route.roles") }} />
       <Stack.Screen name="roles" options={{ title: t("mobile.server.route.roles") }} />
       {/* The page names its role in the name field. */}
       <Stack.Screen name="role" options={{ title: t("mobile.server.route.role") }} />

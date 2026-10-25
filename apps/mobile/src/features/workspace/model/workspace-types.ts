@@ -47,6 +47,8 @@ import type {
   HostUpdateStatus,
   InstallAgentTemplateInput,
   InstalledSkill,
+  InstallMarketplaceAgentInput,
+  InstallSkillInput,
   McpServerConfig,
   McpSignInState,
   McpTestResult,
@@ -63,13 +65,18 @@ import type {
   RoutineCalendar,
   RoutineCalendarInput,
   RoutineCalendarOwner,
+  RoutineResultConnectionOption,
+  RoutineResultDestination,
+  RoutineResultRoutineInput,
   SetAgentMemoryInclusionInput,
   SetAgentProviderAccountInput,
   SetAgentSessionSettingInput,
   SetEnabledSkillInput,
+  SetRoutineResultDestinationInput,
   SharedTable,
   SidebarLayoutAction,
   SidebarLayoutSnapshot,
+  SignInRelayStatus,
   StorageUsage,
   UninstallSkillInput,
   UpdateAgentAdminSettingsInput,
@@ -90,10 +97,12 @@ import type {
 } from "@openbot/contracts/ipc-events";
 import type { QueueEditRequest } from "@openbot/contracts/team-protocol/queue-edit-v1";
 import type { RemoteConnectionFailure, RemoteRecoveryStatus, RemoteTeamDirectoryClient } from "@openbot/team-client";
+import type { PlanLimits } from "@openbot/team-client/plan-limits";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import type { MessagingConnectorPage } from "@openbot/team-client/team-admin-requests";
 import type { MobileBrowserTab } from "@/features/browser/model/browser-tabs";
 import type { BrowserViewBridgeEvent, RemoteBrowserViewSession } from "@/features/browser/model/browser-view-bridge";
+import type { MobileChannelStore } from "@/features/channels/model/channel-store";
 import type { ProviderAdmin } from "@/features/servers/model/provider-admin";
 import type { MobileConversationStore } from "./conversation-store";
 import type { LiveWorkspaceStore } from "./live-workspace-store";
@@ -153,6 +162,8 @@ export interface MobileAgent {
   avatarUrl?: string | null;
   avatarSeed: string;
   avatarHue: AvatarHue | null;
+  /** The Marketplace listing the agent was added from, and the listing version it has. */
+  marketplaceSource?: { listingId: string; version: number } | undefined;
 }
 
 /** The `connectors-v1` routes that answer the host's GitHub connection status. */
@@ -221,6 +232,7 @@ export interface MobileWorkspaceContextValue {
   /** Sets the reader's reaction on a message of an agent chat. `null` removes it. */
   setMessageReaction: (agentId: string, serverId: string, messageId: string, emoji: string | null) => Promise<void>;
   interruptTurn: (agentId: string, turnId: string, serverId?: string) => Promise<void>;
+  channelStore: MobileChannelStore;
   /** The servers in the order saved on this device. The app opens on the first one. */
   servers: MobileServer[];
   /** Saves the order of all servers on this device. Returns false and keeps the old order on failure. */
@@ -238,6 +250,11 @@ export interface MobileWorkspaceContextValue {
   activeAgents: MobileAgent[];
   hiddenAgents: MobileAgent[];
   pinnedAgentIds: string[];
+  pinnedChannelIds: string[];
+  hiddenChannelIds: string[];
+  hideChannel: (channelId: string, serverId: string) => boolean;
+  unhideChannel: (channelId: string, serverId: string) => boolean;
+  toggleChannelPin: (channelId: string, serverId: string) => ToggleAgentPinResult;
   conversationStore: MobileConversationStore;
   /** Activity, unread agents, and browser requests. Read them with a selector hook, not from the context. */
   liveState: LiveWorkspaceStore;
@@ -274,6 +291,11 @@ export interface MobileWorkspaceContextValue {
   setAgentMemoryLimit: (limit: number, serverId: string) => Promise<HostAgentMemoryLimit>;
   /** An owner or admin of an online host that serves `agent-access-v1`. The host checks the role again. */
   canManageServerRoles: (serverId: string) => boolean;
+  /**
+   * A member, not an owner or admin, of an online host that serves `agent-access-v1`: the roles can
+   * limit their agents, and `loadServerRoles` gives only their own levels.
+   */
+  hasAgentAccessLimits: (serverId: string) => boolean;
   /** The roles of the server and the agents that each one gives its members. */
   loadServerRoles: (serverId: string) => Promise<AgentAccessSnapshot>;
   /** Replaces all roles. The host refuses a change made from an earlier revision. */
@@ -352,6 +374,13 @@ export interface MobileWorkspaceContextValue {
   setMcpServerEnabled: (mcpServerId: string, enabled: boolean, serverId: string) => Promise<McpServerConfig[]>;
   /** Connects once with `config` on the host. Nothing is saved. */
   testMcpServer: (config: McpServerConfig, serverId: string) => Promise<McpTestResult>;
+  /**
+   * An owner or admin of an online host that serves `mcp-servers-v1` and `sign-in-relay-v1`: the phone
+   * opens the browser sign-in of an MCP server, and the host keeps the grant.
+   */
+  canRelayMcpSignIn: (serverId: string) => boolean;
+  /** The relayed browser sign-ins of MCP servers on one host. Refuses a host without `sign-in-relay-v1`. */
+  mcpSignInRelay: (serverId: string) => McpSignInRelay;
   /** The http servers that the host holds a sign-in for. Empty for a host without `mcp-sign-in-v1`. */
   listMcpSignIns: (serverId: string) => Promise<McpSignInState[]>;
   signOutMcpServer: (mcpServerId: string, serverId: string) => Promise<McpSignInState[]>;
@@ -371,6 +400,24 @@ export interface MobileWorkspaceContextValue {
   testAgentRoutine: (agentId: string, routineId: string, serverId: string) => Promise<void>;
   /** Event administration is available only to owners and admins on hosts with events-v1. */
   canManageEvents: (serverId: string) => boolean;
+  /**
+   * An owner or admin of a host with events-v1 and `routine-recovery-v1`: the event routes then carry
+   * what a scheduled routine does with the runs that came due while the host was off.
+   */
+  canManageMissedRuns: (serverId: string) => boolean;
+  /** An owner or admin of a host with `routine-results-v1`: an agent routine can send its answers on. */
+  canManageRoutineResults: (serverId: string) => boolean;
+  /** The host's enabled messaging connections, with the places that each one can post in. */
+  loadRoutineResultOptions: (serverId: string) => Promise<RoutineResultConnectionOption[]>;
+  loadRoutineResultDestination: (
+    input: RoutineResultRoutineInput,
+    serverId: string,
+  ) => Promise<RoutineResultDestination | null>;
+  /** A null destination stops sending. The host refuses a connection that is off. */
+  setRoutineResultDestination: (
+    input: SetRoutineResultDestinationInput,
+    serverId: string,
+  ) => Promise<RoutineResultDestination | null>;
   listEventRoutines: (owner: EventRoutineOwner, serverId: string) => Promise<EventRoutine[]>;
   /** The result has the signing secret only when the save made a new webhook trigger. */
   saveEventRoutine: (input: SaveEventRoutineInput, serverId: string) => Promise<SaveEventRoutineResult>;
@@ -386,10 +433,10 @@ export interface MobileWorkspaceContextValue {
   ) => Promise<AgentMemorySelectionState>;
   loadAgentMemories: (agentId: string, serverId: string) => Promise<AgentMemory[]>;
   loadAgentRoutines: (agentId: string, serverId: string) => Promise<Routine[]>;
-  /** Every routine of the server's agents, with its runs in the range. */
+  /** Every routine of the server, of agents and channels, with its runs in the range. */
   /**
-   * `owners` are the agents whose routines to read, when the caller already knows them.
-   * Without it, the phone reads the agent list of the host first.
+   * `owners` are the agents and channels whose routines to read, when the caller already knows them.
+   * Without it, the phone reads the agent and channel lists of the host first.
    */
   loadRoutineCalendar: (
     input: RoutineCalendarInput,
@@ -406,6 +453,8 @@ export interface MobileWorkspaceContextValue {
   loadAgentSkills: (agentId: string, serverId: string, manage?: boolean) => Promise<InstalledSkill[] | null>;
   /** An owner or admin of an online host that serves `skills-admin-v1`. The host checks the role again. */
   canManageAgentSkills: (serverId: string) => boolean;
+  /** Owners and admins only; the host refuses a member. Resolves with the skill the host saved. */
+  installAgentSkill: (input: InstallSkillInput, serverId: string) => Promise<InstalledSkill>;
   /** Owners and admins only; the host refuses a member. Resolves with the skill the host saved. */
   setAgentSkillEnabled: (input: SetEnabledSkillInput, serverId: string) => Promise<InstalledSkill>;
   /** Owners and admins only; the host refuses a member. */
@@ -440,6 +489,11 @@ export interface MobileWorkspaceContextValue {
    * the host does not advertise `provider-accounts-v1`. Owners and admins only; the host refuses a member.
    */
   loadProviderAccounts: (serverId: string) => Promise<HostProviderAccounts | null>;
+  /**
+   * The plan limits of the host's providers. Every member reads the providers' own sign-ins. With
+   * `accounts`, an owner or admin also reads the accounts after the first and their names.
+   */
+  loadPlanLimits: (serverId: string, accounts: boolean) => Promise<PlanLimits>;
   /** Owners and admins only. The host refuses an agent that works, and an account of another provider. */
   setAgentProviderAccount: (input: SetAgentProviderAccountInput, serverId: string) => Promise<void>;
   /** True when the host advertises `context-reset-v1`. Any member can start a new chat. */
@@ -472,6 +526,12 @@ export interface MobileWorkspaceContextValue {
   canInstallAgentTemplate: (serverId: string) => boolean;
   /** Owners and admins only. The host downloads the template with its own account. */
   installAgentTemplate: (input: InstallAgentTemplateInput, serverId: string) => Promise<AddedAgent>;
+  /** An owner or admin of an online host that serves `agent-install-v1`. The host checks the role again. */
+  canAddMarketplaceAgents: (serverId: string) => boolean;
+  /** An owner or admin of an online host that serves `agent-update-v1`. The host checks the role again. */
+  canUpdateMarketplaceAgents: (serverId: string) => boolean;
+  /** Owners and admins only. The host downloads the listing with its own account. */
+  installMarketplaceAgent: (input: InstallMarketplaceAgentInput, serverId: string) => Promise<AddedAgent>;
   /** Owners and admins only; the host refuses a member. */
   deleteStoredFile: (fileId: string, serverId: string) => Promise<void>;
   /** Searches message text in the server's agent chats, one page from `cursor` or from the newest match. */
@@ -548,6 +608,19 @@ export interface MobileWorkspaceContextValue {
   toggleAgentPin: (agentId: string) => ToggleAgentPinResult;
 }
 
+/**
+ * One host's relayed MCP sign-ins (`sign-in-relay-v1`). The host starts the sign-in and opens no page;
+ * the phone opens the page, and the address it ends on goes back with `complete`.
+ */
+interface McpSignInRelay {
+  /** Starts the sign-in of `config` and answers its flow id. */
+  start: (config: McpServerConfig) => Promise<string>;
+  status: (flowId: string) => Promise<SignInRelayStatus>;
+  /** `query` holds a grant. It goes only to the host. */
+  complete: (flowId: string, query: string) => Promise<SignInRelayStatus>;
+  cancel: (flowId: string) => Promise<void>;
+}
+
 /** The checks that read what a host advertised. Their answer changes when a server connects. */
 export type MobileWorkspaceCapabilityCheck =
   | "browserViewSupport"
@@ -573,12 +646,15 @@ type MobileWorkspaceStateKey =
   | "activeAgents"
   | "hiddenAgents"
   | "pinnedAgentIds"
+  | "pinnedChannelIds"
+  | "hiddenChannelIds"
   | "hidesAgentsOnServer"
   | "canUnhideAgent"
   | "canEditServerIdentity"
   | "canManageServerTimezone"
   | "canManageAgentMemoryLimit"
   | "canManageServerRoles"
+  | "hasAgentAccessLimits"
   | "canManageConnectors"
   | "canManageOnePasswordConnector"
   | "serverUpdateAccess"
@@ -587,8 +663,13 @@ type MobileWorkspaceStateKey =
   | "canDeleteHostedSites"
   | "canManageProviders"
   | "canManageMcpServers"
+  | "canRelayMcpSignIn"
+  | "canAddMarketplaceAgents"
+  | "canUpdateMarketplaceAgents"
   | "canSendNotifications"
   | "canManageEvents"
+  | "canManageMissedRuns"
+  | "canManageRoutineResults"
   | "canManageAgentSkills"
   | "canManageAgentAccess"
   | "canManageAgentHostSettings"

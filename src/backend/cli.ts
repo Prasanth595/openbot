@@ -575,6 +575,22 @@ export function claudeTakesPromptSnapshotFlag(version: string): boolean {
   return isMinimumVersion(version, [2, 1, 263]);
 }
 
+/**
+ * Whether this Antigravity ACP server answers `/usage` itself, with no model turn. Checked in 1.4.1;
+ * 1.3.0 sends the command to the model.
+ */
+export function antigravityAnswersUsageCommand(version: string): boolean {
+  return isMinimumVersion(version, [1, 4, 1]);
+}
+
+/**
+ * Whether this Antigravity ACP server keeps its token and settings in `GEMINI_HOME`, so that an
+ * account after the first can have a folder of its own. Checked in 1.4.0, 1.4.1 and 1.4.3.
+ */
+export function antigravityReadsGeminiHome(version: string): boolean {
+  return isMinimumVersion(version, [1, 4, 0]);
+}
+
 function isMinimumVersion(version: string, minimum: readonly number[]): boolean {
   const parts = version.split(".").map(Number);
   for (const [index, required] of minimum.entries()) {

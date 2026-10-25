@@ -25,6 +25,7 @@ export const messages = {
   "mobile.search.task.tryAgain": "Tentar novamente",
   "mobile.search.filter.all": "Tudo",
   "mobile.search.filter.agents": "Agentes",
+  "mobile.search.filter.channels": "Canais",
   "mobile.search.filter.messages": "Mensagens",
   "mobile.search.filter.files": "Arquivos",
   "mobile.search.filter.routines": "Rotinas",

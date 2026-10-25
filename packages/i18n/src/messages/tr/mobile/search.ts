@@ -26,6 +26,7 @@ export const messages = {
   "mobile.search.task.tryAgain": "Tekrar dene",
   "mobile.search.filter.all": "Tümü",
   "mobile.search.filter.agents": "Ajanlar",
+  "mobile.search.filter.channels": "Kanallar",
   "mobile.search.filter.messages": "Mesajlar",
   "mobile.search.filter.files": "Dosyalar",
   "mobile.search.filter.routines": "Rutinler",

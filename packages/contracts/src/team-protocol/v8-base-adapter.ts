@@ -4,6 +4,7 @@ import { type AgentEvent, isAgentEvent } from "../ipc-agent-events";
 import { isTeamRealtimeEvent, type TeamRealtimeEvent } from "../ipc-team-host";
 import { isBoolean, isDynamicRecord, isNumber, isString } from "../runtime-values";
 import { restoreBrowserSecretMetadata } from "./browser-secret-v1";
+import { restoreBrowserTakeoverReason } from "./browser-sign-in-v1";
 import { eventConversationKey, withConversationPlans } from "./conversation-plan-v4";
 import { withConversationSenders } from "./conversation-sender-v5";
 import {
@@ -12,6 +13,7 @@ import {
   toWireAgentKeys,
   toWireAgentKeysObjectForPath,
 } from "./current-agent-keys";
+import { eventHasPromptQuestions, withEventPromptMultiSelect } from "./prompt-multi-select-v1";
 import { withConversationSubagents } from "./subagents-v1";
 import { withConversationUiBlocks } from "./ui-blocks-v1";
 import {
@@ -40,12 +42,16 @@ export function decodeTeamProtocolV8BaseCurrentEvent(value: unknown): TeamProtoc
   const decodedValue: TeamProtocolV8BaseJsonValue = JSON.parse(JSON.stringify(decoded.event));
   let current: unknown;
   try {
-    current = withEventConversationPlans(
-      restoreBrowserSecretMetadata(toCurrentAgentKeys(decodedValue), value),
-      value,
-      // A host sends a UI block only under ui-blocks-v1, and the subagents only under subagents-v1,
-      // so a present one is always kept.
-      value,
+    current = withEventPromptMultiSelect(
+      withEventConversationPlans(
+        restoreBrowserTakeoverReason(restoreBrowserSecretMetadata(toCurrentAgentKeys(decodedValue), value), value),
+        value,
+        // A host sends a UI block only under ui-blocks-v1, the subagents only under subagents-v1, a
+        // multi-select flag only under prompt-multi-select-v1, and a takeover reason only under
+        // browser-sign-in, so a present one is always kept.
+        value,
+        value,
+      ),
       value,
     );
   } catch {
@@ -61,8 +67,10 @@ export function encodeTeamProtocolV8BaseCurrentEvent(
   options: {
     preserveSemanticTags?: boolean;
     preserveBrowserSecrets?: boolean;
+    browserSignIn?: boolean;
     uiBlocks?: boolean;
     subagents?: boolean;
+    promptMultiSelect?: boolean;
   } = {},
 ): string | null {
   // `turn-progress` bypasses the frozen codec, so it needs the vocabulary swap applied by hand.
@@ -77,16 +85,26 @@ export function encodeTeamProtocolV8BaseCurrentEvent(
   const decoded = decodeTeamProtocolV8BaseEvent(downconvertedValue);
   if (decoded.kind !== "known") return null;
   const encoded = encodeTeamProtocolV8BaseEvent(decoded.event);
-  if (!encoded || (!options.preserveBrowserSecrets && !eventConversationKey(event.type))) return encoded;
+  const promptMultiSelect = options.promptMultiSelect === true && eventHasPromptQuestions(event.type);
+  if (
+    !encoded ||
+    (!options.preserveBrowserSecrets &&
+      !options.browserSignIn &&
+      !eventConversationKey(event.type) &&
+      !promptMultiSelect)
+  )
+    return encoded;
   // The block and the subagents go as written: the key swap would rename a response value under a
   // field id such as `agentId`.
-  const output = withEventConversationPlans(
+  const withPlans = withEventConversationPlans(
     JSON.parse(encoded),
     wireValue,
     options.uiBlocks ? currentValue : null,
     options.subagents ? currentValue : null,
   );
-  return JSON.stringify(options.preserveBrowserSecrets ? restoreBrowserSecretMetadata(output, wireValue) : output);
+  const output = promptMultiSelect ? withEventPromptMultiSelect(withPlans, currentValue) : withPlans;
+  const withSecrets = options.preserveBrowserSecrets ? restoreBrowserSecretMetadata(output, wireValue) : output;
+  return JSON.stringify(options.browserSignIn ? restoreBrowserTakeoverReason(withSecrets, wireValue) : withSecrets);
 }
 
 /**

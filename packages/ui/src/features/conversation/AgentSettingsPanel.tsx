@@ -4,6 +4,8 @@ import {
   AGENT_TASK_LIMIT_DEFAULT,
   AGENT_TASK_LIMIT_MAX,
   type AgentBackupModels,
+  type AgentBrowserProfile,
+  type AgentDefaults,
   type AgentModelChoice,
   type AgentModelId,
   type AgentPermissionLevel,
@@ -13,17 +15,20 @@ import {
   type AvatarHue,
   type AvatarImageInput,
   agentAutomationAllowed,
+  agentBrowserProfile,
   agentComputerUseEnabled,
   agentNewChatAllowed,
   agentPermissionLevel,
   agentPermissionLevels,
   agentPermissionUpdate,
   agentQuickAcknowledgementEnabled,
+  type BrowserProfileSummary,
   type BusyMessageMode,
   type ClientAgentModelOption,
   type CustomAgentSummary,
   type CustomProviderSummary,
   DEFAULT_AGENT_ACCESS,
+  DEFAULT_AGENT_DEFAULTS,
   DEFAULT_BUSY_MESSAGE_MODE,
   type ProviderRuntimeStatus,
   type UpdateAgentAdminSettingsInput,
@@ -69,6 +74,8 @@ import {
 } from "@openbot/ui/components/SettingsPanel";
 import type { AgentProfile } from "@openbot/ui/data";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
+import { InstructionsLimit, instructionsTooLong } from "@openbot/ui/features/agents/InstructionsLimit";
+import { type BrowserProfileChoice, BrowserProfileSelect } from "@openbot/ui/features/browser/BrowserProfileSelect";
 import { errorReference } from "@openbot/user-errors";
 import type { JSX } from "@solidjs/web";
 import {
@@ -116,6 +123,8 @@ export interface AgentSettingsPanelProps {
   newChatEditable?: boolean;
   /** Whether the agent shows its plan before a long task. Local-only: the Team API does not carry it. */
   quickAcknowledgementEditable?: boolean;
+  /** The browser profile of the agent's tabs. Left out when the host cannot change it. */
+  browserProfiles?: AgentBrowserProfileOptions | undefined;
   /** The busy-message setting is local-only too: the Team API does not carry it. */
   busyMessageModeEditable?: boolean;
   /** Tasks run only on this computer: the Team API has no task route. */
@@ -126,6 +135,8 @@ export interface AgentSettingsPanelProps {
   usageLimited?: ((choice: AgentModelChoice) => boolean) | undefined;
   /** The app default an agent without its own busy-message setting follows. */
   defaultBusyMessageMode?: BusyMessageMode | undefined;
+  /** The account defaults an agent without its own value follows. Absent for a remote agent. */
+  agentDefaults?: AgentDefaults | undefined;
   providerRuntimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
   /** The caller supplies providers available on the selected host. */
   customProviders?: readonly CustomProviderSummary[] | undefined;
@@ -158,6 +169,30 @@ export interface AgentSettingsPanelProps {
    * it and keeps its setup. Left out when the host cannot do it.
    */
   onStartNewChat?: (() => Promise<void>) | undefined;
+}
+
+export interface AgentBrowserProfileOptions {
+  /** The named profiles of the computer that runs the agent. Undefined while they load. */
+  profiles: readonly Pick<BrowserProfileSummary, "id" | "name" | "hue">[] | undefined;
+  /**
+   * The agent's choice, as its host gives it. The summary of an agent on a joined server does not
+   * carry it; absent, the panel reads it from the agent.
+   */
+  current?: AgentBrowserProfile | undefined;
+  /** Saves the choice. The host closes the agent's open tabs. */
+  onChange: (agentId: string, profile: AgentBrowserProfile) => Promise<void>;
+  /** Makes a named profile and returns its id. */
+  onCreate: (name: string) => Promise<string>;
+  /** Opens the profiles in the settings of the computer that runs the agent. */
+  onManage: (trigger: HTMLElement) => void;
+}
+
+function browserProfileChoice(profile: AgentBrowserProfile): BrowserProfileChoice {
+  return profile.kind === "profile" ? profile.profileId : profile.kind;
+}
+
+function choiceBrowserProfile(choice: BrowserProfileChoice): AgentBrowserProfile {
+  return choice === "shared" || choice === "agent" ? { kind: choice } : { kind: "profile", profileId: choice };
 }
 
 const INSTRUCTIONS_SAVE_DELAY_MS = 400;
@@ -205,6 +240,7 @@ interface AgentSettingsDraft {
   allowAutomation: boolean;
   allowNewChat: boolean;
   quickAcknowledgement: boolean;
+  browserProfile: BrowserProfileChoice;
   /** `default` follows the app setting. */
   busyMessage: BusyMessageChoice;
   /** `default` is `AGENT_TASK_LIMIT_DEFAULT`. */
@@ -228,6 +264,7 @@ interface TextSaveRequest {
 
 export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   const { t, errorMessage, format } = useText();
+  const agentDefaults = () => props.agentDefaults ?? DEFAULT_AGENT_DEFAULTS;
   const [newChatOpen, setNewChatOpen] = createSignal(false);
   const [draft, setDraft] = createStore<AgentSettingsDraft>({
     avatar: {
@@ -246,6 +283,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     allowAutomation: false,
     allowNewChat: false,
     quickAcknowledgement: false,
+    browserProfile: "shared",
     busyMessage: "default",
     taskLimit: "default",
     backupModels: null,
@@ -364,9 +402,10 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           String(agent.notifications),
           currentPermission(),
           String(agentComputerUseEnabled(agent)),
-          String(agentAutomationAllowed(agent)),
-          String(agentNewChatAllowed(agent)),
-          String(agentQuickAcknowledgementEnabled(agent)),
+          String(agentAutomationAllowed(agent, agentDefaults())),
+          String(agentNewChatAllowed(agent, agentDefaults())),
+          String(agentQuickAcknowledgementEnabled(agent, agentDefaults())),
+          browserProfileChoice(props.browserProfiles?.current ?? agentBrowserProfile(agent)),
           agent.busyMessageMode ?? "default",
           String(agent.taskLimit ?? "default"),
           JSON.stringify(agent.backupModels ?? null),
@@ -408,9 +447,10 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
           state.notifications = agent.notifications;
           state.permission = currentPermission();
           state.computerUse = agentComputerUseEnabled(agent);
-          state.allowAutomation = agentAutomationAllowed(agent);
-          state.allowNewChat = agentNewChatAllowed(agent);
-          state.quickAcknowledgement = agentQuickAcknowledgementEnabled(agent);
+          state.allowAutomation = agentAutomationAllowed(agent, agentDefaults());
+          state.allowNewChat = agentNewChatAllowed(agent, agentDefaults());
+          state.quickAcknowledgement = agentQuickAcknowledgementEnabled(agent, agentDefaults());
+          state.browserProfile = browserProfileChoice(props.browserProfiles?.current ?? agentBrowserProfile(agent));
           state.busyMessage = agent.busyMessageMode ?? "default";
           state.taskLimit = taskLimitChoice(agent.taskLimit);
           state.backupModels = agent.backupModels ?? null;
@@ -496,6 +536,8 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
   }
 
   function queueTextSave(request: TextSaveRequest): void {
+    // Instructions over the limit stay in the field, unsaved, until the user shortens them.
+    if (request.field === "description" && instructionsTooLong(request.storedValue)) return;
     if (
       activeTextSave?.agentId === request.agentId &&
       activeTextSave.field === request.field &&
@@ -860,6 +902,25 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
     }
   }
 
+  async function saveBrowserProfile(options: AgentBrowserProfileOptions, next: BrowserProfileChoice): Promise<void> {
+    const agentId = props.agent.id;
+    const previous = draft.browserProfile;
+    setDraft((state) => {
+      state.browserProfile = next;
+    });
+    setSaveError(null);
+    try {
+      await options.onChange(agentId, choiceBrowserProfile(next));
+    } catch (error) {
+      if (disposed || props.agent.id !== agentId) return;
+      setSaveError(errorMessage(error, t("agentSettings.saveFailed")), error);
+      if (draft.browserProfile === next)
+        setDraft((state) => {
+          state.browserProfile = previous;
+        });
+    }
+  }
+
   return (
     <SettingsPanel
       onResizeEnd={props.onResizeEnd}
@@ -1115,7 +1176,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   value={draft.fields.description}
                   aria-label={t("agentSettings.instructionsLabel")}
                   placeholder={t("agentSettings.instructionsPlaceholder")}
-                  maxlength={INPUT_LIMITS.agentDescription}
+                  invalid={instructionsTooLong(draft.fields.description)}
                   onValueChange={(value) => {
                     setDraft((state) => {
                       state.fields.description = value;
@@ -1125,6 +1186,7 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                   }}
                   onBlur={saveDescription}
                 />
+                <InstructionsLimit text={draft.fields.description} />
               </SettingsField>
               <SettingsLinkGroup inset class="agent-settings-runtime-rows" title={t("agentSettings.groups.brain")}>
                 <ProviderModelPicker
@@ -1388,6 +1450,16 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     <SelectContent />
                   </Select>
                 </Show>
+                <Show when={props.browserProfiles}>
+                  {(options) => (
+                    <BrowserProfileSelect
+                      value={draft.browserProfile}
+                      profiles={options().profiles}
+                      onChange={(next) => void saveBrowserProfile(options(), next)}
+                      onCreate={options().onCreate}
+                    />
+                  )}
+                </Show>
                 <div class="agent-settings-runtime-path">
                   <span class="agent-settings-runtime-label">{t("agentSettings.runtime.workingDirectory")}</span>
                   <span>
@@ -1454,6 +1526,23 @@ export default function AgentSettingsPanel(props: AgentSettingsPanelProps) {
                     onChange={(next) => void saveQuickAcknowledgement(next)}
                   />
                 </div>
+              </Show>
+              <Show when={props.browserProfiles}>
+                {(options) => (
+                  <div class="agent-settings-notifications">
+                    <div>
+                      <strong>{t("agentSettings.browserProfile.manageTitle")}</strong>
+                      <span>{t("agentSettings.browserProfile.manageDescription")}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={(event) => options().onManage(event.currentTarget)}
+                    >
+                      {t("agentSettings.browserProfile.manage")}
+                    </Button>
+                  </div>
+                )}
               </Show>
             </Show>
             <Show when={draft.saveError}>

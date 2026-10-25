@@ -171,6 +171,10 @@ export const messages = defineMessages("error.provider", {
   "error.provider.cliBusyReconnect": "The {provider} CLI is working on a turn. Wait for it to finish, then reconnect.",
   "error.provider.opencodeCredentialsRejected":
     "The model provider rejected the API key. Fix the OpenCode key in Settings, or the provider's key with `opencode auth login`. Then try again or choose another model.\n{detail}",
+  "error.provider.opencodeAuthRequired":
+    'OpenCode has no sign-in for the model provider "{provider}". Choose a model with the Free label, or connect the provider: paste an OpenCode Go key in the OpenCode settings, or run `opencode auth login` in a terminal. Then try again.',
+  "error.provider.opencodeAuthRequiredUnknown":
+    "OpenCode has no sign-in for the provider of this model. Choose a model with the Free label, or connect the provider: paste an OpenCode Go key in the OpenCode settings, or run `opencode auth login` in a terminal. Then try again.",
   "error.provider.opencodeKeyExpired":
     "Your OpenCode API key expired. Create a new key in OpenCode Console, paste it in the OpenCode settings, then try again.",
   "error.provider.opencodeServiceFailure":
@@ -211,6 +215,8 @@ export const messages = defineMessages("error.provider", {
   "error.provider.antigravitySignIn": "Sign in with Google to use Gemini.",
   "error.provider.antigravityRateLimited":
     "Gemini refused the request because a rate limit or the plan's quota is reached. Wait a few minutes or choose another model, then try again.\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google says a Gemini usage limit is reached. The limit can be for one model, so the usage page of your plan can show more left. Choose another Gemini model, or wait for the reset.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini cannot use this model now. Choose another model, then try again.\n{detail}",
   "error.provider.antigravityServiceFailure":
@@ -255,6 +261,7 @@ export const messages = defineMessages("error.provider", {
     "An agent ID must be lowercase letters, digits or `-`, and cannot be the ID of a built-in provider.",
   "error.provider.customAgentEnvInvalid":
     "A variable name must be letters, digits or `_`, and not start with a digit. Use each name once, at most 16 names.",
+  "error.provider.customAgentUsagePromptInvalid": "A usage command must be one line of at most 256 characters.",
   "error.provider.customAgentCommandInvalid":
     "The command must be a full path, a path that starts with ~/, or a command name with no spaces.",
   "error.provider.customAgentArgsInvalid": "An argument cannot contain a line break. Use at most 32 arguments.",
@@ -285,6 +292,8 @@ export const messages = defineMessages("error.provider", {
   "error.provider.useChangeFailed": "OpenBot could not change the provider setting.",
   "error.provider.accountsUnsupported": "{provider} can hold one account only.",
   "error.provider.accountNeedsConnection": "Connect {provider} before you add another account.",
+  "error.provider.usageResetUnsupported": "{provider} cannot reset usage limits.",
+  "error.provider.usageResetNotConnected": "Sign in to this {provider} account again before you reset its usage.",
   "error.provider.accountLimit": "{provider} can hold at most {limit} accounts.",
   "error.provider.accountNotFound": "This {provider} account is not on this computer. Refresh and try again.",
   "error.provider.accountAlreadyAdded": "This {provider} account is already connected.",

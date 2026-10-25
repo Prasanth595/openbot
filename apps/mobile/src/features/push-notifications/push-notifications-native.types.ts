@@ -32,3 +32,11 @@ export interface PushNotificationsNative {
   /** Plays `sound` as a notification plays it. In silent mode the phone plays it as it plays a notification. */
   previewSound(sound: NotificationSound): Promise<void>;
 }
+
+/** What a notification names: its agent, and the server and thread of the event. */
+export interface NotificationTarget {
+  agentId: string;
+  serverId: string | null;
+  /** The thread of the event. A thread of a channel opens the channel. */
+  threadId: string | null;
+}

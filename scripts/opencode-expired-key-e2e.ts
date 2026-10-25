@@ -3,8 +3,9 @@
 // `OPENCODE_API_KEY`. An old key in `auth.json` used to win over the key pasted into OpenBot (#2544).
 // Checks that an expired key reads as the expired-key error, not "Internal error"; that a replaced
 // key reaches a new process and the same thread there, although `auth.json` still holds the old
-// key; that with no stored key the config names no key, so the user's own sign-in stays in use; and
-// that a custom endpoint saved as `opencode-go` keeps its URL when a key is stored.
+// key; that with no stored key the config names no key, so the user's own sign-in stays in use;
+// that a custom endpoint saved as `opencode-go` keeps its URL when a key is stored; and that a model
+// whose provider has no sign-in names that provider and its fix (#2746).
 // `bun run test:opencode-expired-key`. Writes .openbot-build/opencode-expired-key-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -35,6 +36,7 @@ interface Report {
   replaced?: { thread: string; loaded: boolean; key: string | null };
   noStoredKey?: { configKey: string | null; key: string | null };
   endpoint?: { baseURL: string | null; zenKey: string | null };
+  authRequired?: { error: string };
 }
 
 const root = await mkdtemp(join(tmpdir(), "openbot-opencode-expired-key-e2e-"));
@@ -124,6 +126,20 @@ try {
   assert.equal(endpointSpawn.configKey, null, "The stored key does not replace the endpoint's options.");
   assert.equal(endpointSpawn.zenKey, "fresh", "The OpenCode provider gets the stored key.");
   report.endpoint = { baseURL: endpointSpawn.baseURL ?? null, zenKey: endpointSpawn.zenKey ?? null };
+
+  // 5. A model whose provider has no sign-in names that provider and how to connect it, not the
+  // protocol's bare "Authentication required".
+  storedKey = null;
+  endpoints = [];
+  process.env.FAKE_PROVIDER_AUTH = "1";
+  const fifth = open(cli);
+  const { error: authError } = await runTurn(fifth, await startThread(fifth, { cwd: workspace }));
+  assert.equal(
+    authError,
+    sourceText("error.provider.opencodeAuthRequired", { provider: "anthropic" }),
+    "A provider with no sign-in names itself and its fix.",
+  );
+  report.authRequired = { error: authError };
   report.passed = true;
 } finally {
   await stopClients(clients);

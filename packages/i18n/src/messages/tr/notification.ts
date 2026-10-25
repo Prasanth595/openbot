@@ -8,6 +8,8 @@ export const messages = {
   "notification.needsApprovalFor": "Onayınıza ihtiyaç duyuyor: {action}",
   "notification.finished": "Çalışmayı tamamladı.",
   "notification.failed": "Bir hatayla durdu.",
+  "notification.channelTitle": "{channel} kanalında {agent}",
+  "notification.channelMessage": "Bir mesaj gönderdi.",
   "notification.usageLimit.title": "{provider} hesabı sınırına ulaştı",
   "notification.usageLimit.body": {
     one: "{count} ajan bekliyor. OpenBot daha sonra tekrar deneyecek.",

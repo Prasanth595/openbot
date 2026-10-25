@@ -1,4 +1,6 @@
-import type { AgentEvent, ClientAgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
+import type { AgentEvent, ChannelSummary, ClientAgentSummary, ServerNotificationLevel } from "@openbot/contracts/ipc";
+import { type AgentNotificationChannel, agentEventRequestThread } from "@openbot/team-client/agent-notifications";
+import { channelReplyNotifications } from "@openbot/team-client/channel-notifications";
 import type { TextValue } from "@openbot/ui/text";
 import { onCleanup, untrack } from "solid-js";
 import { startActionSounds } from "../../action-sounds";
@@ -10,6 +12,7 @@ import type { createWebServerNotifications } from "./web-notification-preference
 import {
   requestWebNotificationPermission,
   showWebAgentNotification,
+  showWebChannelNotifications,
   watchWebTabFocus,
   withdrawWebAgentNotification,
 } from "./web-notifications";
@@ -24,6 +27,10 @@ export function createWebNotificationRouting(options: {
   t: TextValue["t"];
   /** Opens the agent of a notification that the user clicked. */
   onOpen: (hostId: string, agentId: string) => void;
+  /** Opens the channel of a notification that the user clicked. */
+  onOpenChannel: (hostId: string, channelId: string) => void;
+  /** The channel of a thread on the open host, from its channel list, or null. */
+  channelForThread: (hostId: string, threadId: string) => AgentNotificationChannel | null;
 }) {
   const { workspace, notifications } = options;
   function notify(hostId: string, event: AgentEvent, agents: ClientAgentSummary[]): void {
@@ -31,14 +38,30 @@ export function createWebNotificationRouting(options: {
     const { muted, level } = untrack(() => notifications.state(hostId));
     if (muted || level === "nothing") return;
     if (event.type === "turn-completed" && level === "all") playCompletionSoundForAgentEvent(event, agents);
+    const threadId = agentEventRequestThread(event);
     showWebAgentNotification({
       hostId,
       event,
       agents,
       level,
       translate: options.t,
-      onOpen: (agentId) => options.onOpen(hostId, agentId),
+      channel: threadId === null ? null : options.channelForThread(hostId, threadId),
+      onOpen: (agentId, channelId) =>
+        channelId ? options.onOpenChannel(hostId, channelId) : options.onOpen(hostId, agentId),
     });
+  }
+  /** The replies that a new channel list of the open host shows. The first list is the baseline. */
+  function notifyChannelReplies(hostId: string, previous: ChannelSummary[] | null, next: ChannelSummary[]): void {
+    const { muted, level } = untrack(() => notifications.state(hostId));
+    if (muted) return;
+    const replies = channelReplyNotifications(previous, next, {
+      agents: untrack(() => workspace.state.agents),
+      translate: options.t,
+      level,
+      // As for an agent reply, the web client shows no preview.
+      redact: null,
+    });
+    showWebChannelNotifications({ hostId, replies, onOpen: (channelId) => options.onOpenChannel(hostId, channelId) });
   }
   function setMuted(hostId: string, muted: boolean, durationMs?: number) {
     if (!muted) requestWebNotificationPermission(true);
@@ -76,5 +99,5 @@ export function createWebNotificationRouting(options: {
       playAgentEventSound(event);
     }),
   );
-  return { setMuted, setNotificationLevel };
+  return { setMuted, setNotificationLevel, notifyChannelReplies };
 }

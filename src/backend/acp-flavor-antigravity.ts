@@ -11,11 +11,12 @@ const GEMINI_SDK_FAILURE = /\bAntigravity SDK error processing prompt for sessio
 const GEMINI_EXECUTION_ERROR_ANSWER = /^\s*Agent execution error: /u;
 
 /**
- * The kind of a Gemini request failure, first match wins. Gemini reports no usage, so a limit has
- * no usage notice to explain it, and the raw Google status left the user unsure whether waiting or
- * another model helps (#1676). The patterns follow Google's API status names, matched in capitals,
- * and a status number only after `status`, `code` or `HTTP`: a bare 404 or "unavailable" can be an
- * MCP server or a tool. Antigravity does not document its failure texts.
+ * The kind of a Gemini request failure, first match wins. Gemini reports usage only for a Google
+ * sign-in on 1.4.1 or later, so a limit often has no usage notice to explain it, and the raw Google
+ * status left the user unsure whether waiting or another model helps (#1676). The patterns follow
+ * Google's API status names, matched in capitals, and a status number only after `status`, `code`
+ * or `HTTP`: a bare 404 or "unavailable" can be an MCP server or a tool. Antigravity does not
+ * document its failure texts.
  */
 const GEMINI_REQUEST_FAILURES = [
   ["error.provider.antigravityRateLimited", /\bRESOURCE_EXHAUSTED\b/u],
@@ -51,6 +52,11 @@ function geminiRequestFailure(error: unknown, detail: string): string {
 }
 
 export const ANTIGRAVITY_ACP_FLAVOR: AcpFlavor = {
+  // Antigravity 1.4.3 offers its Claude and GPT models only to a client named `zed`, `xcode`,
+  // `jetbrains.*` or `android studio*` (`supports_third_party_models`). Any other client gets the
+  // Gemini models only, also when the plan includes the others. The server also sends the name and
+  // version to Google in its User-Agent (`_surface`), so Google sees these requests as `zed/0.1.0`.
+  clientInfo: { name: "zed", title: "OpenBot", version: "0.1.0" },
   // Antigravity 1.3.0 has three exact forms: a load or resume puts the ID in data.sessionId, a
   // configuration change uses the SDK's resource URI `session <id>`, and a prompt raises a plain
   // error that the SDK wraps as an internal error.
@@ -64,11 +70,13 @@ export const ANTIGRAVITY_ACP_FLAVOR: AcpFlavor = {
     failedSession: (stderrLine) => GEMINI_SDK_FAILURE.exec(stderrLine)?.[1],
     answerIsFailure: GEMINI_EXECUTION_ERROR_ANSWER,
     turnFailure: geminiTurnFailure,
-    // Antigravity reports an exhausted quota as answer text and ends the turn as a success.
+    // Antigravity reports an exhausted quota as answer text and ends the turn as a success. Google
+    // sends it only for a spent quota, which resets in days, not for a request-rate limit. The
+    // server names no bucket, and the usage page of the plan can still show room.
     quota: (text) => {
       const quota = GEMINI_QUOTA_CHUNK.exec(text);
       return quota
-        ? sourceText("error.provider.antigravityRateLimited", { detail: shownFailureDetail(quota[1]?.trim() ?? "") })
+        ? sourceText("error.provider.antigravityQuotaReached", { detail: shownFailureDetail(quota[1]?.trim() ?? "") })
         : null;
     },
   },
@@ -81,4 +89,8 @@ export const ANTIGRAVITY_ACP_FLAVOR: AcpFlavor = {
   // Antigravity keeps session/prompt open while background tasks run. Its text must not wait for
   // that response.
   streamAnswerBeforePromptReturns: true,
+  // A silent prompt can be a background task that still runs, so the turn is not ended as stalled.
+  promptOpenForBackgroundTasks: true,
+  // Antigravity 1.3.0 sends `usage_update` but has no ACP method or command that compacts.
+  contextCompaction: "handoff",
 };
