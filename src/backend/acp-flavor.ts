@@ -57,6 +57,11 @@ export interface AcpFlavor {
    * stalled and OpenBot does not end it (`ACP_TURN_STALL_MS`).
    */
   promptOpenForBackgroundTasks?: true;
+  /**
+   * The agent keeps one MCP server of each name for a directory, and a session that opens there
+   * replaces the server that the others in it use. Their OpenBot servers then share one token.
+   */
+  mcpServersPerDirectory?: true;
   /** OpenBot compacts by replacing the session, for an agent that reports `usage_update` and has no compact request. */
   contextCompaction?: "handoff";
 }

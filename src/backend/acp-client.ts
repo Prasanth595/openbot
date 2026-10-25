@@ -1243,6 +1243,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
           dynamicTools,
           () => threadRef?.activeTurn?.id ?? null,
           (call, signal) => this.#callDynamicTool(call, signal),
+          this.#flavor.mcpServersPerDirectory ? cwd : undefined,
         )
         .pipe(toProviderClientOperationError),
       (mcp) =>

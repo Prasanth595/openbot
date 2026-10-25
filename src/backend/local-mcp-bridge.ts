@@ -51,9 +51,18 @@ export interface LocalMcpSession {
  */
 const LOCAL_MCP_PROGRESS_INTERVAL_MS = 20_000;
 
+/** One session that a token serves. A token shared by a directory serves each session in it. */
+interface BridgeMember {
+  threadId: string;
+  activeTurnId: () => string | null;
+}
+
 interface BridgeRoute {
   namespace: DynamicToolNamespace;
-  threadId: string;
+  /** The sessions in the order they opened. A call goes to the one in a turn, else to the last. */
+  members: BridgeMember[];
+  /** The key in `#shared`, for a token that a directory's sessions share. */
+  shareKey: string | null;
   /**
    * `signal` aborts when the client abandons the call: it sent `notifications/cancelled` (an MCP
    * client does this when its own timeout ends) or closed the response stream. Nothing reads the
@@ -70,7 +79,6 @@ interface BridgeRoute {
     },
     signal: AbortSignal,
   ) => Effect.Effect<DynamicToolResult, ProviderClientOperationError>;
-  activeTurnId: () => string | null;
   /**
    * The calls still running, by JSON-RPC id. Each POST gets a new MCP server, so the POST that
    * carries `notifications/cancelled` cannot reach the call through the SDK and finds it here.
@@ -86,23 +94,45 @@ export class LocalMcpBridge {
   #closes = 0;
   #closing: Deferred.Deferred<void, McpOperationError> | null = null;
   readonly #routes = new Map<string, BridgeRoute>();
+  /** The token of each shared route, by directory and server name. */
+  readonly #shared = new Map<string, string>();
 
+  /**
+   * `directory` is set for an agent that keeps one MCP server of each name for a directory, not for
+   * a session. Its sessions in that directory then get one token, which lasts until the last of them
+   * closes: a token of their own would be replaced by the newest session's, and closing that session
+   * would leave the others with a token that is refused.
+   */
   readonly createSession = Effect.fn("LocalMcpBridge.createSession")(function* (
     this: LocalMcpBridge,
     threadId: string,
     namespaces: DynamicToolNamespace[],
     activeTurnId: () => string | null,
     call: BridgeRoute["call"],
+    directory?: string,
   ): Effect.fn.Return<LocalMcpSession, McpOperationError> {
     const closes = this.#closes;
     if (this.#closing) return yield* mcpFailure(new Error("The local OpenBot MCP bridge closed."));
     yield* this.#listen();
     if (closes !== this.#closes) return yield* mcpFailure(new Error("The local OpenBot MCP bridge closed."));
+    const member: BridgeMember = { threadId, activeTurnId };
     const tokens: string[] = [];
     const servers = namespaces.map((namespace) => {
-      const token = randomBytes(32).toString("base64url");
+      const shareKey = directory === undefined ? null : JSON.stringify([directory, namespace.name]);
+      const sharedToken = shareKey === null ? undefined : this.#shared.get(shareKey);
+      const shared = sharedToken === undefined ? undefined : this.#routes.get(sharedToken);
+      let token: string;
+      if (sharedToken !== undefined && shared) {
+        token = sharedToken;
+        // The agent lists the tools of the session that opened last.
+        shared.namespace = namespace;
+        shared.members.push(member);
+      } else {
+        token = randomBytes(32).toString("base64url");
+        this.#routes.set(token, { namespace, members: [member], shareKey, call, running: new Map() });
+        if (shareKey !== null) this.#shared.set(shareKey, token);
+      }
       tokens.push(token);
-      this.#routes.set(token, { namespace, threadId, activeTurnId, call, running: new Map() });
       return {
         type: "http" as const,
         name: namespace.name,
@@ -113,13 +143,18 @@ export class LocalMcpBridge {
     return {
       servers,
       setThreadId: (nextThreadId) => {
-        for (const token of tokens) {
-          const route = this.#routes.get(token);
-          if (route) route.threadId = nextThreadId;
-        }
+        member.threadId = nextThreadId;
       },
       close: () => {
-        for (const token of tokens) this.#routes.delete(token);
+        for (const token of tokens) {
+          const route = this.#routes.get(token);
+          if (!route) continue;
+          route.members = route.members.filter((candidate) => candidate !== member);
+          if (route.members.length > 0) continue;
+          this.#routes.delete(token);
+          if (route.shareKey !== null && this.#shared.get(route.shareKey) === token)
+            this.#shared.delete(route.shareKey);
+        }
       },
     };
   });
@@ -128,6 +163,7 @@ export class LocalMcpBridge {
     if (this.#closing) return yield* Deferred.await(this.#closing);
     this.#closes += 1;
     this.#routes.clear();
+    this.#shared.clear();
     const closing = Deferred.makeUnsafe<void, McpOperationError>();
     this.#closing = closing;
     yield* this.#shutDown().pipe(
@@ -252,12 +288,16 @@ export class LocalMcpBridge {
                     .sendNotification({ method: "notifications/progress", params: { progressToken, progress } })
                     .catch(() => undefined);
                 }, LOCAL_MCP_PROGRESS_INTERVAL_MS);
+          // A shared token does not say which session called. The one in a turn did; with two in a
+          // turn at once, the first that opened gets the call.
+          const member = route.members.find((candidate) => candidate.activeTurnId() !== null) ?? route.members.at(-1);
+          if (!member) return yield* mcpFailure(new Error(`The ${route.namespace.name} session closed.`));
           const result = yield* Effect.gen({ self: this }, function* () {
             return yield* route
               .call(
                 {
-                  threadId: route.threadId,
-                  turnId: route.activeTurnId() ?? randomUUID(),
+                  threadId: member.threadId,
+                  turnId: member.activeTurnId() ?? randomUUID(),
                   callId: randomUUID(),
                   namespace: route.namespace.name,
                   tool: tool.name,
