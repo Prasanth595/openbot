@@ -4,7 +4,7 @@ import { access, writeFile } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 import { type DynamicRecord, isBoolean, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
-import { type LogValue, redactText, redactValue } from "@openbot/logging";
+import { redactText } from "@openbot/logging";
 import { Effect, Exit, Schema, Scope, Semaphore } from "effect";
 import { secretElicitationField } from "./agent/prompts";
 import type { AgentClient, DiagnosticOrigin } from "./agent-client";
@@ -21,7 +21,7 @@ import {
   type McpToolRuntimeSource,
   usableMcpServers,
 } from "./mcp-provider-shapes";
-import { mcpSecretValues, redactMcpValues } from "./mcp-redaction";
+import { mcpSecretValues, redactMcpRecord, redactMcpValues } from "./mcp-redaction";
 import { PendingServerRequests } from "./pending-server-requests";
 import { createPiInceptionExtension } from "./pi-inception";
 import { createPiMcpExtension, type PiMcpExtension } from "./pi-mcp";
@@ -162,22 +162,6 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
   #secretValues(): string[] {
     const values = [...this.#secrets, ...mcpSecretValues(this.options.mcpServers?.() ?? [])];
     return values.flatMap((value) => [value, JSON.stringify(value).slice(1, -1)]);
-  }
-
-  // Each string is masked on its own, and then the shared rules redact by key. Masking the
-  // serialized record would cut a JSON literal out of it when a known value is `true` or `null`.
-  #redactRecord(record: unknown): LogValue {
-    const values = this.#secretValues();
-    const mask = (value: unknown): LogValue => {
-      if (typeof value === "string") return redactMcpValues(value, values);
-      if (Array.isArray(value)) return value.map(mask);
-      if (isRecord(value))
-        return Object.fromEntries(
-          Object.entries(value).map(([key, entry]) => [redactMcpValues(key, values), mask(entry)]),
-        );
-      return typeof value === "number" || typeof value === "boolean" || value === null ? value : undefined;
-    };
-    return redactValue(mask(record));
   }
 
   readonly stop = Effect.fn("PiAgentClient.stop")(function* (this: PiAgentClient) {
@@ -615,7 +599,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
 
   #notify(method: string, thread: PiThread, params: DynamicRecord): void {
     // Usage contains only validated numeric counters. Generic secret-name matching masks `*Tokens`.
-    const safe = method === "openbot/usage" ? params : this.#redactRecord(params);
+    const safe = method === "openbot/usage" ? params : redactMcpRecord(params, this.#secretValues());
     this.emit("notification", {
       method,
       params: {
@@ -830,8 +814,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
   });
 
   #safeItems(items: ThreadItem[]): ThreadItem[] {
+    const values = this.#secretValues();
     return items.flatMap((item) => {
-      const value = this.#redactRecord(item);
+      const value = redactMcpRecord(item, values);
       return isRecord(value) && isString(value.type) ? [{ ...value, type: value.type }] : [];
     });
   }
