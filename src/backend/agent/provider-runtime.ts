@@ -556,7 +556,7 @@ export class ProviderRuntime implements ProviderPort {
             this.#clients.has(provider) || this.#released.has(provider) ? this.#cli.get(provider) : undefined,
           defaultEmail: (provider) => this.#accounts.get(provider)?.email ?? null,
           apiKey: (provider) => this.#credentials.apiKey(provider),
-          defaultUsesApiKey: (provider) => this.#accounts.get(provider)?.type === CLAUDE_API_KEY_ACCOUNT_TYPE,
+          defaultUsesApiKey: (provider) => this.ownSignInUsesKey(provider),
           signInTemp: (provider) => {
             const temp = provider === "antigravity" ? antigravityTemp(this.#credentials) : undefined;
             return temp && { ...temp, provider: providerLabel(provider) };
@@ -1547,6 +1547,11 @@ export class ProviderRuntime implements ProviderPort {
   /** Whether the provider has a saved API key. */
   hasProviderKey(provider: AgentProvider): boolean {
     return this.#credentials.apiKey(provider) !== null;
+  }
+
+  /** True when the provider's own sign-in runs on its saved key, because it has no other login. */
+  ownSignInUsesKey(provider: AgentProvider): boolean {
+    return this.#accounts.get(provider)?.type === CLAUDE_API_KEY_ACCOUNT_TYPE;
   }
 
   /** Gives a saved key its account and checks it again; see `ProviderAccounts.keyChanged`. */

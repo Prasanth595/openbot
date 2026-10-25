@@ -3251,17 +3251,28 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   /**
    * A stored key serves the provider's own sign-in, and Claude's key also its own account, so a new or
    * removed key ends the limits that hold those agents: they were the old credential's. A limit of the
-   * new one holds them again at its first refused turn. A saved Claude key gets its account; a removed
-   * one takes its account away, and its agents go back to the provider's own sign-in.
+   * new one holds them again at its first refused turn. Claude's own sign-in uses the key only when it
+   * has no claude.ai login, so the limits of that plan stay. A saved Claude key gets its account; a
+   * removed one takes its account away, and its agents go back to the provider's own sign-in.
    */
   changeProviderCredential(
     provider: AgentProvider,
     change: () => Effect.Effect<void, AgentLifecycleFailed>,
   ): Effect.Effect<AgentStatus, AgentLifecycleFailed> {
+    let usedKey = provider !== "claude";
     return this.#providers
-      .changeProviderCredential(provider, () => change().pipe(toProviderOperationFailed))
+      .changeProviderCredential(provider, () =>
+        Effect.suspend(() => {
+          usedKey ||= this.#providers.ownSignInUsesKey(provider);
+          return change();
+        }).pipe(toProviderOperationFailed),
+      )
       .pipe(
-        Effect.tap(() => this.#usageLimits.accountReset(provider, null)),
+        Effect.tap(() =>
+          usedKey || this.#providers.ownSignInUsesKey(provider)
+            ? this.#usageLimits.accountReset(provider, null)
+            : Effect.void,
+        ),
         Effect.mapError(
           (failure) => new AgentLifecycleFailed({ operation: "changeProviderCredential", cause: failure.cause }),
         ),
