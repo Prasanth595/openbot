@@ -383,9 +383,13 @@ function createProviderKeyState(props: { readonly open: boolean; readonly provid
     keyProvider,
     openCodeKeyStatus,
     claudeKeyStatus,
-    /** Only the providers whose sign-in can be a pasted key are served: OpenCode, Muse, Gemini and Claude. */
+    /**
+     * Only the providers whose sign-in can be a pasted key are served: OpenCode, Muse, Gemini and
+     * Claude. Claude's Sign in also lands here on an older host, which would store the key and never
+     * read it.
+     */
     openKeyDialog(provider: AgentProviderId): void {
-      if (isKeyDialogProvider(provider)) {
+      if (isKeyDialogProvider(provider) && (provider !== "claude" || props.providerKeys?.readsClaudeKey)) {
         setKeyProvider(provider);
         setKeyDialogOpen(true);
       }

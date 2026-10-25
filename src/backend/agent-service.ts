@@ -3247,6 +3247,11 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       );
   }
 
+  /**
+   * A stored key serves the provider's own sign-in, so a new or removed key ends the limits that hold
+   * those agents: they were the old credential's. A limit of the new one holds them again at its first
+   * refused turn.
+   */
   changeProviderCredential(
     provider: AgentProvider,
     change: () => Effect.Effect<void, AgentLifecycleFailed>,
@@ -3254,6 +3259,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     return this.#providers
       .changeProviderCredential(provider, () => change().pipe(toProviderOperationFailed))
       .pipe(
+        Effect.tap(() => this.#usageLimits.accountReset(provider, null)),
         Effect.mapError(
           (failure) => new AgentLifecycleFailed({ operation: "changeProviderCredential", cause: failure.cause }),
         ),

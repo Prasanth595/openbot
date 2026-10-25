@@ -14,3 +14,5 @@
   thinking tokens of each turn. Before, a turn could show no uncached input.
 - Analytics now records why a provider download failed, for example no disk space or a failed
   checksum. Before, each failure was recorded as `unknown`.
+- When you save or remove a provider API key, agents that a usage limit held now continue at once.
+  Before, they waited for the old plan's limit to reset, which could take days.
