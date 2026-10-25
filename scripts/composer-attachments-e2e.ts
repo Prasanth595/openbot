@@ -65,8 +65,8 @@ async function caretAtEnd(editor: Locator): Promise<void> {
 
 // An inline image shows only in the text. Delete on its reference moves the file to the row above the
 // draft, as for any attachment reference; the row's remove button discards the file.
-async function removeImages(editor: Locator): Promise<void> {
-  const reference = editor.getByRole("button", { name: "Open attached file image.png", exact: true });
+async function removeImages(editor: Locator, name = "image.png"): Promise<void> {
+  const reference = editor.getByRole("button", { name: `Open attached file ${name}`, exact: true });
   while (await reference.count()) {
     const count = await reference.count();
     await reference.first().press("Delete");
@@ -76,7 +76,7 @@ async function removeImages(editor: Locator): Promise<void> {
       count - 1,
     );
   }
-  const remove = page.getByRole("button", { name: "Remove image.png", exact: true });
+  const remove = page.getByRole("button", { name: `Remove ${name}`, exact: true });
   while (await remove.count()) await remove.first().click();
 }
 
@@ -237,6 +237,35 @@ try {
   assert.equal((await copy(destination))["text/plain"], beforeInvalid);
   results.push("The byte-only renderer endpoint rejects a disk-path import payload.");
   await page.screenshot({ path: resolve(out, "destination.png") });
+
+  // A picked file has no bytes in memory. The removal waits until the copy has read the file.
+  const picked = [...png, 1];
+  const pickedPath = resolve(out, "picked.png");
+  writeFileSync(pickedPath, new Uint8Array(picked));
+  await openAgent("Chief");
+  await clearTestDraft(source);
+  await source.fill("See the file");
+  await page.locator("input[data-openbot-attachment-picker]").setInputFiles(pickedPath);
+  const removePicked = page.getByRole("button", { name: "Remove picked.png", exact: true });
+  await removePicked.waitFor();
+  const pickedCopy = await copy(source);
+  await removePicked.click();
+  await removePicked.waitFor({ state: "detached" });
+  await source.fill("");
+  const pickedTarget = await openAgent("Launch");
+  await clearTestDraft(pickedTarget);
+  await pasteCopy(pickedTarget, pickedCopy);
+  await page.waitForFunction(
+    () => document.querySelectorAll(".composer-editor-surface [data-attachment-reference-id]").length === 1,
+  );
+  assert.deepEqual(
+    (await images(pickedTarget)).map((entry) => hash(entry.bytes)),
+    [hash(picked)],
+  );
+  await removeImages(pickedTarget, "picked.png");
+  await pickedTarget.fill("");
+  results.push("A copied file from disk survives its removal from the source draft.");
+  await openAgent("Builder");
 
   // Exercise the operating system clipboard as well as synthetic clipboard events.
   const destinationLayout = await layout(destination);

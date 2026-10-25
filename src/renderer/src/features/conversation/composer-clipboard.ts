@@ -26,7 +26,7 @@ const decodeFragment = Schema.decodeUnknownOption(
 type PreviewAttachment = (attachment: AttachmentSummary) => Promise<FilePreview>;
 interface CopiedAttachment {
   attachment: AttachmentSummary;
-  /** Reads the bytes on the first call only. A copy reads them at paste; a cut reads them at once. */
+  /** Reads the bytes on the first call only. A draft copy or cut reads them at once; a message copy reads them at paste. */
   file: () => Promise<File>;
 }
 interface ComposerCopy {
@@ -84,6 +84,17 @@ function createCopy(text: string, attachments: AttachmentSummary[], preview?: Pr
   return copy;
 }
 
+/** Settles when the latest copy has read the file, so that a removal does not delete it before the read. */
+export function copiedFileRead(id: string): Promise<void> {
+  const entry = latestCopy?.files.find((file) => file.attachment.id === id);
+  return entry
+    ? entry.file().then(
+        () => undefined,
+        () => undefined,
+      )
+    : Promise.resolve();
+}
+
 // The async clipboard API writes no custom MIME type, so the copy ID is in the HTML for both copy paths.
 function fragmentHtml(copy: ComposerCopy, plainText: string): string {
   const pre = document.createElement("pre");
@@ -93,21 +104,19 @@ function fragmentHtml(copy: ComposerCopy, plainText: string): string {
 }
 
 /**
- * A copy reads the bytes of its files at paste. A cut reads them at once, and the result gives the IDs
- * of the files that it could read. Only those can go from the source.
+ * Reads the bytes of the files at once, because the source draft can remove them before the paste.
+ * The result gives the IDs of the files that it could read. A cut removes only those from the source.
  */
 export function copyComposerSelection(
   clipboard: DataTransfer,
   text: string,
   attachments: AttachmentSummary[],
-  cut: boolean,
   preview?: PreviewAttachment,
 ): Promise<ReadonlySet<string>> {
   const copy = createCopy(text, attachments, preview);
   const plainText = expandAttachmentReferences(expandChatTagReferences(expandComposerMentions(text)));
   clipboard.setData("text/plain", plainText);
   clipboard.setData("text/html", fragmentHtml(copy, plainText));
-  if (!cut) return Promise.resolve(new Set());
   return Promise.allSettled(copy.files.map((entry) => entry.file())).then(
     (results) =>
       new Set(

@@ -678,15 +678,8 @@ export function ConversationComposer() {
               dictation={{ text: voiceLiveText(), final: voicePhase() === "transcribing" }}
               onPasteFiles={pasteFiles}
               onCopyAttachments={(clipboard, text, attachments, remaining) => {
-                const cut = remaining !== undefined;
-                const copied = copyComposerSelection(
-                  clipboard,
-                  text,
-                  attachments,
-                  cut,
-                  props.runtime?.previewAttachment,
-                );
-                if (cut) releaseCutAttachments(attachments, remaining, copied);
+                const copied = copyComposerSelection(clipboard, text, attachments, props.runtime?.previewAttachment);
+                if (remaining !== undefined) releaseCutAttachments(attachments, remaining, copied);
               }}
               onPasteAttachments={(clipboard, selection) => {
                 const copy = readComposerCopy(clipboard);

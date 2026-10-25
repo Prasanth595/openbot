@@ -14,7 +14,7 @@ import type { AgentMessage } from "@openbot/ui/data";
 import { currentText } from "@openbot/ui/text";
 import { desktopAnalytics } from "../../../analytics";
 import { writeClipboardText } from "../../../clipboard";
-import { copyMessageWithAttachments } from "../composer-clipboard";
+import { copiedFileRead, copyMessageWithAttachments } from "../composer-clipboard";
 import type { StoredQueueEdit } from "../composer-draft";
 import { conversationRuntime } from "../conversation-runtime";
 import type { ComposerDraft, ConversationProps, ConversationTarget } from "../conversation-types";
@@ -153,7 +153,8 @@ export function createMessageActions(deps: MessageActionsDeps) {
       attachments: deps.currentDraft().attachments.filter((attachment) => attachment.id !== id),
       text: removeAttachmentReferences(deps.currentDraft().text, id),
     });
-    void conversationRuntime(deps.props).agent.discardDraftAttachment(id, serverId);
+    const runtime = conversationRuntime(deps.props);
+    void copiedFileRead(id).then(() => runtime.agent.discardDraftAttachment(id, serverId));
   }
 
   function draftAttachmentIds(): Set<string> {
