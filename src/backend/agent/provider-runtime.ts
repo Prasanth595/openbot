@@ -922,7 +922,7 @@ export class ProviderRuntime implements ProviderPort {
               ),
             );
           } else if (provider === "cursor") {
-            // Cursor's usage is one HTTPS request with the CLI's token, so do not start the CLI for it.
+            // Cursor's usage is two HTTPS requests with the CLI's token, so do not start the CLI for it.
             usage = normalizeAccountUsage(yield* readCursorUsage().pipe(toProviderOperationFailed, deadline));
           } else {
             // Starting a provider that has no usage reading only to get nothing back cost a cold
