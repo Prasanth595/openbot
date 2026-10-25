@@ -406,6 +406,9 @@ function DotGrid(props: { camera: Camera }) {
 const snapWithin = (value: number, range: Range) =>
   Math.min(Math.max(Math.round(value / SNAP) * SNAP, range.min), range.max);
 
+/** A screen offset on a whole device pixel. On a half pixel, the icons and text of the world blur. */
+const devicePixel = (value: number) => Math.round(value * window.devicePixelRatio) / window.devicePixelRatio;
+
 /** How a kind resizes. An image keeps its aspect ratio, so its height changes with its width. */
 function stretchOf(kind: WorkflowNodeKind): WfnStretch {
   if (kind === "text") return "text";
@@ -2526,7 +2529,7 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
               inert={frozen()}
               data-group={groupBox() ? "" : undefined}
               style={{
-                transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
+                transform: `translate(${devicePixel(camera.x)}px, ${devicePixel(camera.y)}px) scale(${camera.scale})`,
                 "--wfn-scale": camera.scale,
               }}
             >

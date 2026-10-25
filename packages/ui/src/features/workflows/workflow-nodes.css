@@ -357,7 +357,7 @@
 .wfn-toolbar {
   position: absolute;
   bottom: calc(100% + var(--openbot-space-3) / var(--wfn-scale, 1));
-  left: 50%;
+  left: round(50%, 1px);
   z-index: 2;
   display: flex;
   gap: var(--openbot-space-0-5);
@@ -367,7 +367,7 @@
   white-space: nowrap;
   background: var(--wfn-glass);
   box-shadow: 0 0 0 1px var(--wfn-ring-strong);
-  translate: -50% 0;
+  translate: round(-50%, 1px) 0;
   transform-origin: bottom center;
   scale: calc(1 / var(--wfn-scale, 1));
   backdrop-filter: var(--wfn-glass-blur);
@@ -447,7 +447,7 @@
 @keyframes wfn-rise {
   from {
     opacity: 0;
-    translate: -50% 2px;
+    translate: round(-50%, 1px) 2px;
     transform: scale(0.96);
   }
 }
@@ -1939,7 +1939,7 @@ fieldset.wfn-picker-group {
 .wfn-strip {
   position: absolute;
   top: calc(100% + 8px / var(--wfn-scale, 1));
-  left: 50%;
+  left: round(50%, 1px);
   transform-origin: top center;
   scale: calc(1 / var(--wfn-scale, 1));
   z-index: 2;
@@ -1951,7 +1951,7 @@ fieldset.wfn-picker-group {
   padding: 0;
   border: 0;
   color: var(--openbot-text-secondary);
-  translate: -50% 0;
+  translate: round(-50%, 1px) 0;
   animation: wfn-drop var(--openbot-duration-fast) var(--openbot-ease-out);
 }
 
@@ -2032,7 +2032,7 @@ fieldset.wfn-picker-group {
 @keyframes wfn-drop {
   from {
     opacity: 0;
-    translate: -50% -4px;
+    translate: round(-50%, 1px) -4px;
   }
 }
 

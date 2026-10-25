@@ -208,8 +208,8 @@
 /* The tool bar: tools, then Search, then Add node as the one primary action. */
 .wfn-hud-tools {
   bottom: var(--wfn-hud-inset);
-  left: 50%;
-  translate: -50% 0;
+  left: round(50%, 1px);
+  translate: round(-50%, 1px) 0;
 }
 
 .wfn-stage .wfn-hud-add-button {
@@ -684,11 +684,11 @@
 /* A version that shows, read-only, in place of the tools: its time, Back, and Make current. */
 .wfn-hud-version {
   bottom: var(--wfn-hud-inset);
-  left: 50%;
+  left: round(50%, 1px);
   gap: var(--openbot-space-1-5);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  translate: -50% 0;
+  translate: round(-50%, 1px) 0;
 }
 
 .wfn-hud-lock {
@@ -827,13 +827,13 @@
  */
 .wfn-hud.wfn-search {
   bottom: calc(var(--wfn-hud-inset) + var(--openbot-control-md) + var(--openbot-space-2) + var(--openbot-space-2));
-  left: 50%;
+  left: round(50%, 1px);
   display: grid;
   gap: var(--openbot-space-1);
   align-items: stretch;
   width: min(480px, calc(100% - var(--openbot-space-8)));
   height: auto;
-  translate: -50% 0;
+  translate: round(-50%, 1px) 0;
   animation-delay: 0s;
 }
 
