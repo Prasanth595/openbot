@@ -63,9 +63,25 @@ async function caretAtEnd(editor: Locator): Promise<void> {
   });
 }
 
-async function clearTestDraft(editor: Locator): Promise<void> {
+// An inline image shows only in the text. Delete on its reference moves the file to the row above the
+// draft, as for any attachment reference; the row's remove button discards the file.
+async function removeImages(editor: Locator): Promise<void> {
+  const reference = editor.getByRole("button", { name: "Open attached file image.png", exact: true });
+  while (await reference.count()) {
+    const count = await reference.count();
+    await reference.first().press("Delete");
+    await page.waitForFunction(
+      (expected) =>
+        document.querySelectorAll(".composer-editor-surface [data-attachment-reference-id]").length === expected,
+      count - 1,
+    );
+  }
   const remove = page.getByRole("button", { name: "Remove image.png", exact: true });
   while (await remove.count()) await remove.first().click();
+}
+
+async function clearTestDraft(editor: Locator): Promise<void> {
+  await removeImages(editor);
   await editor.fill("");
 }
 
@@ -181,9 +197,7 @@ try {
   await page.screenshot({ path: resolve(out, "source.png") });
 
   // The source is genuinely discarded through the app before the other agent pastes.
-  for (let index = 0; index < 2; index++)
-    await page.getByRole("button", { name: "Remove image.png", exact: true }).first().click();
-  await page.waitForFunction(() => !document.querySelector(".composer-editor-surface [data-attachment-reference-id]"));
+  await removeImages(source);
   await source.fill("");
   const destination = await openAgent("Builder");
   await clearTestDraft(destination);
@@ -215,6 +229,11 @@ try {
     `window.openbot.agent.importAttachmentData({ paths: ["/etc/passwd"], data: [] }, "local").then(() => null, error => error.message)`,
   );
   assert.ok(typeof refusal === "string" && refusal.includes("Invalid attachment data."));
+  // A list in the right shape, with a path in place of the bytes.
+  const pathItem = await page.evaluate(
+    `window.openbot.agent.importAttachmentData([{ name: "passwd", mimeType: "text/plain", path: "/etc/passwd" }], "local").then(() => null, error => error.message)`,
+  );
+  assert.ok(typeof pathItem === "string", "An item without bytes must be refused.");
   assert.equal((await copy(destination))["text/plain"], beforeInvalid);
   results.push("The byte-only renderer endpoint rejects a disk-path import payload.");
   await page.screenshot({ path: resolve(out, "destination.png") });

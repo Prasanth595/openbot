@@ -1,6 +1,11 @@
-import { rewriteAttachmentReferences, serializeAttachmentReference } from "@openbot/contracts/attachment-references";
+import {
+  attachmentReferenceIds,
+  expandAttachmentReferences,
+  rewriteAttachmentReferences,
+  serializeAttachmentReference,
+} from "@openbot/contracts/attachment-references";
 import { fileQuoteTarget } from "@openbot/contracts/chat-tag-references";
-import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
+import { ATTACHMENT_LIMITS, INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DraftAttachment, LOCAL_SERVER_ID, type QueueDelivery } from "@openbot/contracts/ipc";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { isQueueEditRejected, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
@@ -196,6 +201,19 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     const target = deps.currentTarget();
     if (!target || deps.submitting()) return;
     const before = deps.currentDraft().text;
+    const key = composerDraftKey(target);
+    // Puts `text` at the selection. A view can unmount during import, so newer edits stay and the
+    // text goes at the end. Returns undefined when the message would be too long.
+    const insert = (text: string): ComposerPasteResult | undefined => {
+      const current = deps.drafts()[key] ?? EMPTY_DRAFT;
+      const next =
+        current.text === before
+          ? `${before.slice(0, selection.start)}${text}${before.slice(selection.end)}`
+          : [current.text, text].filter(Boolean).join(" ");
+      if (next.length > INPUT_LIMITS.messageText) return;
+      deps.setDrafts((drafts) => ({ ...drafts, [key]: { ...(drafts[key] ?? EMPTY_DRAFT), text: next } }));
+      return { value: next, caret: current.text === before ? selection.start + text.length : next.length };
+    };
     const requestId = crypto.randomUUID();
     const runtime = conversationRuntime(deps.props);
     deps.attachmentImports.set(requestId, target);
@@ -203,14 +221,24 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     deps.clearConversationError(target);
     try {
       const originals = await Promise.all(files);
-      const draft = deps.drafts()[composerDraftKey(target)] ?? EMPTY_DRAFT;
+      const draft = deps.drafts()[key] ?? EMPTY_DRAFT;
       if (originals.length + draft.attachments.length > INPUT_LIMITS.attachments)
         throw new Error(t("composer.error.attachmentLimit", { limit: INPUT_LIMITS.attachments }));
+      // Check the sizes before the bytes come into memory, as the path import does.
+      if (originals.some((file) => file.size > ATTACHMENT_LIMITS.fileBytes))
+        throw new Error(t("error.attachment.fileTooLarge"));
+      if (originals.reduce((total, file) => total + file.size, 0) > ATTACHMENT_LIMITS.totalBytes)
+        throw new Error(t("error.attachment.totalTooLarge"));
       const data = await Promise.all(
         originals.map(async (file) => ({
           name: file.name,
           mimeType: file.type,
-          bytes: new Uint8Array(await file.arrayBuffer()),
+          // A pasted folder has no bytes to read.
+          bytes: new Uint8Array(
+            await file.arrayBuffer().catch(() => {
+              throw new Error(t("error.attachment.unavailable"));
+            }),
+          ),
         })),
       );
       const imported = await runtime.agent.importAttachmentData(data, target.serverId);
@@ -228,21 +256,54 @@ export function createComposerActions(deps: ComposerActionsDeps) {
               const attachment = replacements.get(reference.attachmentId);
               return attachment ? { attachmentId: attachment.id, name: attachment.name } : null;
             });
-      const key = composerDraftKey(target);
-      const current = deps.drafts()[key] ?? EMPTY_DRAFT;
-      // A view can unmount during import. Keep any newer edits instead of replacing them.
-      const next =
-        current.text === before
-          ? `${before.slice(0, selection.start)}${text}${before.slice(selection.end)}`
-          : [current.text, text].filter(Boolean).join(" ");
-      deps.setDrafts((drafts) => ({ ...drafts, [key]: { ...(drafts[key] ?? EMPTY_DRAFT), text: next } }));
-      return { value: next, caret: current.text === before ? selection.start + text.length : next.length };
+      const result = insert(text);
+      // The files stay in the row, so a paste that does not fit loses no file.
+      if (!result) throw new Error(t("error.agent.messageTooLong"));
+      return result;
     } catch (error) {
       deps.setConversationError(target, errorMessage(error, t("composer.error.keepAttachments")));
+      // When the files of a copy cannot come, its text comes with their names, as in another app.
+      return copy?.text ? insert(expandAttachmentReferences(copy.text)) : undefined;
     } finally {
       deps.attachmentImports.delete(requestId);
       deps.setAttachmentBusy(deps.attachmentImports.size > 0);
     }
+  }
+
+  /**
+   * A cut moves its files with the text. The draft drops each one that `remaining` no longer names, and
+   * discards it after the copy has read its bytes. A pending Save keeps its attachments, as in removal.
+   */
+  function releaseCutAttachments(
+    attachments: readonly DraftAttachment[],
+    remaining: string,
+    copied: Promise<void>,
+  ): void {
+    const target = deps.currentTarget();
+    if (!target) return;
+    if (
+      deps.editingPendingSave() &&
+      deps.editingAgentId() === target.agentId &&
+      deps.editingServerId() === target.serverId &&
+      deps.editingDeliveryId()
+    )
+      return;
+    const key = composerDraftKey(target);
+    // The draft can still hold the text from before the cut: Solid batches the write.
+    const referenced = attachmentReferenceIds(remaining);
+    const released = new Set(attachments.map((attachment) => attachment.id).filter((id) => !referenced.has(id)));
+    if (!released.size) return;
+    deps.setDrafts((drafts) => {
+      const draft = drafts[key] ?? EMPTY_DRAFT;
+      return {
+        ...drafts,
+        [key]: { ...draft, attachments: draft.attachments.filter((attachment) => !released.has(attachment.id)) },
+      };
+    });
+    const runtime = conversationRuntime(deps.props);
+    void copied.then(() => {
+      for (const id of released) void runtime.agent.discardDraftAttachment(id, target.serverId).catch(() => {});
+    });
   }
 
   function openAttachmentPicker() {
@@ -759,6 +820,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     stopTeamTyping,
     addAttachments,
     pasteFiles,
+    releaseCutAttachments,
     openAttachmentPicker,
     openAttachmentPickerFromKey,
     editQueuedMessage,

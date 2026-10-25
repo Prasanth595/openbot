@@ -92,6 +92,7 @@ export function ConversationComposer() {
     quoteRequest,
     openQuote,
     queuePanelVisible,
+    releaseCutAttachments,
     removeAttachment,
     reorderPresentedQueue,
     replyTarget,
@@ -104,7 +105,7 @@ export function ConversationComposer() {
     cancelVoiceRecording,
     submitComposer,
     submitting,
-    visibleDraftAttachments,
+    unreferencedDraftAttachments,
     updateCurrentDraft,
     updateTeamTyping,
     voiceElapsedSeconds,
@@ -589,8 +590,10 @@ export function ConversationComposer() {
         </div>
         <div
           class="composer"
-          data-compact={currentDraft().text.includes("\n") || visibleDraftAttachments().length > 0 ? undefined : ""}
-          data-has-attachments={visibleDraftAttachments().length > 0 ? "" : undefined}
+          data-compact={
+            currentDraft().text.includes("\n") || unreferencedDraftAttachments().length > 0 ? undefined : ""
+          }
+          data-has-attachments={unreferencedDraftAttachments().length > 0 ? "" : undefined}
           onPointerDown={(event) => {
             if (!(event.target instanceof Element)) return;
             // The "+" menu is in a portal, but its events come here too. Focus taken from it closes the menu
@@ -600,9 +603,9 @@ export function ConversationComposer() {
             setComposerFocusRequest((current) => current + 1);
           }}
         >
-          <Show when={visibleDraftAttachments().length > 0}>
+          <Show when={unreferencedDraftAttachments().length > 0}>
             <div class="composer-attachments">
-              <For each={visibleDraftAttachments()}>
+              <For each={unreferencedDraftAttachments()}>
                 {(attachment) => {
                   // An image with no preview (the web client) shows as a file, with its name.
                   const chip = () => (attachment.kind === "image" && attachment.previewUrl ? "image" : "file");
@@ -674,9 +677,17 @@ export function ConversationComposer() {
               onPickerOpenChange={setPickerOpen}
               dictation={{ text: voiceLiveText(), final: voicePhase() === "transcribing" }}
               onPasteFiles={pasteFiles}
-              onCopyAttachments={(clipboard, text, attachments) =>
-                copyComposerSelection(clipboard, text, attachments, props.runtime?.previewAttachment)
-              }
+              onCopyAttachments={(clipboard, text, attachments, remaining) => {
+                const cut = remaining !== undefined;
+                const copied = copyComposerSelection(
+                  clipboard,
+                  text,
+                  attachments,
+                  cut,
+                  props.runtime?.previewAttachment,
+                );
+                if (cut) releaseCutAttachments(attachments, remaining, copied);
+              }}
               onPasteAttachments={(clipboard, selection) => {
                 const copy = readComposerCopy(clipboard);
                 return copy ? pasteFiles(copy.files, selection, copy) : undefined;

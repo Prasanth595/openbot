@@ -9,6 +9,7 @@ import type { AttachmentSummary, FilePreview } from "@openbot/contracts/ipc";
 import { expandComposerMentions } from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
 import { Option, Schema } from "effect";
+import { writeClipboardText } from "../../clipboard";
 
 // Follows T3's context-fragment design: keep file bytes outside the clipboard payload and retain
 // the latest copy independently of the source draft. No source paths or URLs come from a paste.
@@ -25,7 +26,8 @@ const decodeFragment = Schema.decodeUnknownOption(
 type PreviewAttachment = (attachment: AttachmentSummary) => Promise<FilePreview>;
 interface CopiedAttachment {
   attachment: AttachmentSummary;
-  file: Promise<File>;
+  /** Reads the bytes on the first call only. A copy reads them at paste; a cut reads them at once. */
+  file: () => Promise<File>;
 }
 interface ComposerCopy {
   id: string;
@@ -73,7 +75,10 @@ function createCopy(text: string, attachments: AttachmentSummary[], preview?: Pr
   const copy: ComposerCopy = {
     id: crypto.randomUUID(),
     text: [text, ...extra].filter(Boolean).join(" "),
-    files: attachments.map((attachment) => ({ attachment, file: attachmentFile(attachment, preview) })),
+    files: attachments.map((attachment) => {
+      let file: Promise<File> | undefined;
+      return { attachment, file: () => (file ??= attachmentFile(attachment, preview)) };
+    }),
   };
   latestCopy = copy;
   return copy;
@@ -87,16 +92,23 @@ function fragmentHtml(copy: ComposerCopy, plainText: string): string {
   return pre.outerHTML;
 }
 
+/**
+ * A copy reads the bytes of its files at paste. A cut reads them at once, and the result settles when
+ * it has read each file, or failed to. Then the source can go.
+ */
 export function copyComposerSelection(
   clipboard: DataTransfer,
   text: string,
   attachments: AttachmentSummary[],
+  cut: boolean,
   preview?: PreviewAttachment,
-): void {
+): Promise<void> {
   const copy = createCopy(text, attachments, preview);
   const plainText = expandAttachmentReferences(expandChatTagReferences(expandComposerMentions(text)));
   clipboard.setData("text/plain", plainText);
   clipboard.setData("text/html", fragmentHtml(copy, plainText));
+  if (!cut) return Promise.resolve();
+  return Promise.allSettled(copy.files.map((entry) => entry.file())).then(() => undefined);
 }
 
 export async function copyMessageWithAttachments(
@@ -106,12 +118,17 @@ export async function copyMessageWithAttachments(
   preview?: PreviewAttachment,
 ): Promise<void> {
   const copy = createCopy(body, attachments, preview);
-  await navigator.clipboard.write([
-    new ClipboardItem({
-      "text/plain": new Blob([plainText], { type: "text/plain" }),
-      "text/html": new Blob([fragmentHtml(copy, plainText)], { type: "text/html" }),
-    }),
-  ]);
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/plain": new Blob([plainText], { type: "text/plain" }),
+        "text/html": new Blob([fragmentHtml(copy, plainText)], { type: "text/html" }),
+      }),
+    ]);
+  } catch {
+    // Without the async clipboard, as on a web client over HTTP, the text alone is copied.
+    await writeClipboardText(plainText);
+  }
 }
 
 export function readComposerCopy(clipboard: DataTransfer): PastedComposerCopy | null {
@@ -129,16 +146,11 @@ export function readComposerCopy(clipboard: DataTransfer): PastedComposerCopy | 
   const value = Option.getOrNull(decodeFragment(raw));
   if (!value) return null;
   const copy = latestCopy;
-  if (!copy || value.copyId !== copy.id) {
-    // An expired copy pastes as an unavailable file: its text alone would lose the files it names.
-    // A paste that stops before it reads the files does not observe the rejection.
-    const unavailable = Promise.reject(new Error(currentText().t("attachment.previewUnavailable")));
-    void unavailable.catch(() => undefined);
-    return { text: "", sourceIds: [], files: [unavailable] };
-  }
+  // A copy from another window, or one that a later copy replaced, pastes as its plain text.
+  if (!copy || value.copyId !== copy.id) return null;
   return {
     text: copy.text,
     sourceIds: copy.files.map((entry) => entry.attachment.id),
-    files: copy.files.map((entry) => entry.file),
+    files: copy.files.map((entry) => entry.file()),
   };
 }

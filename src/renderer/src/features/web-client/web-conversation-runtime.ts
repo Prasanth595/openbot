@@ -180,9 +180,21 @@ export function createWebConversationRuntime(
       async importAttachmentData(data, serverId) {
         if (serverId !== hostId()) throw new Error(currentText().t("webClient.error.hostChanged"));
         const files = data.map((file) => new File([new Uint8Array(file.bytes)], file.name, { type: file.mimeType }));
-        const attachments = await uploadFiles(files, serverId, () => false);
-        if (!attachments) throw new Error(currentText().t("webClient.error.hostChanged"));
-        return attachments;
+        // The composer's stop button reaches a paste through `importing`, as it reaches a picked file.
+        const job = { cancelled: false, serverId };
+        importing ??= job;
+        try {
+          // A stop ends the upload in flight with an error. uploadFiles has discarded the files then.
+          const attachments = await uploadFiles(files, serverId, () => job.cancelled).catch((error: unknown) => {
+            if (job.cancelled) return null;
+            throw error;
+          });
+          if (job.cancelled) return [];
+          if (!attachments) throw new Error(currentText().t("webClient.error.hostChanged"));
+          return attachments;
+        } finally {
+          if (importing === job) importing = undefined;
+        }
       },
       discardDraftAttachment: (id) => remote.discard(id),
       downloadAttachments: unavailable,

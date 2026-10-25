@@ -105,8 +105,17 @@ interface ComposerEditorProps {
     clipboard: DataTransfer,
     selection: ComposerSelection,
   ) => Promise<ComposerPasteResult | undefined> | undefined;
-  /** Writes a copy or cut that includes attachments. Other selections use the native copy. */
-  onCopyAttachments?: (clipboard: DataTransfer, text: string, attachments: DraftAttachment[]) => void;
+  /**
+   * Writes a copy or cut that includes attachments. Other selections use the native copy. After a cut
+   * removed the selection, `remaining` is the value that stays, so the draft can let go of the files
+   * that the cut moved.
+   */
+  onCopyAttachments?: (
+    clipboard: DataTransfer,
+    text: string,
+    attachments: DraftAttachment[],
+    remaining: string | undefined,
+  ) => void;
   /** Told when the mention picker opens or closes, so the queue panel can give up the same space. */
   onPickerOpenChange?: (open: boolean) => void;
   /**
@@ -851,12 +860,14 @@ export function ComposerEditor(props: ComposerEditorProps) {
     // Without an attachment, the native copy keeps its rich text.
     if (!attachments.length) return;
     event.preventDefault();
-    props.onCopyAttachments(event.clipboardData, text, attachments);
+    let remaining: string | undefined;
     if (cut && !props.disabled) {
       insertPlainText(editor, "");
       emitValue();
       updateMention();
+      remaining = serializeEditor(editor);
     }
+    props.onCopyAttachments(event.clipboardData, text, attachments, remaining);
   }
 
   return (
