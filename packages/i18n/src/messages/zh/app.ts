@@ -55,6 +55,7 @@ export const messages = {
   "app.rail.agents": "助手",
   "app.rail.schedule": "日程",
   "app.rail.tasks": "任务",
+  "app.rail.workflows": "工作流",
   "app.rail.usage": "用量",
   "app.rail.marketplace": "市场",
   "app.rail.settings": "设置",

@@ -61,6 +61,7 @@ export const messages = {
   "usage.panel.label": "助手用量",
   "usage.panel.title": "用量",
   "usage.panel.allAgents": "全部助手",
+  "usage.panel.workflows": "工作流",
   "usage.panel.agents": "用量的助手",
   "usage.panel.metric": "用量指标",
   "usage.panel.period": "用量周期",

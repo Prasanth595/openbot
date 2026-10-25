@@ -9,6 +9,10 @@ export const messages = {
   "notification.needsBrowserStep": "需要你在浏览器中完成一个步骤。",
   "notification.needsApprovalFor": "需要你批准：{action}",
   "notification.finished": "工作已完成。",
+  // A workflow step that waits for a person to approve or reject it.
+  "notification.workflowApproval": "一个步骤正在等待你批准。",
+  // A workflow output step that tells the user its result.
+  "notification.workflowOutput": "一个工作流有了新结果。",
   "notification.failed": "因错误而停止。",
   // The title of a notification about an agent in a channel: the agent and the channel name.
   "notification.channelTitle": "{channel} 中的 {agent}",
