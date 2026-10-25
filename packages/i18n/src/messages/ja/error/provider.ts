@@ -319,6 +319,8 @@ export const messages = {
     "この {provider} アカウントはこのコンピューターにありません。更新してからもう一度お試しください。",
   "error.provider.accountAlreadyAdded": "この {provider} アカウントはすでに接続されています。",
   "error.provider.accountDefault": "最初の {provider} アカウントは削除できません。",
+  "error.provider.accountUsesKey":
+    "この {provider} アカウントは保存された API キーを使うため、サインインはありません。キーはサーバーの設定 → プロバイダーで変更してください。",
   "error.provider.accountInUse":
     "このアカウントを使うエージェントが作業中です。エージェントが停止してからもう一度お試しください。",
   "error.provider.accountsReadOnly":

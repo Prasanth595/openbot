@@ -312,6 +312,8 @@ export const messages = {
   "error.provider.accountNotFound": "Questo account {provider} non è su questo computer. Aggiorna e riprova.",
   "error.provider.accountAlreadyAdded": "Questo account {provider} è già connesso.",
   "error.provider.accountDefault": "Il primo account {provider} non può essere rimosso.",
+  "error.provider.accountUsesKey":
+    "Questo account {provider} usa la chiave API salvata e non ha un accesso. Cambia la chiave in Impostazioni server → Provider.",
   "error.provider.accountInUse": "Un agente che usa questo account è al lavoro. Riprova quando l'agente si ferma.",
   "error.provider.accountsReadOnly":
     "Gli account salvati dei provider non sono leggibili. Aggiorna OpenBot prima di modificarli.",

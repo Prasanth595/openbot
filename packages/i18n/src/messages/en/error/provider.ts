@@ -298,6 +298,8 @@ export const messages = defineMessages("error.provider", {
   "error.provider.accountNotFound": "This {provider} account is not on this computer. Refresh and try again.",
   "error.provider.accountAlreadyAdded": "This {provider} account is already connected.",
   "error.provider.accountDefault": "The first {provider} account cannot be removed.",
+  "error.provider.accountUsesKey":
+    "This {provider} account uses the saved API key and has no sign-in. Change the key in Server settings → Providers.",
   "error.provider.accountInUse": "An agent on this account is working. Try again when the agent stops.",
   "error.provider.accountsReadOnly":
     "The saved provider accounts cannot be read. Update OpenBot before you change them.",

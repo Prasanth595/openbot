@@ -309,6 +309,8 @@ export const messages = {
   "error.provider.accountNotFound": "Bu {provider} hesabı bu bilgisayarda yok. Yenileyip tekrar deneyin.",
   "error.provider.accountAlreadyAdded": "Bu {provider} hesabı zaten bağlı.",
   "error.provider.accountDefault": "İlk {provider} hesabı kaldırılamaz.",
+  "error.provider.accountUsesKey":
+    "Bu {provider} hesabı kayıtlı API anahtarını kullanır ve oturum açma içermez. Anahtarı Sunucu ayarları → Sağlayıcılar bölümünde değiştirin.",
   "error.provider.accountInUse": "Bu hesabı kullanan bir ajan çalışıyor. Ajan durduğunda tekrar deneyin.",
   "error.provider.accountsReadOnly":
     "Kayıtlı sağlayıcı hesapları okunamıyor. Bunları değiştirmeden önce OpenBot'u güncelleyin.",

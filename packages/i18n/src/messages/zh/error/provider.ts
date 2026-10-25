@@ -272,6 +272,8 @@ export const messages = {
   "error.provider.accountNotFound": "该 {provider} 账号不在本电脑上。请刷新后重试。",
   "error.provider.accountAlreadyAdded": "该 {provider} 账号已连接。",
   "error.provider.accountDefault": "第一个 {provider} 账号无法移除。",
+  "error.provider.accountUsesKey":
+    "此 {provider} 账号使用已保存的 API 密钥，没有登录。请在服务器设置 → 服务商中更改密钥。",
   "error.provider.accountInUse": "该账号上仍有助手在工作。请等该助手停止后重试。",
   "error.provider.accountsReadOnly": "无法读取已保存的服务商账号。请先更新 OpenBot 再修改。",
   "error.provider.accountSignedOut": "该 {provider} 账号已退出登录，请重新登录。",

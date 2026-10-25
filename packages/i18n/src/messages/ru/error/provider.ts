@@ -309,6 +309,8 @@ export const messages = {
     "Этого аккаунта {provider} нет на этом компьютере. Обновите список и повторите попытку.",
   "error.provider.accountAlreadyAdded": "Этот аккаунт {provider} уже подключён.",
   "error.provider.accountDefault": "Первый аккаунт {provider} нельзя удалить.",
+  "error.provider.accountUsesKey":
+    "Этот аккаунт {provider} использует сохранённый API-ключ и не имеет входа. Измените ключ в Настройки сервера → Провайдеры.",
   "error.provider.accountInUse": "Агент с этим аккаунтом сейчас работает. Попробуйте ещё раз, когда агент остановится.",
   "error.provider.accountsReadOnly":
     "Не удаётся прочитать сохранённые аккаунты провайдеров. Обновите OpenBot, прежде чем их менять.",

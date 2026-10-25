@@ -312,6 +312,8 @@ export const messages = {
   "error.provider.accountNotFound": "Esta conta de {provider} não está neste computador. Atualize e tente novamente.",
   "error.provider.accountAlreadyAdded": "Esta conta de {provider} já está conectada.",
   "error.provider.accountDefault": "A primeira conta de {provider} não pode ser removida.",
+  "error.provider.accountUsesKey":
+    "Esta conta de {provider} usa a chave de API salva e não tem login. Altere a chave em Configurações do servidor → Provedores.",
   "error.provider.accountInUse":
     "Um agente que usa esta conta está trabalhando. Tente novamente quando o agente parar.",
   "error.provider.accountsReadOnly":

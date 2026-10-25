@@ -311,6 +311,8 @@ export const messages = {
   "error.provider.accountNotFound": "Tego konta {provider} nie ma na tym komputerze. Odśwież i spróbuj ponownie.",
   "error.provider.accountAlreadyAdded": "To konto {provider} jest już połączone.",
   "error.provider.accountDefault": "Nie można usunąć pierwszego konta {provider}.",
+  "error.provider.accountUsesKey":
+    "To konto {provider} używa zapisanego klucza API i nie ma logowania. Zmień klucz w Ustawienia serwera → Dostawcy.",
   "error.provider.accountInUse": "Agent korzystający z tego konta pracuje. Spróbuj ponownie, gdy agent się zatrzyma.",
   "error.provider.accountsReadOnly":
     "Nie można odczytać zapisanych kont dostawców. Zaktualizuj OpenBot, zanim je zmienisz.",

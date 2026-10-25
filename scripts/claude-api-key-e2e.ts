@@ -4,7 +4,8 @@
 // reports `authMethod: "api_key"` and no email, also when a claude.ai login exists. Cases: with a
 // claude.ai login, the own sign-in never gets the key; with no login, its account check and SDK
 // process get the key; the key account gets the key in its own folder, and its row shows only while
-// the own sign-in has a login; an added account never gets the key; no saved key keeps the login.
+// the own sign-in has a login, and a sign-in on it is refused; an added account never gets the key; no
+// saved key keeps the login.
 // `bun scripts/claude-api-key-e2e.ts`. Writes .openbot-build/claude-api-key-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -135,7 +136,12 @@ function accountsHost(key: Pick<ProviderAccountsHost, "apiKey" | "defaultUsesApi
   };
 }
 
-const report: { cases: CaseResult[]; result?: "pass" | "fail"; error?: string } = { cases: [] };
+const report: {
+  cases: CaseResult[];
+  keyAccountSignIn?: "refused";
+  result?: "pass" | "fail";
+  error?: string;
+} = { cases: [] };
 try {
   await writeFile(executable, FAKE_CLAUDE);
   await chmod(executable, 0o755);
@@ -208,6 +214,21 @@ try {
   assert.deepEqual(rowIds(), ["default", CLAUDE_API_KEY_ACCOUNT_ID, added.id], "the key account row is missing");
   defaultUsesApiKey = true;
   assert.deepEqual(rowIds(), ["default", added.id], "the key account row shows while the own sign-in uses the key");
+
+  // A client without claude-api-key-v1 shows the key account as signed out and can offer a sign-in.
+  const startsBeforeSignIn = readLog().length;
+  const refusal = await runCauseEffect(
+    accounts
+      .connect("claude", CLAUDE_API_KEY_ACCOUNT_ID, async () => {}, true)
+      .pipe(Effect.match({ onFailure: (failure) => failure.cause, onSuccess: () => null })),
+  );
+  assert.ok(
+    refusal instanceof Error && refusal.message.includes("saved API key"),
+    "a sign-in on the key account was not refused",
+  );
+  assert.equal(readLog().length, startsBeforeSignIn, "a refused sign-in on the key account started Claude");
+  assert.ok(store.get("claude", CLAUDE_API_KEY_ACCOUNT_ID), "a refused sign-in removed the key account");
+  report.keyAccountSignIn = "refused";
   report.result = "pass";
 } catch (error) {
   report.result = "fail";

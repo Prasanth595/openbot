@@ -203,6 +203,9 @@ export class ProviderAccounts {
     } else {
       const stored = this.account(provider, accountId);
       if (!stored) return yield* accountFailure(sourceText("error.provider.accountNotFound", { provider: name }));
+      // A client without claude-api-key-v1 shows the key account as a signed-out account.
+      if (isKeyAccount(stored))
+        return yield* accountFailure(sourceText("error.provider.accountUsesKey", { provider: name }));
       account = stored;
     }
     const command = support.signIn;

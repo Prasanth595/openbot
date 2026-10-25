@@ -303,6 +303,8 @@ export const messages = {
   "error.provider.accountNotFound": "이 {provider} 계정이 이 컴퓨터에 없어요. 새로 고친 후 다시 시도해 주세요.",
   "error.provider.accountAlreadyAdded": "이 {provider} 계정은 이미 연결되어 있어요.",
   "error.provider.accountDefault": "첫 번째 {provider} 계정은 제거할 수 없어요.",
+  "error.provider.accountUsesKey":
+    "이 {provider} 계정은 저장된 API 키를 사용하므로 로그인이 없어요. 키는 서버 설정 → 제공자에서 변경하세요.",
   "error.provider.accountInUse": "이 계정을 사용하는 에이전트가 작업 중이에요. 에이전트가 멈춘 후 다시 시도해 주세요.",
   "error.provider.accountsReadOnly": "저장된 제공자 계정을 읽을 수 없어요. 변경하기 전에 OpenBot을 업데이트하세요.",
   "error.provider.accountSignedOut": "이 {provider} 계정은 로그아웃되었어요. 다시 로그인하세요.",

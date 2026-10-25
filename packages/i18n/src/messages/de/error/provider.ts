@@ -327,6 +327,8 @@ export const messages = {
     "Dieses {provider}-Konto ist nicht auf diesem Computer. Aktualisiere und versuche es erneut.",
   "error.provider.accountAlreadyAdded": "Dieses {provider}-Konto ist bereits verbunden.",
   "error.provider.accountDefault": "Das erste {provider}-Konto kann nicht entfernt werden.",
+  "error.provider.accountUsesKey":
+    "Dieses {provider}-Konto verwendet den gespeicherten API-Schlüssel und hat keine Anmeldung. Ändere den Schlüssel in Servereinstellungen → Anbieter.",
   "error.provider.accountInUse":
     "Ein Agent mit diesem Konto arbeitet gerade. Versuche es erneut, wenn der Agent anhält.",
   "error.provider.accountsReadOnly":
