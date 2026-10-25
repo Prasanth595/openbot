@@ -3442,6 +3442,21 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
               throw new Error(sourceText("error.provider.accountInUse"));
           });
           for (const agent of agents) yield* this.#applyAgentUpdate({ agentId: agent.id, providerAccountId: null });
+          // A queued change to the account moves to the provider's own sign-in too, so it does not fail
+          // before the next turn. The running turn does not use the account, so it can continue.
+          const queued = this.#store
+            .list()
+            .filter(
+              (agent) =>
+                agent.pendingRuntime?.provider === provider && agentProviderAccount(agent.pendingRuntime) === accountId,
+            );
+          for (const agent of queued)
+            if (agent.pendingRuntime)
+              yield* this.#store.updateAgent({
+                agentId: agent.id,
+                pendingRuntime: { ...agent.pendingRuntime, providerAccountId: undefined },
+              });
+          if (queued.length > 0) this.#emit({ type: "agents-changed", agents: this.listAgents() });
           return yield* this.#providers.removeProviderAccount(provider, accountId);
         }),
       )
