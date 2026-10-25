@@ -20,7 +20,6 @@ import {
   RadialProgress,
   Square,
   UserCheck,
-  Workflow,
   X,
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
@@ -178,18 +177,12 @@ export function WorkflowCanvasHeader(props: {
             class={`${buttonVariants({ variant: "ghost", size: "sm" })} wfn-hud-button wfn-hud-switcher`}
             hidden={props.renaming}
           >
-            <span class="wfn-hud-icon" aria-hidden="true">
-              <Workflow />
-            </span>
             <span class="wfn-hud-switcher-name">{props.name}</span>
             <ChevronDown class="wfn-hud-chevron" aria-hidden="true" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>{props.switcher}</DropdownMenu.Portal>
         </DropdownMenu.Root>
         <Show when={props.renaming}>
-          <span class="wfn-hud-icon" aria-hidden="true">
-            <Workflow />
-          </span>
           <Input
             ref={(element: HTMLInputElement) => {
               queueMicrotask(() => {
