@@ -341,7 +341,7 @@
 }
 
 .wfn-ghost[data-kind="note"] {
-  border-radius: var(--openbot-radius-sm);
+  border-radius: var(--wfn-radius-card);
   background: var(--wfn-note-paper);
   box-shadow: 0 0 0 1px var(--wfn-note-edge);
 }

@@ -2542,10 +2542,6 @@ fieldset.wfn-picker-group {
   --wfn-note-edge: oklch(from var(--wfn-note) 0.76 calc(c * 0.6) h);
 }
 
-.wfn-node[data-kind="note"] {
-  --wfn-radius-card: var(--openbot-radius-sm);
-}
-
 .wfn-node[data-kind="note"] .wfn-card {
   grid-template-rows: minmax(0, 1fr) auto;
   align-content: stretch;
