@@ -10,6 +10,7 @@ import {
   type ProviderAccountStatus,
   type ProviderUsageResetOutcome,
   type ProviderUsageResets,
+  usageQuotaForModel,
 } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -23,6 +24,7 @@ import { type ProviderAccountSupport, requireProviderDriver } from "./../provide
 import type { ProviderTempOptions } from "./../provider-temp";
 import { shortenDiagnostic } from "./../stderr-diagnostics";
 import { stopProcessTree } from "../windows-process-tree";
+import { usageWindowHasReset } from "./account-usage";
 import { captureBrowser } from "./browser-capture";
 import type { ProviderAccountStore, StoredProviderAccount } from "./provider-account-store";
 import { waitForSuccessfulProcess } from "./provider-status";
@@ -395,7 +397,7 @@ export class ProviderAccounts {
     for (const account of this.#store.list(provider)) {
       if (this.#states.get(account.id)?.state !== "connected") continue;
       const kept = this.#usage.get(account.id);
-      if (kept && now - kept.at < ACCOUNT_CHECK_TTL_MS && !windowHasReset(kept.limit)) {
+      if (kept && now - kept.at < ACCOUNT_CHECK_TTL_MS && !usageWindowHasReset(kept.limit)) {
         limits.push(kept.limit);
         continue;
       }
@@ -424,8 +426,12 @@ export class ProviderAccounts {
   ) {
     const client = this.#host.agentClient(provider, accountId);
     if (client) return yield* this.#host.readUsage(client, model);
-    const kept = this.#usage.get(accountId);
-    return { limits: kept ? [kept.limit] : [] } satisfies AccountUsage;
+    // The kept reading has no model: take the windows of the model's quota group from it.
+    const kept = this.#usage.get(accountId)?.limit;
+    const quota = kept && usageQuotaForModel(kept, model);
+    return {
+      limits: kept && quota ? [{ ...kept, primary: quota.primary, secondary: quota.secondary }] : [],
+    } satisfies AccountUsage;
   }).bind(this);
 
   /**
@@ -638,9 +644,4 @@ function isSignInError(error: unknown): boolean {
 
 export function defaultUsageModel(provider: AgentProviderId): string | undefined {
   return provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
-}
-
-function windowHasReset(limit: AccountUsageLimit): boolean {
-  const now = Date.now() / 1_000;
-  return [limit.primary, limit.secondary].some((window) => window?.resetsAt != null && window.resetsAt <= now);
 }

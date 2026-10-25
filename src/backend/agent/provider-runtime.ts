@@ -64,7 +64,7 @@ import { startProviderTerminalLogin } from "../provider-terminal-login";
 import { recordRestartActivity } from "../restart-activity";
 import { shortenDiagnostic } from "./../stderr-diagnostics";
 import { stopProcessTree } from "../windows-process-tree";
-import { normalizeAccountUsage } from "./account-usage";
+import { normalizeAccountUsage, usageWindowHasReset } from "./account-usage";
 import { captureBrowser } from "./browser-capture";
 import { startCliCodeLogin } from "./cli-code-login";
 import { CliLoginFailed, CliLoginFlow, toCliLoginFailed } from "./cli-login-flow";
@@ -80,6 +80,7 @@ import {
   isAcpHandlerDiagnostic,
   isBackgroundRefreshDiagnostic,
   isBundledSandboxFallbackDiagnostic,
+  isCodexCredentialFallbackDiagnostic,
   isGlogBelowErrorDiagnostic,
   isIgnoredConfigDiagnostic,
   isMcpSubsystemDiagnostic,
@@ -192,15 +193,6 @@ function logProviderStateChanges(
       message: row.message === null ? null : shortenDiagnostic(redactMcp(row.message)),
     });
   }
-}
-
-/**
- * True once a window of a kept reading has passed its reset time, so the reading is stale. Only
- * then does a usage read start a released provider again. `resetsAt` is in seconds.
- */
-function usageWindowHasReset(limit: AccountUsage["limits"][number]): boolean {
-  const now = Date.now() / 1_000;
-  return [limit.primary, limit.secondary].some((window) => window?.resetsAt != null && window.resetsAt <= now);
 }
 
 /**
@@ -3308,6 +3300,10 @@ export class ProviderRuntime implements ProviderPort {
       // logged or turned into a renderer error event. Shortened after that, because a value cut in
       // half is a value the redactor does not match.
       const message = shortenDiagnostic(this.#redactMcp(raw));
+      if (client.provider === "codex" && isCodexCredentialFallbackDiagnostic(raw)) {
+        logger.info("Codex completed a credential storage fallback.", { provider: client.provider, message });
+        return;
+      }
       // An agent that tears down its sessions while OpenBot stops it (idle release, restart, quit)
       // can write an error for each one. It is not a failure the user can act on, so it goes to the log.
       if (origin?.duringStop) {

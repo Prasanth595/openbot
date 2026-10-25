@@ -465,9 +465,16 @@ reads the Google account's quota summary and sends one Markdown answer. The driv
 `readRateLimits` sends it in a session that no thread owns (`privatePrompt` in
 `src/backend/acp-client.ts`). Each process keeps that one session for every read, because each new
 Antigravity session leaves a conversation database in `~/.gemini/antigravity-acp/conversations`,
-also after it closes. `src/backend/antigravity-usage.ts` reads the Gemini groups of the answer's
-"Quota Limits" section into the dock's windows. The Claude and GPT models that Antigravity also runs
-share another limit, so `accountUsageCoversModel` covers only Gemini models. An older runtime, an
+also after it closes. `src/backend/antigravity-usage.ts` reads one group of the answer's
+"Quota Limits" section into the windows. Google can give a model a group of its own, such as Gemini 4
+Argon, so a read for a model takes the group whose "Models within this group" list names it (#3055),
+and a model that no group names has no reading. The dock's read, with no model, takes the "Gemini
+Models" group. Each reading also carries every group by name and models (`AccountUsageLimit.groups`),
+so the usage popover shows one line per group and the composer notice uses the group of the agent's
+model (`usageGroupForModel`). The ring stays on the reading's own group. The Team API codecs do not
+send `groups`, so a remote client shows the one reading. The Claude and GPT models that Antigravity
+also runs share another limit, so `accountUsageCoversModel` keeps them out of the plan-limit hold. An
+older runtime, an
 API key sign-in ("Not applicable for current authentication method") and an answer that does not
 parse give no reading. A saved Gemini API key comes before the Google sign-in, so the provider
 status sets `apiKeyInUse`, and the API key section of the Gemini provider page says that the key,
