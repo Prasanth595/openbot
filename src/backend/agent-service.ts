@@ -2474,7 +2474,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   /**
    * `move` is "return" for the move back to the model a usage limit or a provider error made the
-   * agent leave, and "provider-error" for the move away from a model that failed a turn.
+   * agent leave, "provider-error" for the move away from a model that failed a turn, and
+   * "pending-runtime" for a user selection that takes the waiting queue to another runtime.
    */
   readonly #applyAgentUpdate = Effect.fn("AgentService.updateAgent")(function* (
     this: AgentService,
@@ -2496,7 +2497,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       // runs on the new provider. The move back after the limit takes the queue with it too, and so
       // does the move away from a model that failed: the failed turn's messages wait in the queue.
       const hasPendingWork =
-        !returning && !failingOver && this.#usageLimits.mayDrain(input.agentId)
+        move === null && this.#usageLimits.mayDrain(input.agentId)
           ? this.#mailbox.hasUnfinishedDelivery(input.agentId)
           : this.#mailbox.hasStartedDelivery(input.agentId);
       const activeTurn =
@@ -2885,13 +2886,17 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           const agent = this.#store.list().find((candidate) => candidate.id === agentId);
           const pending = agent?.pendingRuntime;
           if (!pending || this.#runtimeHandoverBusy(agentId)) return false;
-          yield* this.#applyAgentUpdate({
-            agentId,
-            provider: pending.provider,
-            model: pending.model,
-            reasoningEffort: pending.reasoningEffort,
-            providerAccountId: pending.providerAccountId ?? null,
-          });
+          yield* this.#applyAgentUpdate(
+            {
+              agentId,
+              provider: pending.provider,
+              model: pending.model,
+              reasoningEffort: pending.reasoningEffort,
+              providerAccountId: pending.providerAccountId ?? null,
+            },
+            undefined,
+            "pending-runtime",
+          );
           return true;
         }),
       )
@@ -4582,8 +4587,8 @@ export class AgentLifecycleFailed extends Schema.TaggedError<AgentLifecycleFaile
   cause: Schema.Defect(),
 }) {}
 
-/** Why `#usageLimitMove` changes an agent's model, when it is not the switch for a usage limit. */
-type ModelMove = "return" | "provider-error";
+/** A runtime move that takes waiting deliveries to the selected model or provider. */
+type ModelMove = "return" | "provider-error" | "pending-runtime";
 
 const MODEL_SWITCH_TEXT = {
   "usage-limit": "status.agent.modelSwitchedForLimit",
