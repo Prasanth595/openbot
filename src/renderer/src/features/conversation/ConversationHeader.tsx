@@ -1,11 +1,26 @@
-import { foreignProvider } from "@openbot/contracts/agent-providers";
-import type { AgentModelId, AgentReasoningEffort } from "@openbot/contracts/ipc";
+import { foreignProvider, isKnownAgentProvider } from "@openbot/contracts/agent-providers";
+import {
+  type AgentModelId,
+  type AgentProviderRef,
+  type AgentReasoningEffort,
+  DEFAULT_PROVIDER_ACCOUNT_ID,
+  providerDisplayName,
+} from "@openbot/contracts/ipc";
 import { isAgentTaskActive } from "@openbot/team-client/agent-tasks";
 import { reasoningLabel } from "@openbot/ui/components/ProviderModelPicker";
+import { providerAccountName } from "@openbot/ui/components/provider-accounts";
 import { ConversationHeader as SharedConversationHeader } from "@openbot/ui/features/conversation/ConversationHeader";
 import { useConversationViewScope } from "./conversation-scope";
 
 const loadAgentSettingsPanel = () => import("./AgentSettingsPanel");
+
+/** The runtime of the running turn, or of the next one, as the "After this turn" badge names it. */
+interface BadgeRuntime {
+  provider: AgentProviderRef;
+  model: AgentModelId;
+  reasoningEffort: AgentReasoningEffort;
+  providerAccountId?: string | undefined;
+}
 
 import { useText } from "@openbot/ui/text";
 
@@ -32,22 +47,45 @@ export function ConversationHeader() {
   } = useConversationViewScope();
   const runningTasks = () => props.tasks?.snapshot?.tasks.filter(isAgentTaskActive).length ?? 0;
   const working = () => agentActivity() === "Working";
-  /** The effort shows only where it differs, so a model change alone names only the models. */
-  const runtimeLabel = (model: AgentModelId, effort: AgentReasoningEffort, otherEffort: AgentReasoningEffort) => {
-    const name =
-      props.modelOptions.find((option) => option.provider === settingsProvider() && option.id === model)?.name ?? model;
-    return effort === otherEffort ? name : `${name} · ${reasoningLabel(effort, t)}`;
+  const providerName = (provider: AgentProviderRef) =>
+    isKnownAgentProvider(provider) ? providerDisplayName(provider) : String(provider);
+  const accountId = (runtime: BadgeRuntime) => runtime.providerAccountId ?? DEFAULT_PROVIDER_ACCOUNT_ID;
+  const accountName = (runtime: BadgeRuntime) =>
+    providerAccountName(
+      t,
+      props.agentStatus?.providers?.find((status) => status.id === runtime.provider)?.accounts ?? [],
+      accountId(runtime),
+    );
+  /** Each part shows only where the two runtimes differ, so a model change alone names only the models. */
+  const runtimeLabel = (runtime: BadgeRuntime, other: BadgeRuntime) => {
+    const parts = [
+      props.modelOptions.find((option) => option.provider === runtime.provider && option.id === runtime.model)?.name ??
+        runtime.model,
+    ];
+    if (runtime.provider !== other.provider) parts.unshift(providerName(runtime.provider));
+    else if (accountId(runtime) !== accountId(other)) parts.unshift(accountName(runtime));
+    if (runtime.reasoningEffort !== other.reasoningEffort) parts.push(reasoningLabel(runtime.reasoningEffort, t));
+    return parts.join(" · ");
   };
+  /** A change chosen during a turn or a task. It applies from the next turn. */
   const pendingModel = () => {
-    const running = runningTurnRuntime();
-    if (!working() || !running) return undefined;
-    const model = settingsModel();
-    const effort = settingsReasoning();
-    if (model === running.model && effort === running.reasoningEffort) return undefined;
-    return {
-      running: runtimeLabel(running.model, running.reasoningEffort, effort),
-      next: runtimeLabel(model, effort, running.reasoningEffort),
+    const agent = props.agent;
+    if (!agent || !(working() || runningTasks() > 0)) return undefined;
+    const running: BadgeRuntime = (working() ? runningTurnRuntime() : null) ?? agent;
+    const next: BadgeRuntime = agent.pendingRuntime ?? {
+      provider: settingsProvider(),
+      model: settingsModel(),
+      reasoningEffort: settingsReasoning(),
+      providerAccountId: agent.providerAccountId,
     };
+    if (
+      running.provider === next.provider &&
+      running.model === next.model &&
+      running.reasoningEffort === next.reasoningEffort &&
+      accountId(running) === accountId(next)
+    )
+      return undefined;
+    return { running: runtimeLabel(running, next), next: runtimeLabel(next, running) };
   };
   return (
     <SharedConversationHeader
@@ -71,11 +109,10 @@ export function ConversationHeader() {
         onConnectProvider: props.onConnectProvider,
         canConnectProvider: props.canConnectProvider,
         onManageProviders: props.onManageProviders,
-        // A model or effort chosen during a turn applies from the next turn. A provider change waits.
-        providerChangesDisabled: working(),
-        disabledReason: working() ? t("conversation.header.providerBusy") : t("conversation.header.modelsUnavailable"),
+        // A model, effort, provider or account chosen during a turn applies from the next turn.
+        disabledReason: t("conversation.header.modelsUnavailable"),
         accountChoice: true,
-        providerAccountId: props.agent?.providerAccountId,
+        providerAccountId: props.agent?.pendingRuntime?.providerAccountId ?? props.agent?.providerAccountId,
         onChange: (model, provider, accountId) => void selectAndConfirmModel(model, provider, accountId),
         onReasoningEffortChange: (effort) => void selectAndConfirmReasoning(effort),
         // Codex only for now, and only on this computer: the Team API does not carry fast mode.

@@ -72,7 +72,6 @@ export const messages = {
   "agentSettings.avatar.saveFailed": "에이전트 아바타를 저장할 수 없어요.",
   "agentSettings.avatar.processFailed": "에이전트 아바타를 처리할 수 없어요.",
   "agentSettings.runtime.model": "에이전트 모델",
-  "agentSettings.runtime.providerBusy": "제공자나 계정을 바꾸기 전에 현재 작업이 끝날 때까지 기다려 주세요.",
   "agentSettings.runtime.modelUnavailable": "에이전트 CLI가 연결된 후에 모델을 사용할 수 있어요.",
   "agentSettings.runtime.reasoning": "추론",
   "agentSettings.runtime.reasoningLabel": "에이전트 추론 수준",

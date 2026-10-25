@@ -75,8 +75,6 @@ export const messages = {
   "agentSettings.avatar.processFailed": "Impossible de traiter l’avatar de l’agent.",
 
   "agentSettings.runtime.model": "Modèle de l’agent",
-  "agentSettings.runtime.providerBusy":
-    "Attendez la fin du travail en cours avant de changer de fournisseur ou de compte.",
   "agentSettings.runtime.modelUnavailable": "Les modèles sont disponibles après la connexion d’une CLI d’agent.",
   "agentSettings.runtime.reasoning": "Raisonnement",
   "agentSettings.runtime.reasoningLabel": "Niveau de raisonnement de l’agent",

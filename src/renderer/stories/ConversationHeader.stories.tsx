@@ -53,8 +53,22 @@ export const ModelAfterThisTurn: Story = {
       reasoningEffort: STORY_AGENT.reasoningEffort,
       modelOptions: STORY_MODELS,
       agentStatus: STORY_AGENT_STATUS,
-      providerChangesDisabled: true,
-      disabledReason: "Wait for the current work to finish before changing the provider or account.",
+      onChange: fn(),
+      onReasoningEffortChange: fn(),
+    },
+  },
+};
+/** A provider chosen during the turn. The running turn keeps its provider; the next turn uses the new one. */
+export const ProviderAfterThisTurn: Story = {
+  args: {
+    pendingModel: { running: "Codex · GPT-5.6 Luna", next: "Grok · Grok 4.6" },
+    modelPicker: {
+      provider: "grok",
+      value: "grok-4.6",
+      reasoningEffort: STORY_AGENT.reasoningEffort,
+      modelOptions: STORY_MODELS,
+      agentStatus: STORY_AGENT_STATUS,
+      accountChoice: true,
       onChange: fn(),
       onReasoningEffortChange: fn(),
     },

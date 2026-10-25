@@ -47,7 +47,6 @@ export const messages = {
   "conversation.header.publish": "Опубликовать агента",
   "conversation.header.browserActing": "{name} управляет браузером",
   "conversation.header.agentFallback": "Агент",
-  "conversation.header.providerBusy": "Дождитесь завершения текущей работы, прежде чем менять провайдера или аккаунт.",
   "conversation.header.modelsUnavailable": "Модели станут доступны после подключения CLI агента.",
   "conversation.header.modelNextTurn": "После этого хода",
   "conversation.header.modelNextTurnDetail": "{running} завершит этот ход. {next} начнёт со следующего.",

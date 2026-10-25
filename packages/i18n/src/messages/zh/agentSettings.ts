@@ -73,7 +73,6 @@ export const messages = {
   "agentSettings.avatar.processFailed": "无法处理助手头像。",
 
   "agentSettings.runtime.model": "助手模型",
-  "agentSettings.runtime.providerBusy": "请等当前工作结束后，再更改服务商或账号。",
   "agentSettings.runtime.modelUnavailable": "助手 CLI 连接后即可选择模型。",
   "agentSettings.runtime.reasoning": "推理",
   "agentSettings.runtime.reasoningLabel": "助手推理强度",

@@ -14,7 +14,7 @@ export interface ConversationHeaderProps {
   /** The title of a chat that has no one agent, such as a channel. It shows when `agent` is missing. */
   title?: JSX.Element | undefined;
   modelPicker: ComponentProps<typeof ProviderModelPicker>;
-  /** A model or effort chosen during the running turn. It applies from the next turn. */
+  /** A model, effort, provider or account chosen during the running turn. It applies from the next turn. */
   pendingModel?: ConversationHeaderPendingModel | undefined;
   onSettingsIntent: () => void;
   onOpenSettings: () => void;

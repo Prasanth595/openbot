@@ -52,6 +52,7 @@ export function toAgentProfile(stored: ClientAgentSummary): AgentProfile {
     ...(stored.taskLimit === undefined ? {} : { taskLimit: stored.taskLimit }),
     ...(stored.backupModels === undefined ? {} : { backupModels: stored.backupModels }),
     ...(stored.usageLimitReturn === undefined ? {} : { usageLimitReturn: stored.usageLimitReturn }),
+    ...(stored.pendingRuntime === undefined ? {} : { pendingRuntime: stored.pendingRuntime }),
     threadId: stored.threadId,
     workspacePath: stored.workspacePath,
     avatarSeed: stored.avatarSeed,
@@ -229,6 +230,7 @@ export function agentProfilesEqual(left: AgentProfile, right: AgentProfile): boo
     left.providerAccountId === right.providerAccountId &&
     JSON.stringify(left.backupModels) === JSON.stringify(right.backupModels) &&
     JSON.stringify(left.usageLimitReturn) === JSON.stringify(right.usageLimitReturn) &&
+    JSON.stringify(left.pendingRuntime) === JSON.stringify(right.pendingRuntime) &&
     left.access === right.access &&
     left.computerUse === right.computerUse &&
     left.allowAutomation === right.allowAutomation &&

@@ -72,8 +72,6 @@ export const messages = {
   "agentSettings.avatar.saveFailed": "Der Agentenavatar konnte nicht gespeichert werden.",
   "agentSettings.avatar.processFailed": "Der Agentenavatar konnte nicht verarbeitet werden.",
   "agentSettings.runtime.model": "Agentenmodell",
-  "agentSettings.runtime.providerBusy":
-    "Warte, bis die aktuelle Arbeit abgeschlossen ist, bevor du Anbieter oder Konto wechselst.",
   "agentSettings.runtime.modelUnavailable": "Modelle sind verfügbar, sobald sich eine Agenten-CLI verbindet.",
   "agentSettings.runtime.reasoning": "Denkleistung",
   "agentSettings.runtime.reasoningLabel": "Denkleistungsstufe des Agenten",

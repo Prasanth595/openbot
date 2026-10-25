@@ -80,8 +80,6 @@ export const messages = {
   "agentSettings.avatar.processFailed": "Не удалось обработать аватар агента.",
 
   "agentSettings.runtime.model": "Модель агента",
-  "agentSettings.runtime.providerBusy":
-    "Дождитесь завершения текущей работы, прежде чем менять провайдера или аккаунт.",
   "agentSettings.runtime.modelUnavailable": "Модели станут доступны после подключения CLI агента.",
   "agentSettings.runtime.reasoning": "Рассуждение",
   "agentSettings.runtime.reasoningLabel": "Уровень рассуждения агента",

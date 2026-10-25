@@ -77,7 +77,6 @@ export const messages = {
   "agentSettings.avatar.saveFailed": "Nie udało się zapisać awatara agenta.",
   "agentSettings.avatar.processFailed": "Nie udało się przetworzyć awatara agenta.",
   "agentSettings.runtime.model": "Model agenta",
-  "agentSettings.runtime.providerBusy": "Poczekaj na zakończenie bieżącej pracy, zanim zmienisz dostawcę lub konto.",
   "agentSettings.runtime.modelUnavailable": "Modele będą dostępne po połączeniu CLI agenta.",
   "agentSettings.runtime.reasoning": "Rozumowanie",
   "agentSettings.runtime.reasoningLabel": "Poziom rozumowania agenta",

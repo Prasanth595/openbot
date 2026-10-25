@@ -47,8 +47,6 @@ export const messages = {
   "conversation.header.publish": "Ajanı yayımla",
   "conversation.header.browserActing": "{name} tarayıcıyı kontrol ediyor",
   "conversation.header.agentFallback": "Ajan",
-  "conversation.header.providerBusy":
-    "Sağlayıcıyı veya hesabı değiştirmeden önce mevcut çalışmanın bitmesini bekleyin.",
   "conversation.header.modelsUnavailable": "Modeller bir ajan CLI'sı bağlandıktan sonra kullanılabilir.",
   "conversation.header.modelNextTurn": "Bu turdan sonra",
   "conversation.header.modelNextTurnDetail": "{running} bu turu bitirir. {next} bir sonrakiyle başlar.",

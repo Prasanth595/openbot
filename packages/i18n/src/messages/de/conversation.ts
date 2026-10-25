@@ -47,8 +47,6 @@ export const messages = {
   "conversation.header.publish": "Agenten veröffentlichen",
   "conversation.header.browserActing": "{name} steuert den Browser",
   "conversation.header.agentFallback": "Agent",
-  "conversation.header.providerBusy":
-    "Warte, bis die aktuelle Arbeit abgeschlossen ist, bevor du Anbieter oder Konto wechselst.",
   "conversation.header.modelsUnavailable": "Modelle sind verfügbar, sobald eine Agenten-CLI verbunden ist.",
   "conversation.header.modelNextTurn": "Nach diesem Durchlauf",
   "conversation.header.modelNextTurnDetail": "{running} beendet diesen Durchlauf. {next} startet mit dem nächsten.",

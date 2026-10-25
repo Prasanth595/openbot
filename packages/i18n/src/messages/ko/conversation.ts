@@ -47,7 +47,6 @@ export const messages = {
   "conversation.header.publish": "에이전트 게시",
   "conversation.header.browserActing": "{name}이(가) 브라우저를 제어하고 있어요",
   "conversation.header.agentFallback": "에이전트",
-  "conversation.header.providerBusy": "제공자나 계정을 바꾸려면 현재 작업이 끝날 때까지 기다려 주세요.",
   "conversation.header.modelsUnavailable": "에이전트 CLI가 연결되면 모델을 사용할 수 있어요.",
   "conversation.header.modelNextTurn": "이번 턴 이후",
   "conversation.header.modelNextTurnDetail": "{running}이(가) 이번 턴을 마치고, 다음 턴부터 {next}이(가) 시작돼요.",

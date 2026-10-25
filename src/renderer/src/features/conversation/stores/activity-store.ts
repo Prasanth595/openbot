@@ -1,4 +1,4 @@
-import type { AgentModelId, AgentReasoningEffort } from "@openbot/contracts/ipc";
+import type { AgentModelId, AgentProviderRef, AgentReasoningEffort } from "@openbot/contracts/ipc";
 import type { AgentProfile } from "@openbot/ui/data";
 import { type AgentActivityLabel, nextAgentActivityLabel } from "@openbot/ui/features/conversation/AgentActivity";
 import {
@@ -26,11 +26,13 @@ export interface RenderedAgentActivity {
   label: AgentActivityLabel;
 }
 
-/** The model and effort that a turn started with. A change during the turn applies from the next one. */
+/** The provider, account, model and effort that a turn started with. A change during the turn applies from the next one. */
 export interface TurnRuntime {
   turnId: string;
+  provider: AgentProviderRef;
   model: AgentModelId;
   reasoningEffort: AgentReasoningEffort;
+  providerAccountId?: string | undefined;
 }
 
 export interface ActivityStoreDeps {
@@ -103,8 +105,8 @@ export function createActivityStore(deps: ActivityStoreDeps) {
   });
   const agentActivity = createMemo<"Working" | null>(() => (activeActivityId() ? "Working" : null));
   /**
-   * The saved model and effort when this chat first saw the running turn. The host does not send the
-   * model of a turn, and a turn reads the saved settings when it starts.
+   * The saved provider, account, model and effort when this chat first saw the running turn. The host does not
+   * send the runtime of a turn, and a turn reads the saved settings when it starts.
    */
   const runningTurnRuntime = createMemo<TurnRuntime | null>(() => {
     const agent = deps.props.agent;
@@ -117,7 +119,13 @@ export function createActivityStore(deps: ActivityStoreDeps) {
     }
     const known = deps.turnRuntimes.get(key);
     if (known?.turnId === turnId) return known;
-    const runtime = untrack(() => ({ turnId, model: agent.model, reasoningEffort: agent.reasoningEffort }));
+    const runtime = untrack(() => ({
+      turnId,
+      provider: agent.provider,
+      model: agent.model,
+      reasoningEffort: agent.reasoningEffort,
+      providerAccountId: agent.providerAccountId,
+    }));
     deps.turnRuntimes.set(key, runtime);
     return runtime;
   });

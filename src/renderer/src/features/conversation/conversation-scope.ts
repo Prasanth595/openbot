@@ -1187,11 +1187,21 @@ export function createConversationViewScope(props: ConversationProps) {
     () => {
       const agent = props.agent;
       if (!agent) return null;
+      const queued = agent.pendingRuntime;
       return {
-        signature: [agent.id, agent.provider, agent.model, agent.reasoningEffort].join("\u0000"),
-        provider: agent.provider,
-        model: agent.model,
-        reasoningEffort: agent.reasoningEffort,
+        signature: [
+          agent.id,
+          agent.provider,
+          agent.model,
+          agent.reasoningEffort,
+          queued?.provider,
+          queued?.model,
+          queued?.reasoningEffort,
+          queued?.providerAccountId,
+        ].join("\u0000"),
+        provider: queued?.provider ?? agent.provider,
+        model: queued?.model ?? agent.model,
+        reasoningEffort: queued?.reasoningEffort ?? agent.reasoningEffort,
       };
     },
     (agent) => {

@@ -47,7 +47,6 @@ export const messages = {
   "conversation.header.publish": "エージェントを公開",
   "conversation.header.browserActing": "{name} がブラウザーを操作しています",
   "conversation.header.agentFallback": "エージェント",
-  "conversation.header.providerBusy": "プロバイダーやアカウントを変更する前に、現在の作業が終わるまでお待ちください。",
   "conversation.header.modelsUnavailable": "エージェント CLI が接続すると、モデルを選択できます。",
   "conversation.header.modelNextTurn": "このターンの後",
   "conversation.header.modelNextTurnDetail": "このターンは {running} で完了します。次のターンから {next} を使います。",

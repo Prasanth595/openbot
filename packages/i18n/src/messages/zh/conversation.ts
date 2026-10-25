@@ -47,7 +47,6 @@ export const messages = {
   "conversation.header.publish": "发布助手",
   "conversation.header.browserActing": "{name} 正在控制浏览器",
   "conversation.header.agentFallback": "助手",
-  "conversation.header.providerBusy": "请等当前工作完成后，再更改服务商或账号。",
   "conversation.header.modelsUnavailable": "助手 CLI 连接后即可选择模型。",
   "conversation.header.modelNextTurn": "本轮结束后",
   "conversation.header.modelNextTurnDetail": "{running} 将完成本轮。{next} 从下一轮开始。",
