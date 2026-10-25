@@ -968,8 +968,10 @@ export function createBoard(options: BoardOptions) {
    * already in a group keeps the group, so that the group can move together.
    */
   const selectFrom = (target: EventTarget | null, add = false) => {
-    // Menus and popovers are portalled, but Solid still sends their events up the component tree.
-    if (target instanceof Element && target.closest("[data-wfn-portal], .wfn-edge-actions")) return;
+    // Menus and popovers are portalled, but Solid still sends their events up the component tree. A port
+    // connects and does not select: a selected node can show its missing-input warning, which moves the
+    // port away from the pointer before the click.
+    if (target instanceof Element && target.closest("[data-wfn-portal], .wfn-edge-actions, .wfn-port")) return;
     const element = target instanceof Element ? target.closest<HTMLElement>("[data-node-id]") : null;
     const node = element?.dataset.nodeId;
     const onEdge = target instanceof Element && target.closest(".wfn-edge-hit");
