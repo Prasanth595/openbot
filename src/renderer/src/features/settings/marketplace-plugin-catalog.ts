@@ -829,8 +829,7 @@ const CAFECITO_BEANS: MarketplacePluginDetail = {
     "Cafecito Beans lets agents search news, reports, research, and official statements, track trends, and compare coverage across publishers. It provides read-only access through a hosted MCP server. Each user connects with a Cafecito API key.",
   category: "research",
   creatorName: "cafecito.tech",
-  iconUrl:
-    "https://raw.githubusercontent.com/soumitsalman/openbot/52051001fd0af6ac0e5a405d5d07b2898c03adec/marketplace/plugin-catalog/plugins/cafecito-beans/beans.png",
+  iconUrl: "https://cafecito.tech/images/beans.png",
   version: "1.0.0",
   prompts: [
     { id: "prompt-trends", text: "What news about GPU supply shortages is trending this week?" },
@@ -843,8 +842,7 @@ const CAFECITO_BEANS: MarketplacePluginDetail = {
       name: "Cafecito Beans",
       description:
         "Read-only article search, stories, trends, source details, related coverage, and mentions, through the hosted Beans MCP server with a Cafecito API key.",
-      iconUrl:
-        "https://raw.githubusercontent.com/soumitsalman/openbot/52051001fd0af6ac0e5a405d5d07b2898c03adec/marketplace/plugin-catalog/plugins/cafecito-beans/beans.png",
+      iconUrl: "https://cafecito.tech/images/beans.png",
       server: {
         name: "cafecito-beans",
         transport: "http",
