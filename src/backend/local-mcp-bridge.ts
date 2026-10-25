@@ -280,6 +280,14 @@ export class LocalMcpBridge {
         Effect.gen({ self: this }, function* (): Effect.fn.Return<CallToolResult, McpOperationError> {
           const tool = route.namespace.tools.find((candidate) => candidate.name === params.name);
           if (!tool) return yield* mcpFailure(new Error(`Unknown ${route.namespace.name} tool: ${params.name}`));
+          // A shared token does not say which session called. OpenCode names it in `_meta`; without
+          // that, the one in a turn did, and with two in a turn at once the first that opened gets it.
+          const caller = extra._meta?.[OPENCODE_SESSION_META];
+          const member =
+            route.members.find((candidate) => candidate.threadId === caller) ??
+            route.members.find((candidate) => candidate.activeTurnId() !== null) ??
+            route.members.at(-1);
+          if (!member) return yield* mcpFailure(new Error(`The ${route.namespace.name} session closed.`));
           // The SDK aborts `extra.signal` when this POST's transport closes, which follows a closed
           // response stream. A cancel on another POST aborts `abandoned` through `route.running`.
           const abandoned = new AbortController();
@@ -297,14 +305,6 @@ export class LocalMcpBridge {
                     .sendNotification({ method: "notifications/progress", params: { progressToken, progress } })
                     .catch(() => undefined);
                 }, LOCAL_MCP_PROGRESS_INTERVAL_MS);
-          // A shared token does not say which session called. OpenCode names it in `_meta`; without
-          // that, the one in a turn did, and with two in a turn at once the first that opened gets it.
-          const caller = extra._meta?.[OPENCODE_SESSION_META];
-          const member =
-            route.members.find((candidate) => candidate.threadId === caller) ??
-            route.members.find((candidate) => candidate.activeTurnId() !== null) ??
-            route.members.at(-1);
-          if (!member) return yield* mcpFailure(new Error(`The ${route.namespace.name} session closed.`));
           const result = yield* Effect.gen({ self: this }, function* () {
             return yield* route
               .call(
