@@ -126,6 +126,16 @@ export function createWebConversationRuntime(
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote, hostId);
   let importing: { cancelled: boolean; serverId: string } | undefined;
+  // A new upload cancels the one in flight (`uploadGeneration` in web-runtime.ts), so imports run one at a time.
+  let uploads: Promise<void> = Promise.resolve();
+  function oneAtATime<T>(run: () => Promise<T>): Promise<T> {
+    const result = uploads.then(run);
+    uploads = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
   async function cancelImportFiles() {
     if (!importing) return;
     importing.cancelled = true;
@@ -177,25 +187,26 @@ export function createWebConversationRuntime(
   return {
     agent: {
       ...messageLinks,
-      async importAttachmentData(data, serverId) {
-        if (serverId !== hostId()) throw new Error(currentText().t("webClient.error.hostChanged"));
-        const files = data.map((file) => new File([new Uint8Array(file.bytes)], file.name, { type: file.mimeType }));
-        // The composer's stop button reaches a paste through `importing`, as it reaches a picked file.
-        const job = { cancelled: false, serverId };
-        importing ??= job;
-        try {
-          // A stop ends the upload in flight with an error. uploadFiles has discarded the files then.
-          const attachments = await uploadFiles(files, serverId, () => job.cancelled).catch((error: unknown) => {
-            if (job.cancelled) return null;
-            throw error;
-          });
-          if (job.cancelled) return [];
-          if (!attachments) throw new Error(currentText().t("webClient.error.hostChanged"));
-          return attachments;
-        } finally {
-          if (importing === job) importing = undefined;
-        }
-      },
+      importAttachmentData: (data, serverId) =>
+        oneAtATime(async () => {
+          if (serverId !== hostId()) throw new Error(currentText().t("webClient.error.hostChanged"));
+          const files = data.map((file) => new File([new Uint8Array(file.bytes)], file.name, { type: file.mimeType }));
+          // The composer's stop button reaches a paste through `importing`, as it reaches a picked file.
+          const job = { cancelled: false, serverId };
+          importing = job;
+          try {
+            // A stop ends the upload in flight with an error. uploadFiles has discarded the files then.
+            const attachments = await uploadFiles(files, serverId, () => job.cancelled).catch((error: unknown) => {
+              if (job.cancelled) return null;
+              throw error;
+            });
+            if (job.cancelled) return [];
+            if (!attachments) throw new Error(currentText().t("webClient.error.hostChanged"));
+            return attachments;
+          } finally {
+            importing = undefined;
+          }
+        }),
       discardDraftAttachment: (id) => remote.discard(id),
       downloadAttachments: unavailable,
       editQueuedMessage: async (input, serverId) => {
@@ -279,30 +290,33 @@ export function createWebConversationRuntime(
     visualPage: files.visualPage,
     async importFiles(files) {
       if (importing || files.length === 0) return;
-      const serverId = hostId();
-      const job = { cancelled: false, serverId };
-      importing = job;
-      const requestId = crypto.randomUUID();
-      emit({ type: "started", serverId, requestId });
-      try {
-        if (files.length > INPUT_LIMITS.attachments)
-          throw new Error(currentText().t("webClient.error.attachmentLimit", { limit: INPUT_LIMITS.attachments }));
-        const attachments = await uploadFiles(files, serverId, () => job.cancelled);
-        emit({ type: "completed", serverId, requestId, attachments: attachments ?? [] });
-      } catch (error) {
-        if (job.cancelled) {
-          emit({ type: "completed", serverId, requestId, attachments: [] });
-          return;
+      // A picked or dropped file waits for a paste upload; it does not start while another one runs.
+      await oneAtATime(async () => {
+        const serverId = hostId();
+        const job = { cancelled: false, serverId };
+        importing = job;
+        const requestId = crypto.randomUUID();
+        emit({ type: "started", serverId, requestId });
+        try {
+          if (files.length > INPUT_LIMITS.attachments)
+            throw new Error(currentText().t("webClient.error.attachmentLimit", { limit: INPUT_LIMITS.attachments }));
+          const attachments = await uploadFiles(files, serverId, () => job.cancelled);
+          emit({ type: "completed", serverId, requestId, attachments: attachments ?? [] });
+        } catch (error) {
+          if (job.cancelled) {
+            emit({ type: "completed", serverId, requestId, attachments: [] });
+            return;
+          }
+          emit({
+            type: "error",
+            serverId,
+            requestId,
+            message: error instanceof Error ? error.message : currentText().t("webClient.error.fileTransfer"),
+          });
+        } finally {
+          importing = undefined;
         }
-        emit({
-          type: "error",
-          serverId,
-          requestId,
-          message: error instanceof Error ? error.message : currentText().t("webClient.error.fileTransfer"),
-        });
-      } finally {
-        importing = undefined;
-      }
+      });
     },
     cancelImportFiles,
     // `request()` names the connected host at call time, so a host switch reaches the new host.

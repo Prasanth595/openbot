@@ -93,8 +93,8 @@ function fragmentHtml(copy: ComposerCopy, plainText: string): string {
 }
 
 /**
- * A copy reads the bytes of its files at paste. A cut reads them at once, and the result settles when
- * it has read each file, or failed to. Then the source can go.
+ * A copy reads the bytes of its files at paste. A cut reads them at once, and the result gives the IDs
+ * of the files that it could read. Only those can go from the source.
  */
 export function copyComposerSelection(
   clipboard: DataTransfer,
@@ -102,13 +102,18 @@ export function copyComposerSelection(
   attachments: AttachmentSummary[],
   cut: boolean,
   preview?: PreviewAttachment,
-): Promise<void> {
+): Promise<ReadonlySet<string>> {
   const copy = createCopy(text, attachments, preview);
   const plainText = expandAttachmentReferences(expandChatTagReferences(expandComposerMentions(text)));
   clipboard.setData("text/plain", plainText);
   clipboard.setData("text/html", fragmentHtml(copy, plainText));
-  if (!cut) return Promise.resolve();
-  return Promise.allSettled(copy.files.map((entry) => entry.file())).then(() => undefined);
+  if (!cut) return Promise.resolve(new Set());
+  return Promise.allSettled(copy.files.map((entry) => entry.file())).then(
+    (results) =>
+      new Set(
+        copy.files.filter((_, index) => results[index]?.status === "fulfilled").map((entry) => entry.attachment.id),
+      ),
+  );
 }
 
 export async function copyMessageWithAttachments(

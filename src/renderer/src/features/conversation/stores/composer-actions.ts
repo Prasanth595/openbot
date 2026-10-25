@@ -272,12 +272,13 @@ export function createComposerActions(deps: ComposerActionsDeps) {
 
   /**
    * A cut moves its files with the text. The draft drops each one that `remaining` no longer names, and
-   * discards it after the copy has read its bytes. A pending Save keeps its attachments, as in removal.
+   * discards it after the copy has read its bytes. A file that the copy could not read comes back. A
+   * pending Save keeps its attachments, as in removal.
    */
   function releaseCutAttachments(
     attachments: readonly DraftAttachment[],
     remaining: string,
-    copied: Promise<void>,
+    copied: Promise<ReadonlySet<string>>,
   ): void {
     const target = deps.currentTarget();
     if (!target) return;
@@ -301,8 +302,18 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       };
     });
     const runtime = conversationRuntime(deps.props);
-    void copied.then(() => {
-      for (const id of released) void runtime.agent.discardDraftAttachment(id, target.serverId).catch(() => {});
+    void copied.then((read) => {
+      // A file that the copy could not read goes back to the draft, so the cut loses no file.
+      const unread = attachments.filter((attachment) => released.has(attachment.id) && !read.has(attachment.id));
+      if (unread.length)
+        deps.setDrafts((drafts) => {
+          const draft = drafts[key] ?? EMPTY_DRAFT;
+          const present = new Set(draft.attachments.map((attachment) => attachment.id));
+          const restored = unread.filter((attachment) => !present.has(attachment.id));
+          return { ...drafts, [key]: { ...draft, attachments: [...draft.attachments, ...restored] } };
+        });
+      for (const id of released)
+        if (read.has(id)) void runtime.agent.discardDraftAttachment(id, target.serverId).catch(() => {});
     });
   }
 
