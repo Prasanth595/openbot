@@ -1,3 +1,4 @@
+import { foreignProvider } from "@openbot/contracts/agent-providers";
 import type { AgentModelId, AgentReasoningEffort } from "@openbot/contracts/ipc";
 import { isAgentTaskActive } from "@openbot/team-client/agent-tasks";
 import { reasoningLabel } from "@openbot/ui/components/ProviderModelPicker";
@@ -16,6 +17,7 @@ export function ConversationHeader() {
     agentActivity,
     browserControlAgent,
     changeFastMode,
+    channel,
     fastMode,
     props,
     runningTurnRuntime,
@@ -50,11 +52,13 @@ export function ConversationHeader() {
   return (
     <SharedConversationHeader
       agent={props.agent}
+      title={channel ? <channel.HeaderTitle onOpenSettings={() => setActiveRightPanel("settings")} /> : undefined}
       onSettingsIntent={() => void loadAgentSettingsPanel()}
       onOpenSettings={() => setActiveRightPanel("settings")}
       pendingModel={pendingModel()}
       modelPicker={{
         provider: settingsProvider(),
+        foreignProvider: props.agent ? foreignProvider(props.agent.provider) : undefined,
         value: settingsModel(),
         reasoningEffort: settingsReasoning(),
         modelOptions: props.modelOptions,
@@ -93,14 +97,18 @@ export function ConversationHeader() {
             }
           : undefined
       }
-      sidePanel={{
-        open: sidePanelOpen(),
-        actingAgentName: actingBrowserControl()
-          ? (browserControlAgent()?.name ?? t("conversation.header.agentFallback"))
-          : undefined,
-        running: runningTasks(),
-        onToggle: toggleSidePanel,
-      }}
+      sidePanel={
+        channel?.readOnly()
+          ? undefined
+          : {
+              open: sidePanelOpen(),
+              actingAgentName: actingBrowserControl()
+                ? (browserControlAgent()?.name ?? t("conversation.header.agentFallback"))
+                : undefined,
+              running: runningTasks(),
+              onToggle: toggleSidePanel,
+            }
+      }
     />
   );
 }

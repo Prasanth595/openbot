@@ -113,6 +113,7 @@ export const messages = {
   "error.provider.codexNotStarted": "Codex CLI bulundu ancak başlatılamadı.",
   "error.provider.codexNotStartedHint":
     "Codex CLI bulundu ancak başlatılamadı. Yeni bir terminalde `codex --version` komutunu çalıştırın.",
+  "error.provider.codexManagedNotStarted": "ChatGPT indirildi ancak başlatılamadı. OpenBot içinde yeniden indirin.",
   "error.provider.codexMissing": "ChatGPT indirilmedi. Devam etmek için OpenBot içinde indirin.",
   "error.provider.codexConfigIgnored": {
     one: "Codex yapılandırmasındaki {count} ayarı yok saydı: {settings}. Düzeltin veya kaldırın ya da Codex'i güncelleyin.",
@@ -127,6 +128,7 @@ export const messages = {
   "error.provider.claudeNotStarted": "Claude CLI bulundu ancak başlatılamadı.",
   "error.provider.claudeNotStartedHint":
     "Claude CLI bulundu ancak başlatılamadı. Yeni bir terminalde `claude --version` komutunu çalıştırın.",
+  "error.provider.claudeManagedNotStarted": "Claude indirildi ancak başlatılamadı. OpenBot içinde yeniden indirin.",
   "error.provider.claudeMissing": "Claude indirilmedi. Devam etmek için OpenBot içinde indirin.",
   "error.provider.grokOutdated": "Grok CLI {version} çok eski. OpenBot 1.0.5 veya daha yenisini gerektirir.",
   "error.provider.grokNotStarted": "Grok CLI bulundu ancak başlatılamadı.",
@@ -177,6 +179,10 @@ export const messages = {
     "{provider} CLI bir tur üzerinde çalışıyor. Bitmesini bekleyin, ardından tekrar bağlanın.",
   "error.provider.opencodeCredentialsRejected":
     "Model sağlayıcısı API anahtarını reddetti. Ayarlar'da OpenCode anahtarını veya `opencode auth login` ile sağlayıcının anahtarını düzeltin. Ardından tekrar deneyin ya da başka bir model seçin.\n{detail}",
+  "error.provider.opencodeAuthRequired":
+    'OpenCode, "{provider}" model sağlayıcısında oturum açmamış. Ücretsiz etiketli bir model seçin veya sağlayıcıyı bağlayın: OpenCode ayarlarına bir OpenCode Go anahtarı yapıştırın ya da bir terminalde `opencode auth login` komutunu çalıştırın. Ardından tekrar deneyin.',
+  "error.provider.opencodeAuthRequiredUnknown":
+    "OpenCode, bu modelin sağlayıcısında oturum açmamış. Ücretsiz etiketli bir model seçin veya sağlayıcıyı bağlayın: OpenCode ayarlarına bir OpenCode Go anahtarı yapıştırın ya da bir terminalde `opencode auth login` komutunu çalıştırın. Ardından tekrar deneyin.",
   "error.provider.opencodeKeyExpired":
     "OpenCode API anahtarınızın süresi doldu. OpenCode Console'da yeni bir anahtar oluşturun, OpenCode ayarlarına yapıştırın, ardından tekrar deneyin.",
   "error.provider.opencodeServiceFailure":
@@ -218,6 +224,8 @@ export const messages = {
   "error.provider.antigravitySignIn": "Gemini'yi kullanmak için Google ile oturum açın.",
   "error.provider.antigravityRateLimited":
     "Bir hız sınırına veya planın kotasına ulaşıldığı için Gemini isteği reddetti. Birkaç dakika bekleyin ya da başka bir model seçin, sonra yeniden deneyin.\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google, bir Gemini kullanım sınırına ulaşıldığını bildiriyor. Sınır tek bir model için olabilir; bu yüzden planınızın kullanım sayfası hâlâ kalan hak gösterebilir. Başka bir Gemini modeli seçin ya da sıfırlanmayı bekleyin.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini şu anda bu modeli kullanamıyor. Başka bir model seçin, sonra yeniden deneyin.\n{detail}",
   "error.provider.antigravityServiceFailure":
@@ -263,6 +271,7 @@ export const messages = {
     "Bir ajan kimliği küçük harfler, rakamlar veya `-` olmalıdır ve yerleşik bir sağlayıcının kimliği olamaz.",
   "error.provider.customAgentEnvInvalid":
     "Bir değişken adı harfler, rakamlar veya `_` olmalı ve bir rakamla başlamamalıdır. Her adı bir kez, en fazla 16 ad kullanın.",
+  "error.provider.customAgentUsagePromptInvalid": "Kullanım komutu en fazla 256 karakterlik tek bir satır olmalıdır.",
   "error.provider.customAgentCommandInvalid":
     "Komut tam bir yol, ~/ ile başlayan bir yol veya boşluk içermeyen bir komut adı olmalıdır.",
   "error.provider.customAgentArgsInvalid":
@@ -294,6 +303,8 @@ export const messages = {
   "error.provider.useChangeFailed": "OpenBot sağlayıcı ayarını değiştiremedi.",
   "error.provider.accountsUnsupported": "{provider} yalnızca bir hesap destekler.",
   "error.provider.accountNeedsConnection": "Başka bir hesap eklemeden önce {provider} sağlayıcısına bağlanın.",
+  "error.provider.usageResetUnsupported": "{provider} kullanım sınırlarını sıfırlayamaz.",
+  "error.provider.usageResetNotConnected": "Kullanımını sıfırlamadan önce bu {provider} hesabında yeniden oturum açın.",
   "error.provider.accountLimit": "{provider} en fazla {limit} hesap destekler.",
   "error.provider.accountNotFound": "Bu {provider} hesabı bu bilgisayarda yok. Yenileyip tekrar deneyin.",
   "error.provider.accountAlreadyAdded": "Bu {provider} hesabı zaten bağlı.",

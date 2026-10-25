@@ -1,4 +1,4 @@
-import type { AppVariant } from "@openbot/contracts/ipc";
+import { APP_INTERFACE_SIZES, type AppInterfaceSize, type AppVariant } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import {
   Item,
@@ -15,14 +15,19 @@ import {
   SettingsSection,
   SwitchField,
 } from "@openbot/ui";
+import { AppearanceSelect } from "@openbot/ui/features/settings/AppearanceSelect";
 import type { GeneralSettingsValue } from "@openbot/ui/features/settings/app-settings";
 import { LanguageSelect } from "@openbot/ui/features/settings/LanguageSelect";
 import { LogoColorPicker } from "@openbot/ui/features/settings/LogoColorPicker";
 import { SendShortcutSelect } from "@openbot/ui/features/settings/SendShortcutSelect";
+import { useText } from "@openbot/ui/text";
 import { Show } from "solid-js";
+import { useAppearanceChoice } from "../../appearance-choice";
 import { useI18n } from "../../i18n-context";
+import { useInterfaceSizeChoice } from "../../interface-size";
 import { useLogoColorChoice } from "../../logo-color";
 
+const interfaceSizeOptions = [...APP_INTERFACE_SIZES];
 const linkTargetOptions: GeneralSettingsValue["externalLinkTarget"][] = ["Default browser", "OpenBot"];
 
 /**
@@ -50,11 +55,38 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
   const i18n = useI18n();
   const linkTargetLabel = (value: GeneralSettingsValue["externalLinkTarget"] | undefined) =>
     value === undefined ? "" : i18n.t(LINK_TARGET_KEYS[value]);
+  const appearance = useAppearanceChoice();
   const logoColor = useLogoColorChoice();
+  const interfaceSize = useInterfaceSizeChoice();
+  const { format } = useText();
+  const interfaceSizeLabel = (value: AppInterfaceSize | undefined) =>
+    value === undefined ? "" : format.percent(value / 100);
   return (
     <>
       <SettingsSection title={i18n.t("settings.appearance.title")}>
         <ItemGroup class="settings-modal-card">
+          <Item data-settings-row="settings.appearance.theme.title" class="settings-modal-row">
+            <ItemContent>
+              <ItemTitle>{i18n.t("settings.appearance.theme.title")}</ItemTitle>
+              <ItemDescription>{i18n.t("settings.appearance.theme.description")}</ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <AppearanceSelect
+                value={appearance.appearance()}
+                onChange={appearance.changeAppearance}
+                mount={props.selectMount}
+              />
+            </ItemActions>
+          </Item>
+          <Show when={props.platform === "darwin"}>
+            <SwitchField
+              data-settings-row="settings.appearance.transparentWindow.title"
+              checked={appearance.transparentWindow()}
+              onChange={appearance.changeTransparentWindow}
+              label={i18n.t("settings.appearance.transparentWindow.title")}
+              description={i18n.t("settings.appearance.transparentWindow.description")}
+            />
+          </Show>
           <Item data-settings-row="settings.language.title" class="settings-modal-row">
             <ItemContent>
               <ItemTitle>{i18n.t("settings.language.title")}</ItemTitle>
@@ -62,6 +94,29 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             </ItemContent>
             <ItemActions>
               <LanguageSelect value={i18n.language()} onChange={i18n.changeLanguage} mount={props.selectMount} />
+            </ItemActions>
+          </Item>
+          <Item data-settings-row="settings.interfaceSize.title" class="settings-modal-row">
+            <ItemContent>
+              <ItemTitle>{i18n.t("settings.interfaceSize.title")}</ItemTitle>
+              <ItemDescription>{i18n.t("settings.interfaceSize.description")}</ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <Select<AppInterfaceSize>
+                class="settings-modal-select"
+                options={interfaceSizeOptions}
+                value={interfaceSize.percent()}
+                onChange={(value) => value && interfaceSize.changePercent(value)}
+                placement="bottom-end"
+                itemComponent={(selectProps) => (
+                  <SelectItem item={selectProps.item}>{interfaceSizeLabel(selectProps.item.rawValue)}</SelectItem>
+                )}
+              >
+                <SelectTrigger size="sm" aria-label={i18n.t("settings.interfaceSize.title")}>
+                  <SelectValue<AppInterfaceSize>>{(state) => interfaceSizeLabel(state.selectedOption())}</SelectValue>
+                </SelectTrigger>
+                <SelectContent mount={props.selectMount} />
+              </Select>
             </ItemActions>
           </Item>
           <Item data-settings-row="settings.logoColor.title" class="settings-modal-row settings-logo-color-row">
@@ -94,11 +149,11 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
             </ItemActions>
           </Item>
           <SwitchField
-            data-settings-row="settings.busyMessage.title"
-            checked={props.value.busyMessageMode === "steer"}
-            onChange={(checked) => props.onUpdateSetting("busyMessageMode", checked ? "steer" : "queue")}
-            label={i18n.t("settings.busyMessage.title")}
-            description={i18n.t("settings.busyMessage.description")}
+            data-settings-row="settings.showAgentSteps.title"
+            checked={props.value.showAgentSteps}
+            onChange={(checked) => props.onUpdateSetting("showAgentSteps", checked)}
+            label={i18n.t("settings.showAgentSteps.title")}
+            description={i18n.t("settings.showAgentSteps.description")}
           />
           <Item data-settings-row="settings.externalLinks.title" class="settings-modal-row">
             <ItemContent>
@@ -153,6 +208,23 @@ export function SettingsGeneralTab(props: SettingsGeneralTabProps) {
               onChange={(checked) => props.onUpdateSetting("keepRunningInBackground", checked)}
               label={i18n.t("settings.keepRunning.title")}
               description={i18n.t("settings.keepRunning.description")}
+            />
+          </Show>
+          <Show when={props.value.keepAwake !== null}>
+            <SwitchField
+              data-settings-row="settings.keepAwake.title"
+              checked={props.value.keepAwake === true}
+              onChange={(checked) => props.onUpdateSetting("keepAwake", checked)}
+              label={i18n.t("settings.keepAwake.title")}
+              description={i18n.t("settings.keepAwake.description")}
+            />
+            <SwitchField
+              data-settings-row="settings.keepAwakeOnBattery.title"
+              checked={props.value.keepAwakeOnBattery === true}
+              disabled={props.value.keepAwake !== true}
+              onChange={(checked) => props.onUpdateSetting("keepAwakeOnBattery", checked)}
+              label={i18n.t("settings.keepAwakeOnBattery.title")}
+              description={i18n.t("settings.keepAwakeOnBattery.description")}
             />
           </Show>
           <SwitchField

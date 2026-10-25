@@ -2,7 +2,9 @@ import {
   type AgentProviderId,
   type AgentReasoningEffort,
   agentProviderName,
+  type ForeignProviderId,
   type ProviderAccountStatus,
+  providerDisplayName,
   type UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
@@ -66,6 +68,7 @@ export function AgentRuntimeFields({
   available,
   saving,
   provider,
+  foreignProvider,
   model,
   reasoningEffort,
   hostDefault = false,
@@ -79,6 +82,8 @@ export function AgentRuntimeFields({
   available: boolean;
   saving: boolean;
   provider?: AgentProviderId;
+  /** The provider when this build does not know it. The choice shows it and stays disabled. */
+  foreignProvider?: ForeignProviderId | undefined;
   model?: string;
   reasoningEffort?: AgentReasoningEffort;
   /**
@@ -109,7 +114,7 @@ export function AgentRuntimeFields({
   const options = models.data?.filter((option) => option.provider === provider) ?? [];
   const selected = options.find((option) => option.id === model);
   const enabled = available && !saving && options.length > 0;
-  const showsModel = !hostDefault || provider !== undefined;
+  const showsModel = foreignProvider === undefined && (!hostDefault || provider !== undefined);
   return (
     <>
       <SettingsSection title={title}>
@@ -117,22 +122,31 @@ export function AgentRuntimeFields({
           trailing={
             <SettingsPicker<string>
               value={provider ?? ""}
-              options={[
-                ...(hostDefault ? [{ value: "", label: t("mobile.agent.runtime.hostDefault") }] : []),
-                ...(!models.data?.some((option) => option.provider === provider) && showsModel
+              options={
+                foreignProvider !== undefined
                   ? [
                       {
-                        value: provider ?? "",
-                        label: provider ? agentProviderName(provider) : t("mobile.agent.runtime.unavailable"),
+                        value: "",
+                        label: t("mobile.agent.runtime.updateToUse", { name: providerDisplayName(foreignProvider) }),
                       },
                     ]
-                  : []),
-                ...Array.from(new Set(models.data?.map((option) => option.provider))).map((value) => ({
-                  value,
-                  label: agentProviderName(value),
-                })),
-              ]}
-              enabled={available && !saving && Boolean(models.data?.length)}
+                  : [
+                      ...(hostDefault ? [{ value: "", label: t("mobile.agent.runtime.hostDefault") }] : []),
+                      ...(!models.data?.some((option) => option.provider === provider) && showsModel
+                        ? [
+                            {
+                              value: provider ?? "",
+                              label: provider ? agentProviderName(provider) : t("mobile.agent.runtime.unavailable"),
+                            },
+                          ]
+                        : []),
+                      ...Array.from(new Set(models.data?.map((option) => option.provider))).map((value) => ({
+                        value,
+                        label: agentProviderName(value),
+                      })),
+                    ]
+              }
+              enabled={foreignProvider === undefined && available && !saving && Boolean(models.data?.length)}
               dark={theme === "dark"}
               label={t("mobile.agent.runtime.provider")}
               onChange={(value) => {

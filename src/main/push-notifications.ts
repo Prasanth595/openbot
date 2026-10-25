@@ -6,9 +6,15 @@ import {
   type NotificationRelayPush,
   type NotificationSound,
 } from "@openbot/contracts/notification-relay";
+import { TEAM_CHANNEL_ATTENTION_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { resolveLocale, translateFor } from "@openbot/i18n";
 import { redactText, toLogValue } from "@openbot/logging";
-import { agentEventCanNotify, notificationForAgentEvent } from "@openbot/team-client/agent-notifications";
+import {
+  type AgentNotificationChannel,
+  agentEventCanNotify,
+  agentEventRequestThread,
+  notificationForAgentEvent,
+} from "@openbot/team-client/agent-notifications";
 import {
   decodeLiveActivityBytes,
   LIVE_ACTIVITY_NONCE_BYTES,
@@ -62,6 +68,8 @@ interface PushNotificationOptions {
    * `startedAt` is the start of the activity that the phone gives, in milliseconds, or `null`.
    */
   liveActivityShows(sessionId: string, alert: LiveActivityRelayPush["alert"], startedAt: number | null): boolean;
+  /** The channel whose execution thread `threadId` is, or `null` for an agent's own thread. */
+  channelForThread?(threadId: string): AgentNotificationChannel | null;
   randomBytes(size: number): Uint8Array;
   now?: () => number;
   logger?: { warn(message: string, ...values: unknown[]): void };
@@ -197,13 +205,18 @@ export class PushNotificationService {
     });
     if (!targets.length) return;
     const agents = this.#options.agents.listAgents();
+    // A prompt, an approval or a takeover on a channel thread names the channel, as on desktop.
+    const requestThread = agentEventRequestThread(event);
+    const channel = requestThread ? (this.#options.channelForThread?.(requestThread) ?? null) : null;
     let answer: string | null | undefined;
     for (const registration of targets) {
       const { stored } = registration;
       const { value, memberId, sessionId } = stored;
       const translate = translateFor(resolveLocale("system", value.locale));
+      // A phone from before channel-attention-v1 has no channel view, so its title names the agent only.
+      const eventChannel = registration.capabilities.has(TEAM_CHANNEL_ATTENTION_CAPABILITY) ? channel : null;
       // The fixed text, as the desktop shows it without a preview.
-      const fixed = notificationForAgentEvent(event, agents, translate, value.level);
+      const fixed = notificationForAgentEvent(event, agents, translate, value.level, null, eventChannel);
       if (!fixed) continue;
       // The Live Activity of an iPhone shows the event, and a notification would repeat it. With a
       // sound, the activity also lights up the screen and plays it; without one, it updates silently.
@@ -223,10 +236,14 @@ export class PushNotificationService {
       // The desktop builds the same preview: the answer, the question, or the action to approve,
       // with its secrets redacted.
       const notice = value.preview
-        ? (notificationForAgentEvent(event, agents, translate, value.level, {
-            reply: answer ?? null,
-            redact: redactText,
-          }) ?? fixed)
+        ? (notificationForAgentEvent(
+            event,
+            agents,
+            translate,
+            value.level,
+            { reply: answer ?? null, redact: redactText },
+            eventChannel,
+          ) ?? fixed)
         : fixed;
       const content: PushNotificationContent = {
         serverId: value.serverId,

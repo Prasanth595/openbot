@@ -15,9 +15,9 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import {
   type AgentApproval,
-  type AgentSummary,
   type AgentTask,
   type AgentTasksSnapshot,
+  type ClientAgentSummary,
   DEFAULT_AGENT_ACCESS,
   type OpenBotDesktopApi,
 } from "@openbot/contracts/ipc";
@@ -85,7 +85,7 @@ function listTasks(): Promise<AgentTasksSnapshot> {
   return page.evaluate((id) => window.openbot.agent.listTasks(id), agentId);
 }
 
-function readAgent(): Promise<AgentSummary> {
+function readAgent(): Promise<ClientAgentSummary> {
   return page.evaluate(async (id) => {
     const agent = (await window.openbot.agent.listAgents()).find((candidate) => candidate.id === id);
     if (!agent) throw new Error(`Unknown agent: ${id}`);

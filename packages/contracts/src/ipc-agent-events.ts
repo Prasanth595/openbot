@@ -8,7 +8,7 @@ import { type AgentRuntimeSnapshot, isAgentRuntimeSnapshot } from "./ipc-agent-r
 import type { AccountUsage, AgentStatus } from "./ipc-agent-status";
 import { type AgentTasksSnapshot, isAgentTasksSnapshot } from "./ipc-agent-tasks";
 import { type AgentWaitsSnapshot, isAgentWaitsSnapshot } from "./ipc-agent-waits";
-import { type AgentSummary, isAgentSummary } from "./ipc-agents";
+import { type ClientAgentSummary, isClientAgentSummary } from "./ipc-agents";
 import {
   type AgentApproval,
   type BrowserTakeoverRequest,
@@ -39,7 +39,7 @@ export type AgentEvent =
   | { type: "channels-changed"; channelId: string; revision: number }
   | { type: "status"; status: AgentStatus }
   | { type: "usage-changed"; usage: AccountUsage }
-  | { type: "agents-changed"; agents: AgentSummary[] }
+  | { type: "agents-changed"; agents: ClientAgentSummary[] }
   | { type: "memories-changed"; agentId: string }
   | { type: "routines-changed"; agentId: string }
   | { type: "skills-changed"; agentId: string }
@@ -128,7 +128,11 @@ export type AgentEvent =
       type: "browser-page-state-changed";
       tabs: { tabId: string; canGoBack: boolean; canGoForward: boolean }[];
     }
-  | { type: "error"; agentId?: string; code: string; message: string }
+  /**
+   * `provider` and `model` name the run that failed, for the banner. Local only: the Team API event
+   * projection drops them.
+   */
+  | { type: "error"; agentId?: string; code: string; message: string; provider?: AgentProviderId; model?: string }
   /**
    * A provider plan refused a turn, once per limit. The queues of its agents wait for the reset.
    * Local only: the released Team API event adapters do not carry it. `resetsAt` is in epoch seconds.
@@ -157,7 +161,9 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isDynamicRecord(value.usage);
     case "agents-changed":
       return (
-        Array.isArray(value.agents) && value.agents.length <= INPUT_LIMITS.agents && value.agents.every(isAgentSummary)
+        Array.isArray(value.agents) &&
+        value.agents.length <= INPUT_LIMITS.agents &&
+        value.agents.every(isClientAgentSummary)
       );
     case "memories-changed":
       return isString(value.agentId) && value.agentId.length > 0 && value.agentId.length <= INPUT_LIMITS.identifier;
@@ -290,7 +296,12 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
         )
       );
     case "error":
-      return isString(value.code) && isString(value.message);
+      return (
+        isString(value.code) &&
+        isString(value.message) &&
+        (value.provider === undefined || isAgentProvider(value.provider)) &&
+        (value.model === undefined || isString(value.model))
+      );
     case "usage-limit-reached":
       return (
         isIdentifier(value.agentId) &&

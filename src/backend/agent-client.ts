@@ -13,8 +13,12 @@ export interface DiagnosticOrigin {
 
 export interface AgentClient {
   readonly provider: AgentProvider;
-  /** Explicit completion contract; missing capability means unsupported. */
-  readonly contextCompaction?: "events" | "request" | "native" | "unsupported";
+  /**
+   * Explicit completion contract; missing capability means unsupported. `handoff`: the provider
+   * cannot compact on request, so OpenBot replaces the session with one that starts from the history
+   * handoff.
+   */
+  readonly contextCompaction?: "events" | "request" | "native" | "handoff" | "unsupported";
   readonly running: boolean;
   readonly readHistory?: ReadProviderHistory;
   /** False when stopping this client would lose a live provider session with no recovery path. */
@@ -51,6 +55,12 @@ export interface AgentClient {
     configId: string,
     value: AgentSessionSettingValue,
   ): Effect.Effect<AgentSessionSettingsSnapshot, ProviderClientOperationError>;
+  /**
+   * Sends `prompt` in a session that no thread owns and returns the answer text, or null when the
+   * agent gives none. Only the custom agents have it: the user saves the prompt, such as `/usage`.
+   * `model` names the agent for the router of the provider `acp`.
+   */
+  readUsageText?(model: string, prompt: string): Effect.Effect<string | null, ProviderClientOperationError>;
   request<T>(
     method: string,
     params: unknown,

@@ -36,6 +36,7 @@ type FailureKey =
   | "settings.voice.saveFailed"
   | "settings.voice.downloadFailed"
   | "settings.voice.cancelFailed"
+  | "settings.voice.removeFailed"
   | "settings.voice.apiKey.saveFailed"
   | "settings.voice.apiKey.removeFailed"
   | "settings.voice.speech.listenFailed";
@@ -109,6 +110,14 @@ export function createSettingsVoiceStore(active: () => boolean) {
       .catch((error: unknown) => fail(error, "settings.voice.cancelFailed"));
   }
 
+  /** Deletes a downloaded model from this computer. The model in use downloads again at the next dictation. */
+  function remove(modelId: VoiceModelId): void {
+    void voicePort()
+      .voice.removeModel({ modelId })
+      .then(setStatus)
+      .catch((error: unknown) => fail(error, "settings.voice.removeFailed"));
+  }
+
   /** Saves or removes the ElevenLabs key. Main keeps the key; the answer is the cloud model's status. */
   function setApiKey(key: string | null): Promise<boolean> {
     return voicePort()
@@ -176,6 +185,13 @@ export function createSettingsVoiceStore(active: () => boolean) {
       .catch((error: unknown) => fail(error, "settings.voice.cancelFailed"));
   }
 
+  function removeSpeech(): void {
+    void voicePort()
+      .voice.removeSpeechModel()
+      .then(setSpeechStatus)
+      .catch((error: unknown) => fail(error, "settings.voice.removeFailed"));
+  }
+
   function saveSpeech(patch: Partial<SpeechSettings>): Promise<boolean> {
     const current = state.speech.settings;
     if (!current) return Promise.resolve(false);
@@ -238,12 +254,14 @@ export function createSettingsVoiceStore(active: () => boolean) {
     state,
     download,
     cancel,
+    remove,
     saveApiKey: (key: string) => setApiKey(key),
     removeApiKey: () => setApiKey(null),
     useModel: (modelId: VoiceModelId) => save({ modelId }),
     setLanguage: (language: VoiceLanguage) => save({ language }),
     downloadSpeech,
     cancelSpeech,
+    removeSpeech,
     setReadReplies,
     setSpeechVoice: (voice: SpeechVoice) =>
       void saveSpeech({ voice }).then((saved) =>

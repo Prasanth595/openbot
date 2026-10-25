@@ -5,6 +5,8 @@ export const messages = {
   // Ses dökümü hataları.
   "error.voice.downloadFailed": "Ses modeli indirilemedi. Tekrar deneyin.",
   "error.voice.downloadStopped": "Ses modeli indirmesi durduruldu.",
+  "error.voice.removeBusy": "Ses dökümü bitene kadar bekleyin, sonra modeli kaldırın.",
+  "error.voice.removeFailed": "Ses modeli kaldırılamadı. Tekrar deneyin.",
   "error.voice.runtimeUnavailable": "Yerel ses dökümü bu platformda kullanılamıyor.",
   "error.voice.busy": "Zaten bir ses dökümü işlemi devam ediyor.",
   "error.voice.modelUnavailable": "Ses modeli kullanılamıyor.",

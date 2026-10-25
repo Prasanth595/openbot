@@ -8,6 +8,7 @@ import { ConversationPanels } from "./ConversationPanels";
 import { ConversationTimeline } from "./ConversationTimeline";
 import { ConversationViewScopeContext, createConversationViewScope } from "./conversation-scope";
 import type { ConversationProps } from "./conversation-types";
+import { conversationOwnerId } from "./stores/composer-store";
 
 /** @internal Keeps file-drag state active while the pointer moves between conversation descendants. */
 function isDragLeavingConversation(currentTarget: HTMLElement, relatedTarget: EventTarget | null): boolean {
@@ -84,8 +85,8 @@ export function ConversationView(props: ConversationProps) {
         }}
       >
         <MessageSelectionActions
-          contextKey={props.agent?.id}
-          disabled={!props.agent || !agentReady() || submitting()}
+          contextKey={conversationOwnerId(props)}
+          disabled={!conversationOwnerId(props) || props.channel?.readOnly() === true || !agentReady() || submitting()}
           onSend={sendSelectionInstruction}
           onQuote={quoteSelection}
           quoteShortcut={(props.platform ?? currentDevicePlatform()) === "darwin" ? "meta" : "ctrl"}

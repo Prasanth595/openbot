@@ -9,24 +9,33 @@ import { ChatNavigationGateContext } from "@/features/agents/components/chat-lin
 import { createChatNavigationGate } from "@/features/agents/model/chat-navigation-gate";
 import { whenUnlocked } from "@/features/app-lock/model/app-lock";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { AudioWaveformHost } from "@/features/chat/components/audio-waveform-host";
 import { MermaidRendererHost } from "@/features/chat/components/mermaid-renderer-host";
 import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
+import type { NotificationTarget } from "@/features/push-notifications/push-notifications-native.types";
 import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
 import type { QuickActionTarget } from "@/features/quick-actions/model/quick-action-items";
 import { setQuickActionNavigator } from "@/features/quick-actions/quick-actions-native";
 import { requestHomeSearch } from "@/features/search/model/home-search-request";
 import { AppDrawerShell, useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { setShareSheetOpener } from "@/features/share/model/share-sheet-opener";
-import { MobileWorkspaceProvider } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  MobileWorkspaceProvider,
+  useMobileWorkspaceReader,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { androidBackOptions } from "@/shared/components/android-header-button";
+import { headerFontOptions } from "@/shared/lib/app-font";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { useText } from "@/shared/lib/text";
 
+/** How long a notification tap waits for the channel list of its server before it opens the agent chat. */
+const NOTIFICATION_CHANNEL_WAIT_MS = 8_000;
+
 export const unstable_settings = {
-  initialRouteName: "connected",
+  anchor: "connected",
 };
 
 function AuthenticatedStack() {
@@ -97,12 +106,47 @@ function AuthenticatedStack() {
   useEffect(() => setLiveActivityNavigator(openFromOutside), [openFromOutside]);
   useEffect(() => setQuickActionNavigator(openQuickAction), [openQuickAction]);
   useEffect(() => setShareSheetOpener(() => whenUnlocked(() => router.push("/share"))), []);
-  useNotificationTaps(openFromOutside, () => openChat.current);
+  const workspace = useMobileWorkspaceReader();
+  /**
+   * A prompt, an approval or a takeover on a channel thread opens the channel, as on desktop. A tap
+   * at a cold start comes before the server connects, so it waits a short time for the channel list.
+   */
+  const openFromNotification = useCallback(
+    ({ agentId, serverId, threadId }: NotificationTarget) => {
+      if (!serverId || !threadId) {
+        openFromOutside(agentId);
+        return;
+      }
+      void workspace()
+        .channelStore.whenListed(serverId, NOTIFICATION_CHANNEL_WAIT_MS)
+        .then((state) => {
+          const channel = state.channels.find(
+            (item) => !item.archived && item.threads?.some((thread) => thread.threadId === threadId),
+          );
+          if (!channel) {
+            openFromOutside(agentId);
+            return;
+          }
+          whenUnlocked(() => {
+            closeDrawer();
+            if (router.canDismiss()) router.dismissAll();
+            navigationGate.request(
+              () => {
+                if (!navigationGate.openFromHome(channel.id))
+                  router.push({ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } });
+              },
+              () => onChatList.current,
+            );
+          });
+        });
+    },
+    [workspace, openFromOutside, closeDrawer, navigationGate],
+  );
+  useNotificationTaps(openFromNotification, () => openChat.current);
 
   return (
     <ChatNavigationGateContext value={navigationGate}>
       <Stack
-        initialRouteName="connected"
         screenListeners={({ route }) =>
           route.name === "connected"
             ? {
@@ -119,6 +163,7 @@ function AuthenticatedStack() {
           // The full screens put the back arrow in the glass circle, as the home buttons are.
           ...androidBackOptions(props, { glass: true }),
           headerBackButtonDisplayMode: "minimal",
+          ...headerFontOptions,
           headerShadowVisible: false,
           headerTransparent: isIOS,
           sheetExpandsWhenScrolledToEdge: false,
@@ -185,6 +230,51 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
+          name="channel/[channelId]"
+          options={{
+            animation: pushAnimation,
+            contentStyle: { backgroundColor: background },
+            fullScreenGestureEnabled: false,
+            gestureEnabled: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="channel-info/[channelId]"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="channel-actions/[channelId]"
+          // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.6],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="add-channel"
+          // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
           name="add-agent"
           // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
           options={{
@@ -218,6 +308,22 @@ function AuthenticatedStack() {
             presentation: "formSheet",
             // A page to read before adding: full height, as the agent search. On Android a full-height
             // sheet goes under the status bar and covers its header, so it uses the form height.
+            sheetAllowedDetents: isAndroid ? [0.85] : [1],
+            sheetInitialDetentIndex: "last",
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="marketplace-listing"
+          // The header comes from the stack in `marketplace-listing/_layout.tsx`: Android draws no header
+          // on a formSheet route, so Close would not show there.
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            // A page to read before installing, as a shared agent: full height on iOS. On Android a
+            // full-height sheet goes under the status bar and covers its header.
             sheetAllowedDetents: isAndroid ? [0.85] : [1],
             sheetInitialDetentIndex: "last",
             sheetGrabberVisible: true,
@@ -295,6 +401,17 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
+          name="deleted-chats"
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
           name="server-settings"
           options={{
             contentStyle: { backgroundColor: sheetBackground },
@@ -318,10 +435,34 @@ function AuthenticatedStack() {
             title: t("mobile.app.route.routine"),
           }}
         />
+        <Stack.Screen
+          name="server-routines/channel-routine"
+          options={{
+            animation: pushAnimation,
+            contentStyle: { backgroundColor: sheetBackground },
+            headerStyle: { backgroundColor: isIOS ? "transparent" : sheetBackground },
+            headerBlurEffect: "none",
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            title: t("mobile.app.route.routine"),
+          }}
+        />
         <Stack.Screen name="server-tasks" options={largeTitlePage} />
         <Stack.Screen name="server-usage/index" options={largeTitlePage} />
+        <Stack.Screen name="server-marketplace/index" options={largeTitlePage} />
         <Stack.Screen
           name="share"
+          // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.85],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
+          name="plan-limits"
           // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
           options={{
             contentStyle: { backgroundColor: sheetBackground },
@@ -371,6 +512,7 @@ export default function AuthenticatedLayout() {
             <QueuedMessagesProvider>
               <AuthenticatedStack />
               <MermaidRendererHost />
+              <AudioWaveformHost />
             </QueuedMessagesProvider>
           </AppDrawerShell>
         </AgentPinTransitionProvider>

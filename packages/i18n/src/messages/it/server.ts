@@ -212,7 +212,7 @@ export const messages = {
   "server.settings.hostedSitesDescription":
     "I siti statici che gli agenti di questo server hanno pubblicato su openbot.site.",
   "server.settings.importTitle": "Importa",
-  "server.settings.importDescription": "Sposta i tuoi agenti da Grok Bot a questo server.",
+  "server.settings.importDescription": "Sposta i tuoi agenti da Grok Bot o Hermes Agent a questo server.",
   "server.settings.transferTitle": "Trasferimento",
   "server.settings.transferDescription":
     "Sposta gli agenti e le impostazioni di questo server in un file o da un file.",
@@ -297,6 +297,16 @@ export const messages = {
   "server.settings.notReachable": "Non raggiungibile online. I membri e gli inviti esistenti restano.",
   "server.settings.notPublished": "Non raggiungibile online.",
   "server.settings.generatedName": "Server di {name}",
+  "server.settings.hostKeyTitle": "Chiave del server",
+  "server.settings.hostKeyRotate": "Cambia la chiave del server",
+  "server.settings.hostKeyDescription":
+    "Crea una nuova chiave di identità per questo server. I computer e i telefoni associati e le route webhook restano connessi.",
+  "server.settings.hostKeyRotateAction": "Cambia",
+  "server.settings.hostKeyConfirmTitle": "Cambiare la chiave del server?",
+  "server.settings.hostKeyConfirmDescription":
+    "La chiave attuale e quella nuova firmano un passaggio. Le app dei membri passano alla nuova chiave alla prossima connessione. Fallo se il file della chiave è stato copiato o esposto.",
+  "server.settings.hostKeyRotated": "Chiave del server cambiata",
+  "server.settings.hostKeyLocalOnly": "Qui solo il server su questo computer può cambiare la sua chiave.",
   "server.settings.removeTitle": "Rimuovi il server",
   "server.settings.removeDescription":
     "Rimuovi questo server dal servizio account per tutti i membri. Usalo quando il suo computer non è più disponibile.",
@@ -388,6 +398,8 @@ export const messages = {
   "server.invite.pendingTitle": "Inviti in sospeso",
   "server.invite.pendingCount": "{total} in sospeso",
   "server.invite.noPending": "Nessun invito in sospeso.",
+  "server.invite.emptyTitle": "Invia il primo {word}.",
+  "server.invite.emptyWord": "invito",
   "server.invite.neverExpires": { one: "Non scade mai · {count} adesione", other: "Non scade mai · {count} adesioni" },
   "server.invite.expires": "Scade il {date}",
   "server.invite.revoke": "Revoca",

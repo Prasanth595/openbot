@@ -1,14 +1,19 @@
 import { isAvatarMimeType } from "@openbot/contracts/avatar-images";
 import {
   assertStorageUsageScope,
+  CHANNEL_CHATS_CAPABILITY,
   canAdministerServer,
   decodeAgentAdminSettings,
   decodeAgentHostSettings,
+  decodeChannelRoutineRuns,
+  decodeChannelRoutines,
+  decodeChannelSummaries,
   decodeInstalledSkills,
   decodeStorageUsage,
   type HiddenAgent,
   isAgentMemory,
-  isAgentModelOption,
+  isClientAgentModelOption,
+  isKnownAgentProvider,
   isQueueSnapshot,
   isRoutine,
   isRoutineRun,
@@ -20,6 +25,7 @@ import {
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
+import { AGENT_ACCESS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-access-v1";
 import { AGENT_ADMIN_CAPABILITY, AGENT_ADMIN_ROUTES } from "@openbot/contracts/team-protocol/agent-admin-v1";
 import { AGENT_HIDDEN_CAPABILITY } from "@openbot/contracts/team-protocol/agent-hidden-v1";
 import {
@@ -32,6 +38,8 @@ import { AGENT_MEMORY_LIMIT_CAPABILITY } from "@openbot/contracts/team-protocol/
 import { AGENT_PUBLISH_CAPABILITY } from "@openbot/contracts/team-protocol/agent-publish-v1";
 import { AGENT_SESSION_SETTINGS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-session-settings-v1";
 import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
+import { AGENT_UPDATE_CAPABILITY } from "@openbot/contracts/team-protocol/agent-update-v1";
+import { CHANNEL_ROUTES } from "@openbot/contracts/team-protocol/channels-v1";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import {
@@ -59,28 +67,38 @@ import { ONEPASSWORD_CONNECTOR_CAPABILITY } from "@openbot/contracts/team-protoc
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
 import { PROVIDERS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/providers-v1";
 import { TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
+import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
+import { ROUTINE_RESULTS_CAPABILITY } from "@openbot/contracts/team-protocol/routine-results-v1";
 import { SHARED_TABLES_CAPABILITY } from "@openbot/contracts/team-protocol/shared-tables-v1";
+import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
 import { SKILLS_ADMIN_CAPABILITY } from "@openbot/contracts/team-protocol/skills-admin-v1";
 import { STORAGE_ROUTES } from "@openbot/contracts/team-protocol/storage-v1";
 import type { TeamProtocolV2Json } from "@openbot/contracts/team-protocol/v2";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 import { readHostAnalytics } from "@openbot/team-client";
+import { readPlanLimits } from "@openbot/team-client/plan-limits";
 import type { RemoteFileUpload } from "@openbot/team-client/remote-peer";
 import { buildRoutineCalendar, type RoutineCalendarSource } from "@openbot/team-client/routine-calendar";
 import {
   cancelHostUpdate,
+  cancelSignInRelay,
   checkHostForUpdate,
   checkHostRelease,
+  completeSignInRelay,
   deleteEventRoutine,
   deleteHostedSite,
   deleteSharedTable,
+  getHostAgentAccess,
   getHostAgentMemoryLimit,
   getHostReleaseStatus,
   getHostTimezone,
   getHostUpdateStatus,
+  getRoutineResultDestination,
   githubConnectorRepositories,
   githubConnectorRequest,
+  installAgentSkill,
   installAgentTemplate,
+  installMarketplaceAgent,
   listAgentSkills,
   listEventActivity,
   listEventRoutines,
@@ -89,6 +107,7 @@ import {
   listMcpServers,
   listMcpSignIns,
   listProviderAccounts,
+  listRoutineResultOptions,
   listSharedTables,
   messagingConnectorAddOrchestrator,
   messagingConnectorComplete,
@@ -110,12 +129,16 @@ import {
   setAgentProviderAccount,
   setAgentSessionSetting,
   setAgentSkillEnabled,
+  setHostAgentAccess,
   setHostAgentMemoryLimit,
   setHostTimezone,
   setHostUpdateSettings,
   setMcpServerEnabled,
+  setRoutineResultDestination,
+  signInRelayStatus,
   signOutMcpServer,
   startHostUpdate,
+  startMcpSignInRelay,
   testEventRoutine,
   testMcpServer,
   uninstallAgentSkill,
@@ -139,6 +162,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { Effect } from "effect";
 import * as Crypto from "expo-crypto";
 import { createProviderAdmin } from "@/features/servers/model/provider-admin";
+import { saveAgentAvatar, savedAgentAvatar } from "@/features/workspace/model/agent-avatar-cache";
 import { decodeConversationSearchPage } from "@/features/workspace/model/conversation";
 import { type QueryScope, queryKeys } from "@/features/workspace/model/query-keys";
 import { saveAgentRecord } from "@/features/workspace/model/save-agent-record";
@@ -186,6 +210,9 @@ type HostRequestActions = Pick<
   | "loadRoutineCalendar"
   | "listEventRoutines"
   | "saveEventRoutine"
+  | "loadRoutineResultOptions"
+  | "loadRoutineResultDestination"
+  | "setRoutineResultDestination"
   | "deleteEventRoutine"
   | "testEventRoutine"
   | "rotateEventRoutineSecret"
@@ -200,6 +227,7 @@ type HostRequestActions = Pick<
   | "controlAgentTask"
   | "respondToTaskPrompt"
   | "loadAgentSkills"
+  | "installAgentSkill"
   | "setAgentSkillEnabled"
   | "uninstallAgentSkill"
   | "loadAgentStorage"
@@ -210,6 +238,7 @@ type HostRequestActions = Pick<
   | "loadAgentHostSettings"
   | "updateAgentHostSettings"
   | "loadProviderAccounts"
+  | "loadPlanLimits"
   | "setAgentProviderAccount"
   | "startNewChat"
   | "loadAgentSessionSettings"
@@ -217,6 +246,8 @@ type HostRequestActions = Pick<
   | "setServerTimezone"
   | "loadAgentMemoryLimit"
   | "setAgentMemoryLimit"
+  | "loadServerRoles"
+  | "setServerRoles"
   | "githubConnector"
   | "loadGitHubRepositories"
   | "loadOnePasswordConnector"
@@ -255,6 +286,8 @@ type HostRequestActions = Pick<
   | "unpublishAgentTemplate"
   | "deleteStoredFile"
   | "installAgentTemplate"
+  | "installMarketplaceAgent"
+  | "mcpSignInRelay"
   | "loadAgentAvatar"
   | "duplicateAgent"
   | "loadQueue"
@@ -329,6 +362,10 @@ export function createHostRequestActions({
   /** The event admin routes are optional and reject members on the host. */
   const eventsAdmin = (serverId: string) =>
     capabilityApi(serverId, EVENTS_CAPABILITY, "mobile.agent.record.eventsUnsupported");
+  /** A host with `routine-recovery-v1` answers the event routine list and save with `missedPolicy`. */
+  const recovery = (serverId: string) => has(serverId, ROUTINE_RECOVERY_CAPABILITY);
+  const routineResultsAdmin = (serverId: string) =>
+    capabilityApi(serverId, ROUTINE_RESULTS_CAPABILITY, "mobile.agent.record.resultDestinationUnsupported");
   const sessionSettingsAdmin = (serverId: string) =>
     capabilityApi(serverId, AGENT_SESSION_SETTINGS_CAPABILITY, "mobile.agent.session.unsupported");
   /** The tasks are an optional route set. Any member who can message the agent can use them. */
@@ -339,6 +376,9 @@ export function createHostRequestActions({
     capabilityApi(serverId, HOST_TIMEZONE_CAPABILITY, "mobile.server.settings.timezoneUnsupported");
   const memoryLimitAdmin = (serverId: string) =>
     capabilityApi(serverId, AGENT_MEMORY_LIMIT_CAPABILITY, "mobile.server.settings.memoryLimitUnsupported");
+  /** The roles that set the agents of each member are an optional admin route set. */
+  const rolesAdmin = (serverId: string) =>
+    capabilityApi(serverId, AGENT_ACCESS_CAPABILITY, "mobile.server.roles.unsupported");
   /** The connectors are optional admin route sets. */
   const connectorsAdmin = (serverId: string) =>
     capabilityApi(serverId, CONNECTORS_CAPABILITY, "mobile.server.connectors.unsupported");
@@ -392,6 +432,8 @@ export function createHostRequestActions({
     loadAgentMemoryLimit: async (serverId) => runTeamRequest(getHostAgentMemoryLimit(memoryLimitAdmin(serverId))),
     setAgentMemoryLimit: async (limit, serverId) =>
       runTeamRequest(setHostAgentMemoryLimit(memoryLimitAdmin(serverId), limit)),
+    loadServerRoles: async (serverId) => runTeamRequest(getHostAgentAccess(rolesAdmin(serverId))),
+    setServerRoles: async (change, serverId) => runTeamRequest(setHostAgentAccess(rolesAdmin(serverId), change)),
     githubConnector: async (route, serverId) =>
       runTeamRequest(githubConnectorRequest(connectorsAdmin(serverId), route)),
     loadGitHubRepositories: async (serverId) => runTeamRequest(githubConnectorRepositories(connectorsAdmin(serverId))),
@@ -457,8 +499,15 @@ export function createHostRequestActions({
       runTeamRequest(setAgentSessionSetting(sessionSettingsAdmin(serverId), input)),
     resetAgentSessionSetting: async (input, serverId) =>
       runTeamRequest(resetAgentSessionSetting(sessionSettingsAdmin(serverId), input)),
-    listEventRoutines: (owner, serverId) => runTeamRequest(listEventRoutines(eventsAdmin(serverId), { owner })),
-    saveEventRoutine: (input, serverId) => runTeamRequest(saveEventRoutine(eventsAdmin(serverId), input)),
+    listEventRoutines: (owner, serverId) =>
+      runTeamRequest(listEventRoutines(eventsAdmin(serverId), { owner }, recovery(serverId))),
+    saveEventRoutine: (input, serverId) =>
+      runTeamRequest(saveEventRoutine(eventsAdmin(serverId), input, recovery(serverId))),
+    loadRoutineResultOptions: (serverId) => runTeamRequest(listRoutineResultOptions(routineResultsAdmin(serverId))),
+    loadRoutineResultDestination: (input, serverId) =>
+      runTeamRequest(getRoutineResultDestination(routineResultsAdmin(serverId), input)),
+    setRoutineResultDestination: (input, serverId) =>
+      runTeamRequest(setRoutineResultDestination(routineResultsAdmin(serverId), input)),
     deleteEventRoutine: (input, serverId) => runTeamRequest(deleteEventRoutine(eventsAdmin(serverId), input)),
     testEventRoutine: (input, serverId) => runTeamRequest(testEventRoutine(eventsAdmin(serverId), input)),
     rotateEventRoutineSecret: (input, serverId) =>
@@ -534,9 +583,13 @@ export function createHostRequestActions({
         "GET",
         TEAM_API_ROUTES.agents.models,
         (value) => {
-          if (!Array.isArray(value) || !value.every(isAgentModelOption))
+          if (!Array.isArray(value) || !value.every(isClientAgentModelOption))
             throw new Error("The host returned invalid models.");
-          return value;
+          // A model of a provider that this build does not know cannot be chosen here.
+          return value.flatMap((option) => {
+            const provider = option.provider;
+            return isKnownAgentProvider(provider) ? [{ ...option, provider }] : [];
+          });
         },
         undefined,
         serverId,
@@ -576,7 +629,11 @@ export function createHostRequestActions({
         buildRoutineCalendar(
           { from: new Date(input.from), to: new Date(input.to) },
           new Date(),
-          routineCalendarSource(teamApi(serverId), owners),
+          routineCalendarSource(
+            teamApi(serverId),
+            capabilities.get(serverId)?.includes(CHANNEL_CHATS_CAPABILITY) ?? false,
+            owners,
+          ),
         ),
       ),
     loadHostAnalytics: (input, serverId) =>
@@ -623,6 +680,7 @@ export function createHostRequestActions({
         ? request("GET", TEAM_API_ROUTES.agent.skills(agentId), decodeInstalledSkills, undefined, serverId)
         : null;
     },
+    installAgentSkill: async (input, serverId) => runTeamRequest(installAgentSkill(skillsAdmin(serverId), input)),
     setAgentSkillEnabled: async (input, serverId) => runTeamRequest(setAgentSkillEnabled(skillsAdmin(serverId), input)),
     uninstallAgentSkill: async (input, serverId) => runTeamRequest(uninstallAgentSkill(skillsAdmin(serverId), input)),
     loadAgentStorage: async (agentId, serverId, force = false) => {
@@ -663,6 +721,7 @@ export function createHostRequestActions({
     },
     loadProviderAccounts: async (serverId) =>
       has(serverId, PROVIDER_ACCOUNTS_CAPABILITY) ? runTeamRequest(listProviderAccounts(teamApi(serverId))) : null,
+    loadPlanLimits: (serverId, accounts) => runTeamRequest(readPlanLimits(teamApi(serverId), accounts)),
     setAgentProviderAccount: async (input, serverId) => {
       requireCapability(
         capabilities,
@@ -695,6 +754,34 @@ export function createHostRequestActions({
       // A host too old to know the route answers 404, so refuse before the request.
       requireCapability(capabilities, serverId, AGENT_INSTALL_CAPABILITY, "mobile.link.template.error.unsupported");
       return runTeamRequest(installAgentTemplate(teamApi(serverId), input));
+    },
+    installMarketplaceAgent: async (input, serverId) => {
+      // A host too old to know the route answers 404, so refuse before the request. An update goes
+      // to the `agent-update-v1` route, as on the desktop.
+      if (input.agentId)
+        requireCapability(
+          capabilities,
+          serverId,
+          AGENT_UPDATE_CAPABILITY,
+          "mobile.marketplace.error.agentUpdateUnsupported",
+        );
+      else
+        requireCapability(
+          capabilities,
+          serverId,
+          AGENT_INSTALL_CAPABILITY,
+          "mobile.marketplace.error.agentUnsupported",
+        );
+      return runTeamRequest(installMarketplaceAgent(teamApi(serverId), input));
+    },
+    mcpSignInRelay: (serverId) => {
+      const relay = capabilityApi(serverId, SIGN_IN_RELAY_CAPABILITY, "mobile.marketplace.error.signInUnsupported");
+      return {
+        start: async (config) => (await runTeamRequest(startMcpSignInRelay(relay, { config }))).flowId,
+        status: (flowId) => runTeamRequest(signInRelayStatus(relay, flowId)),
+        complete: (flowId, query) => runTeamRequest(completeSignInRelay(relay, flowId, query)),
+        cancel: (flowId) => runTeamRequest(cancelSignInRelay(relay, flowId)),
+      };
     },
     loadAgentAvatar: (agentId, avatarUrl, serverId) => requestAgentAvatar(request, agentId, avatarUrl, serverId),
     duplicateAgent: async (agentId) => {
@@ -772,6 +859,7 @@ export function createHostRequestActions({
 /** The routes that the desktop calendar reads from a remote host, so both place the same runs. */
 function routineCalendarSource(
   request: TeamApiRequest,
+  channels: boolean,
   knownOwners?: readonly RoutineCalendarOwner[],
 ): RoutineCalendarSource<TeamRequestError> {
   /** One request to this server as an Effect. */
@@ -784,9 +872,22 @@ function routineCalendarSource(
     owners: () =>
       knownOwners
         ? Effect.succeed([...knownOwners])
-        : send("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries).pipe(
-            Effect.map((agents) => agents.map((agent): RoutineCalendarOwner => ({ kind: "agent", agentId: agent.id }))),
-          ),
+        : Effect.gen(function* () {
+            // A host from before channels rejects the channel routes; its agents still have routines.
+            const [agents, channelList] = yield* Effect.all(
+              [
+                send("GET", TEAM_API_ROUTES.agents.all, decodeAgentSummaries),
+                channels ? send("GET", CHANNEL_ROUTES.list, decodeChannelSummaries) : Effect.succeed([]),
+              ],
+              { concurrency: "unbounded" },
+            );
+            return [
+              ...agents.map((agent): RoutineCalendarOwner => ({ kind: "agent", agentId: agent.id })),
+              ...channelList
+                .filter((channel) => !channel.archived)
+                .map((channel): RoutineCalendarOwner => ({ kind: "channel", channelId: channel.id })),
+            ];
+          }),
     routines: (owner) =>
       owner.kind === "agent"
         ? send("GET", TEAM_API_ROUTES.agent.routines(owner.agentId), (value) => {
@@ -794,8 +895,7 @@ function routineCalendarSource(
               throw new Error("The host returned invalid routines.");
             return value;
           })
-        : // The phone lists only agents as owners.
-          Effect.succeed([]),
+        : send("POST", CHANNEL_ROUTES.routines, decodeChannelRoutines, { channelId: owner.channelId }),
     runs: (owner, routineId, limit) =>
       owner.kind === "agent"
         ? send("GET", `${TEAM_API_ROUTES.agent.routineRuns(owner.agentId, routineId)}?limit=${limit}`, (value) => {
@@ -803,20 +903,29 @@ function routineCalendarSource(
               throw new Error("The host returned an invalid routine history.");
             return value;
           })
-        : Effect.succeed([]),
+        : send("POST", CHANNEL_ROUTES.routineRuns, decodeChannelRoutineRuns, {
+            channelId: owner.channelId,
+            routineId,
+            limit,
+          }),
   };
 }
 
-/** The agent photo as a data URL. The Live Activity reads it too, outside the workspace value. */
-export function requestAgentAvatar(
+/**
+ * The agent photo as a `file://` URI, or as a data URL when the phone cannot save it. A photo that
+ * this phone has saved needs no request. The Live Activity reads it too, outside the workspace value.
+ */
+export async function requestAgentAvatar(
   request: WorkspaceRequest,
   agentId: string,
   avatarUrl: string,
   serverId: string,
 ): Promise<string> {
+  const saved = savedAgentAvatar(serverId, agentId, avatarUrl);
+  if (saved) return saved;
   const version = new URL(avatarUrl).searchParams.get("v");
-  if (!version) return Promise.reject(new Error("The agent avatar has no version."));
-  return request(
+  if (!version) throw new Error("The agent avatar has no version.");
+  const dataUrl = await request(
     "GET",
     `${TEAM_API_ROUTES.agent.avatar(agentId)}?${new URLSearchParams({ v: version })}`,
     (value) => {
@@ -832,4 +941,5 @@ export function requestAgentAvatar(
     undefined,
     serverId,
   );
+  return saveAgentAvatar(serverId, agentId, avatarUrl, dataUrl);
 }

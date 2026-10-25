@@ -97,31 +97,46 @@ export class VoiceSpeechService extends EventEmitter<VoiceSpeechEvents> {
     return this.#runtimeMissing() ?? (yield* this.#model.cancel());
   }).bind(this);
 
+  /**
+   * Deletes the model from this computer, and stops its download first. A part that is read now
+   * finishes before the host ends. Replies are not read aloud until the model is downloaded again.
+   */
+  readonly removeModel = Effect.fn("VoiceSpeech.removeModel")(function* (this: VoiceSpeechService) {
+    return yield* this.#requests.withPermit(this.#model.remove(Effect.suspend(() => this.#endHost())));
+  }).bind(this);
+
   /** Reads one part of a reply with the voice in the settings. It does not download the model. */
   readonly speak = Effect.fn("VoiceSpeech.speak")(function* (this: VoiceSpeechService, input: SpeechInput) {
-    const status = yield* this.getModelStatus();
-    if (status.phase !== "ready")
-      return yield* new VoiceOperationError({
-        cause: new Error(status.message ?? sourceText("error.voice.speech.modelRequired")),
-      });
     const speakerId = SPEECH_VOICES.indexOf(this.#preferences.get().voice);
     const startedAt = Date.now();
-    return yield* this.#requests.withPermit(this.#request(input, speakerId)).pipe(
-      Effect.tap((audio) =>
-        Effect.sync(() =>
-          logger.info(
-            `Speech of ${input.text.length} characters (${(audio.pcm.byteLength / 2 / audio.sampleRate).toFixed(1)}s) completed in ${Date.now() - startedAt}ms.`,
+    // The status is read with the permit: a removal that holds it can delete the model first.
+    const speech = Effect.gen({ self: this }, function* () {
+      const status = yield* this.getModelStatus();
+      if (status.phase !== "ready")
+        return yield* new VoiceOperationError({
+          cause: new Error(status.message ?? sourceText("error.voice.speech.modelRequired")),
+        });
+      return yield* this.#request(input, speakerId).pipe(
+        Effect.mapError((error) => {
+          logger.error(
+            `Speech of ${input.text.length} characters failed after ${Date.now() - startedAt}ms.`,
+            errorCategory(error.cause),
+          );
+          return new VoiceOperationError({ cause: userFacingError(error.cause) });
+        }),
+      );
+    });
+    return yield* this.#requests
+      .withPermit(speech)
+      .pipe(
+        Effect.tap((audio) =>
+          Effect.sync(() =>
+            logger.info(
+              `Speech of ${input.text.length} characters (${(audio.pcm.byteLength / 2 / audio.sampleRate).toFixed(1)}s) completed in ${Date.now() - startedAt}ms.`,
+            ),
           ),
         ),
-      ),
-      Effect.mapError((error) => {
-        logger.error(
-          `Speech of ${input.text.length} characters failed after ${Date.now() - startedAt}ms.`,
-          errorCategory(error.cause),
-        );
-        return new VoiceOperationError({ cause: userFacingError(error.cause) });
-      }),
-    );
+      );
   }).bind(this);
 
   /**
@@ -129,14 +144,19 @@ export class VoiceSpeechService extends EventEmitter<VoiceSpeechEvents> {
    * until it is idle. A failure is only logged: the `speak` that follows reports it to the user.
    */
   readonly warm = Effect.fn("VoiceSpeech.warm")(function* (this: VoiceSpeechService) {
-    const status = yield* this.getModelStatus();
-    if (status.phase !== "ready") return;
     const startedAt = Date.now();
-    yield* this.#requests.withPermit(this.#request({ text: "", language: "en" }, 0, true)).pipe(
-      Effect.tap(() => Effect.sync(() => logger.info(`Speech model loaded in ${Date.now() - startedAt}ms.`))),
-      Effect.catch((error) =>
-        Effect.sync(() => logger.warn("Could not load the speech model in advance.", errorCategory(error.cause))),
-      ),
+    yield* this.#requests.withPermit(
+      Effect.gen({ self: this }, function* () {
+        // As in `speak`, a removal that holds the permit can delete the model first.
+        const status = yield* this.getModelStatus();
+        if (status.phase !== "ready") return;
+        yield* this.#request({ text: "", language: "en" }, 0, true).pipe(
+          Effect.tap(() => Effect.sync(() => logger.info(`Speech model loaded in ${Date.now() - startedAt}ms.`))),
+          Effect.catch((error) =>
+            Effect.sync(() => logger.warn("Could not load the speech model in advance.", errorCategory(error.cause))),
+          ),
+        );
+      }),
     );
   }).bind(this);
 
@@ -233,6 +253,16 @@ export class VoiceSpeechService extends EventEmitter<VoiceSpeechEvents> {
   #cancelIdleStop(): void {
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
+  }
+
+  /** Ends the host and waits until it exits, so that no process has the model files open. */
+  #endHost(): Effect.Effect<void> {
+    const host = this.#host;
+    if (!host) return Effect.void;
+    return Effect.callback<void>((resume) => {
+      host.onExit(() => resume(Effect.void));
+      this.#stopHost();
+    });
   }
 
   /** Ends the host. Its exit is not reported as a failure: nothing waits on it any more. */

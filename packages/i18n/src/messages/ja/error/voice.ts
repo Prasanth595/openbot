@@ -4,6 +4,8 @@ import type { messages as source } from "../../en/error/voice";
 export const messages = {
   "error.voice.downloadFailed": "音声モデルをダウンロードできませんでした。もう一度お試しください。",
   "error.voice.downloadStopped": "音声モデルのダウンロードを停止しました。",
+  "error.voice.removeBusy": "音声文字起こしが終わってから、モデルを削除してください。",
+  "error.voice.removeFailed": "音声モデルを削除できませんでした。もう一度お試しください。",
   "error.voice.runtimeUnavailable": "このプラットフォームではローカル音声文字起こしを使用できません。",
   "error.voice.busy": "音声文字起こしはすでに実行中です。",
   "error.voice.modelUnavailable": "音声モデルを使用できません。",

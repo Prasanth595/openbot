@@ -122,6 +122,11 @@ answers 503 and writes no receipt, so the sender retries after the restart.
   save that carry `missedPolicy`, and a run list that includes the records of missed occurrences. A
   client uses these routes in place of the `events-v1` list and save. For a host without the
   capability, the editor hides the missed-run choice and the host keeps its saved value.
+- Remote hosts with `webhook-tests-v1` (`WEBHOOK_TESTS_ROUTES`) also answer a test event. The host
+  makes an event that matches the trigger, signs it with the decrypted secret, and gives it to the
+  same verification and receipt path as a relayed request (`HostEventsService.sendTestEvent`). The
+  answer names the event type, the receipt status and reason, and the run. The secret stays on the
+  host. For a host without the capability, the editor leaves out the test step.
 - Released schedule-only routine views do not show webhook routines. Their delete and test routes
   answer "routine gone" for a webhook routine, because they have no administrator check. Only a
   schedule routine writes a conversation event.
@@ -144,7 +149,12 @@ Controls:
 - A removed trigger revokes its route in the same transaction, and the relay revocation retries
   until it succeeds.
 - Only the events surface, which needs a host administrator, can change, test, or delete a webhook
-  routine.
+  routine. An agent can create one with `openbot.create_webhook_routine`, and change its events,
+  name, instruction or active state with `openbot.update_webhook_routine`, but only in a turn that a
+  person's message started: a routine run can carry a webhook body, which is untrusted. The tool saves through
+  `HostEventsService`, so the route limit, the encryption and the relay sync are the same. The tool
+  drops the first secret: the result goes to the model provider. The chat card makes a new secret
+  through the events surface.
 
 ## Rollout
 

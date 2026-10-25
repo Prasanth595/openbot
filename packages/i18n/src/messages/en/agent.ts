@@ -13,6 +13,8 @@ export const messages = defineMessages("agent", {
   "agent.setup.name": "Name",
   "agent.setup.purpose": "What should this agent help with?",
   "agent.setup.purposePlaceholder": "Plan trips, compare options, or help with everyday work.",
+  "agent.instructions.length": "{length} / {limit}",
+  "agent.instructions.tooLong": "Shorten the instructions to {limit} characters. Longer instructions are not saved.",
   "agent.setup.model": "Agent model",
   "agent.setup.creating": "Creating agent…",
   "agent.setup.create": "Create agent",
@@ -61,6 +63,8 @@ export const messages = defineMessages("agent", {
   "agent.error.mcpNotStarted": "MCP server not started",
   "agent.error.codexConfigIgnored": "Codex configuration warning",
   "agent.error.provider": "Provider error",
+  "agent.error.run": "{provider} · {model}",
+  "agent.error.providerNamed": "{provider} error",
   // Avatar color names. They fill `{color}` and `{hue}` inside a sentence.
   "agent.color.red": "Red",
   "agent.color.orange": "Orange",

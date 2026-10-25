@@ -18,13 +18,25 @@ export function ChatQuestionPrompt({
   prompt,
   controller,
   canSend,
+  onActivate,
 }: {
   prompt: ConversationQuestionPrompt;
   controller?: QuestionPromptController;
   canSend: boolean;
+  onActivate?: () => void;
 }) {
   const { t } = useText();
   const [foreground, muted, accentForeground] = useThemeColor(["foreground", "muted", "accent-foreground"]);
+  if (!prompt.resolution && !controller && onActivate) {
+    return (
+      <View className="max-w-[88%] self-start gap-2 rounded-[30px] bg-control/60 px-4 py-3">
+        <Typography>{prompt.questions[0]?.question}</Typography>
+        <Button variant="ghost" onPress={onActivate}>
+          <Button.Label>{t("mobile.chat.question.answerForm")}</Button.Label>
+        </Button>
+      </View>
+    );
+  }
   const resolution =
     prompt.resolution ?? controller?.resolution ?? (controller ? null : { status: "expired" as const });
   if (resolution) {
@@ -144,7 +156,8 @@ export function ChatQuestionPrompt({
         ))}
         {question.isSecret ? null : (
           // One more answer row, so it reads as a choice like the options above. The composer
-          // answers only after this choice, so a message typed meanwhile still goes to the chat.
+          // answers only after this choice, so a message typed meanwhile still goes to the chat,
+          // which matters in a channel where others talk too.
           <Button
             variant="ghost"
             isDisabled={disabled}

@@ -196,5 +196,12 @@ export const messages = {
   "error.remote.hostOtherAccount": "Cet hôte appartient à un autre compte.",
   "error.remote.remoteNotConfigured": "Les connexions à distance ne sont pas configurées sur ce service OpenBot.",
   "error.remote.hostRefused": "L’hôte a refusé la demande ({status}).",
+  "error.remote.formUnavailable": "Ce formulaire n’est plus disponible.",
   "error.remote.hostedServerRemoval": "Utilisez « Facturation » pour supprimer un serveur hébergé.",
+  "error.remote.channelsUnsupported": "Mettez à jour ce serveur de bureau pour utiliser les canaux.",
+  "error.remote.channelDeleteUnsupported": "Mettez à jour ce serveur de bureau pour supprimer des canaux.",
+  "error.remote.historyRefreshFailed":
+    "Le message a été envoyé, mais l’historique de la discussion n’a pas pu être actualisé.",
+  "error.remote.taskHistoryRefreshFailed":
+    "La tâche a été modifiée, mais l’historique de la discussion n’a pas pu être actualisé.",
 } as const satisfies PartialTranslation<typeof source>;

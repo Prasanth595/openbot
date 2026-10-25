@@ -72,8 +72,13 @@ export type OpenCodeConfigBase = Omit<OpenCodeConfig, "provider">;
  * Profile generation runs a throwaway OpenCode session for a one-shot prompt, so it must not be able
  * to touch the computer. This layer is the reason the custom-provider config has to merge rather than
  * replace: both live under the same environment variable.
+ *
+ * `bash` and `read` ask rather than deny. OpenCode leaves a denied tool out of the request, and Zen
+ * refuses a free model a request that offers no `bash` and `read`: "OpenCode's free tier can only be
+ * used from within OpenCode". Checked in OpenCode 1.19.3 and 2.1.1. The profile client cancels every
+ * permission request, and OpenCode rejects a cancelled one, so neither tool can run.
  */
-export const OPENCODE_PROFILE_CONFIG: OpenCodeConfigBase = { permission: { "*": "deny" } };
+export const OPENCODE_PROFILE_CONFIG: OpenCodeConfigBase = { permission: { "*": "deny", bash: "ask", read: "ask" } };
 
 const OPENCODE_CONFIG_ENV = "OPENCODE_CONFIG_CONTENT";
 

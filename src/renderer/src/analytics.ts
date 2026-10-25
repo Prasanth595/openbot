@@ -188,6 +188,8 @@ interface DesktopAnalyticsEvents {
     action: "start" | "end" | "interrupt" | "mute" | "unmute";
     server_kind: ServerKind;
     result: AnalyticsResult;
+    /** For `interrupt`: the Stop button, or the user's voice over the agent. */
+    trigger?: "button" | "voice";
     transcription?: TranscriptionKind;
     /** For `start`: until the first listen, with the speech model download. For `end`: the whole conversation. */
     duration_ms?: number;
@@ -383,6 +385,7 @@ const EVENT_PROPERTY_ALLOWLIST = {
     "action",
     "server_kind",
     "result",
+    "trigger",
     "transcription",
     "duration_ms",
     "turn_count",
@@ -597,6 +600,7 @@ const EVENT_ENUMS: Partial<Record<AnalyticsEventName, Readonly<Record<string, re
   hosted_site_action: { entry_point: ["agent", "settings"] },
   hosted_server_upsell: { entry_point: ["routine_created", "routines_list", "server_offline"] },
   speech_model_action: { entry_point: ["settings", "voice_conversation"] },
+  voice_conversation_action: { trigger: ["button", "voice"] },
   hosted_server_plans_action: { entry_point: HOSTED_SERVER_ENTRY_POINTS },
   limit_reached: { kind: ["servers", "members", "license_users"] },
   sales_contact_clicked: { entry_point: ["add_server", "license", "members"] },

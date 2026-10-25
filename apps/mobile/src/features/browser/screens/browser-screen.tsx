@@ -7,6 +7,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
+import ChevronsUpDown from "lucide-react-native/icons/chevrons-up-down";
 import CircleQuestionMark from "lucide-react-native/icons/circle-question-mark";
 import ClipboardList from "lucide-react-native/icons/clipboard-list";
 import Ellipsis from "lucide-react-native/icons/ellipsis";
@@ -15,9 +16,9 @@ import Plus from "lucide-react-native/icons/plus";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   ActionSheetIOS,
-  type NativeSyntheticEvent,
   TextInput,
-  type TextInputKeyPressEventData,
+  type TextInputInstance,
+  type TextInputKeyPressEvent,
   View,
   type ViewStyle,
 } from "react-native";
@@ -75,10 +76,19 @@ let rememberedMode: LiveViewMode = "trackpad";
  * pointer follows the page's cursor, and the keyboard and the clipboard reach the page.
  */
 export function BrowserScreen() {
-  const { agentId, serverId, tabId } = useLocalSearchParams<{ agentId: string; serverId?: string; tabId?: string }>();
+  const { agentId, serverId, tabId, agentIds } = useLocalSearchParams<{
+    agentId: string;
+    serverId?: string;
+    tabId?: string;
+    /** From a channel: the members, joined by commas, whose browser the person can switch to. */
+    agentIds?: string;
+  }>();
   const { agents } = useMobileWorkspace();
-  const agent =
-    agents.find((candidate) => candidate.id === agentId && (!serverId || candidate.serverId === serverId)) ?? null;
+  const [selectedId, setSelectedId] = useState(agentId);
+  const onServer = (id: string) =>
+    agents.find((candidate) => candidate.id === id && (!serverId || candidate.serverId === serverId));
+  const agent = onServer(selectedId) ?? null;
+  const choices = (agentIds?.split(",") ?? []).flatMap((id) => onServer(id) ?? []);
   // Reconnect mounts the view again, with a new session, the same pointer mode and the same tab.
   const [attempt, setAttempt] = useState(0);
   const [chosenTabId, setChosenTabId] = useState(tabId);
@@ -86,8 +96,14 @@ export function BrowserScreen() {
     <>
       {agent ? (
         <BrowserView
-          key={attempt}
+          // Another agent has its own tabs and its own live view.
+          key={`${agent.id}:${attempt}`}
           agent={agent}
+          choices={choices.length > 1 ? choices : []}
+          onChooseAgent={(id) => {
+            setSelectedId(id);
+            setChosenTabId(undefined);
+          }}
           preferredTabId={chosenTabId}
           onChooseTab={setChosenTabId}
           onReconnect={() => setAttempt((value) => value + 1)}
@@ -101,11 +117,16 @@ export function BrowserScreen() {
 
 function BrowserView({
   agent,
+  choices,
+  onChooseAgent,
   preferredTabId,
   onChooseTab,
   onReconnect,
 }: {
   agent: MobileAgent;
+  /** The agents of a channel whose browser the person can switch to. Empty for one agent. */
+  choices: readonly MobileAgent[];
+  onChooseAgent: (agentId: string) => void;
   /** The tab to show when it is the agent's, such as the tab of a takeover or the tab the user chose. */
   preferredTabId?: string;
   onChooseTab: (tabId: string | undefined) => void;
@@ -141,7 +162,7 @@ function BrowserView({
   );
   const [mode, setMode] = useState<LiveViewMode>(rememberedMode);
   const stage = useRef<BrowserLiveStageHandle>(null);
-  const keyboardField = useRef<TextInput>(null);
+  const keyboardField = useRef<TextInputInstance>(null);
   const typed = useRef("");
   const [keyboardShown, setKeyboardShown] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -631,18 +652,57 @@ function BrowserView({
         >
           <ArrowLeft color={iconColor} size={24} strokeWidth={2} />
         </ChatGlassIconButton>
-        <View className="min-w-0 shrink flex-row items-center gap-2" accessibilityRole="header">
-          <BloubAvatar
-            agentId={agent.id}
-            serverId={agent.serverId}
-            hue={agent.avatarHue}
-            seed={agent.avatarSeed}
-            size={28}
-          />
-          <Typography.Paragraph className="min-w-0 shrink" weight="semibold" numberOfLines={1}>
-            {agent.name}
-          </Typography.Paragraph>
-        </View>
+        {choices.length > 0 ? (
+          // In a channel where several agents work, the name switches to the browser of another one.
+          <MenuView
+            actions={choices.map((choice) => ({
+              id: choice.id,
+              title: choice.name,
+              state: choice.id === agent.id ? "on" : "off",
+            }))}
+            onPressAction={({ nativeEvent }) => {
+              if (nativeEvent.event === agent.id || !choices.some((choice) => choice.id === nativeEvent.event)) return;
+              void haptics.selection();
+              onChooseAgent(nativeEvent.event);
+            }}
+            style={{ minWidth: 0, flexShrink: 1 }}
+          >
+            <GlassCapsule liquidGlass={liquidGlass} fallbackBackground={fieldBackground}>
+              <View
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t("mobile.browser.switchAgent", { name: agent.name })}
+                className="min-w-0 shrink flex-row items-center gap-2 pr-3.5 pl-2.5"
+                style={{ height: CONTROL_SIZE }}
+              >
+                <BloubAvatar
+                  agentId={agent.id}
+                  serverId={agent.serverId}
+                  hue={agent.avatarHue}
+                  seed={agent.avatarSeed}
+                  size={28}
+                />
+                <Typography.Paragraph className="min-w-0 shrink" weight="semibold" numberOfLines={1}>
+                  {agent.name}
+                </Typography.Paragraph>
+                <ChevronsUpDown color={iconColor} size={16} strokeWidth={2} />
+              </View>
+            </GlassCapsule>
+          </MenuView>
+        ) : (
+          <View className="min-w-0 shrink flex-row items-center gap-2" accessibilityRole="header">
+            <BloubAvatar
+              agentId={agent.id}
+              serverId={agent.serverId}
+              hue={agent.avatarHue}
+              seed={agent.avatarSeed}
+              size={28}
+            />
+            <Typography.Paragraph className="min-w-0 shrink" weight="semibold" numberOfLines={1}>
+              {agent.name}
+            </Typography.Paragraph>
+          </View>
+        )}
         <View className="flex-1" />
         <ChatGlassIconButton
           accessibilityLabel={t("mobile.browser.help")}
@@ -713,7 +773,7 @@ function BrowserView({
             typed.current = "";
           }
         }}
-        onKeyPress={(event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+        onKeyPress={(event: TextInputKeyPressEvent) => {
           // Backspace in an empty field changes no text, so the change handler never hears it.
           if (event.nativeEvent.key === "Backspace" && typed.current === "") sendKeys(namedKeyInputs("Backspace"));
         }}
@@ -775,6 +835,33 @@ function GlassCircle({
         />
       )}
       <Animated.View style={{ flex: 1, opacity: hidden ? 0 : 1, ...FADE }}>{children}</Animated.View>
+    </GlassView>
+  );
+}
+
+/** A glass capsule of the control height, as the chat header draws its title. The menu owns the touch. */
+function GlassCapsule({
+  liquidGlass,
+  fallbackBackground,
+  children,
+}: {
+  liquidGlass: boolean;
+  fallbackBackground: ViewStyle["backgroundColor"];
+  children: ReactNode;
+}) {
+  return (
+    <GlassView
+      glassEffectStyle={liquidGlass ? "regular" : "none"}
+      style={{
+        height: CONTROL_SIZE,
+        borderRadius: CONTROL_SIZE / 2,
+        borderCurve: "continuous",
+        overflow: "hidden",
+        flexShrink: 1,
+        backgroundColor: liquidGlass ? "transparent" : fallbackBackground,
+      }}
+    >
+      {children}
     </GlassView>
   );
 }

@@ -1,3 +1,4 @@
+import { fileQuoteTarget } from "@openbot/contracts/chat-tag-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DraftAttachment, LOCAL_SERVER_ID, type QueueDelivery } from "@openbot/contracts/ipc";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "@openbot/contracts/team-protocol/current";
@@ -11,6 +12,7 @@ import { copyComposerDraft, EMPTY_DRAFT, QUEUE_EDIT_STORAGE_KEY, type StoredQueu
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
 import type { ComposerDraft, ConversationProps, ConversationTarget } from "../conversation-types";
+import { conversationOwnerId } from "./composer-store";
 import type { PendingSend, PendingSendStore } from "./pending-send-store";
 
 // Each member reads the interface language when it is called.
@@ -80,9 +82,19 @@ export interface ComposerActionsDeps {
   setStickToLatest: (value: boolean) => void;
   pendingSends: PendingSendStore;
   attachmentPicker: () => HTMLInputElement | undefined;
+  /** False in a chat window (#2964): the stored queue edit is one slot, and the main window owns it. */
+  persistQueueEdit: boolean;
 }
 
 export function createComposerActions(deps: ComposerActionsDeps) {
+  function storeQueueEdit(edit: StoredQueueEdit): void {
+    if (deps.persistQueueEdit) window.localStorage.setItem(QUEUE_EDIT_STORAGE_KEY, JSON.stringify(edit));
+  }
+
+  function clearStoredQueueEdit(): void {
+    if (deps.persistQueueEdit) window.localStorage.removeItem(QUEUE_EDIT_STORAGE_KEY);
+  }
+
   function updateTeamTyping(text: string): void {
     const agentId = deps.props.agent?.id;
     if (deps.typing.idleTimer) clearTimeout(deps.typing.idleTimer);
@@ -213,22 +225,19 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     deps.setSubmitting(true);
     try {
       if (editId)
-        window.localStorage.setItem(
-          QUEUE_EDIT_STORAGE_KEY,
-          JSON.stringify({
-            agentId,
-            serverId,
-            deliveryId: delivery.id,
-            editId,
-            originalAttachmentIds: delivery.attachments.map((item) => item.id),
-            backup,
-            draft: {
-              text: delivery.text,
-              attachments: delivery.attachments,
-              replyToMessageId: delivery.replyToMessageId,
-            },
-          }),
-        );
+        storeQueueEdit({
+          agentId,
+          serverId,
+          deliveryId: delivery.id,
+          editId,
+          originalAttachmentIds: delivery.attachments.map((item) => item.id),
+          backup,
+          draft: {
+            text: delivery.text,
+            attachments: delivery.attachments,
+            replyToMessageId: delivery.replyToMessageId,
+          },
+        });
       // Record ownership before the request: a lost response must not free this editor slot.
       setEditingDraft(delivery);
       if (editId) {
@@ -322,7 +331,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     deps.setEditingDeliveryId(null);
     deps.setEditingEditId(null);
     deps.setEditingPendingSave(null);
-    window.localStorage.removeItem(QUEUE_EDIT_STORAGE_KEY);
+    clearStoredQueueEdit();
     deps.setEditingDraftBackup(null);
     deps.setEditingOriginalAttachmentIds([]);
     return true;
@@ -421,19 +430,16 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       // Persist the exact request before sending: a lost response must stay retryable.
       deps.setEditingPendingSave(pendingSave);
       try {
-        window.localStorage.setItem(
-          QUEUE_EDIT_STORAGE_KEY,
-          JSON.stringify({
-            agentId,
-            serverId,
-            deliveryId,
-            editId,
-            originalAttachmentIds: target?.originalAttachmentIds ?? deps.editingOriginalAttachmentIds(),
-            backup: deps.editingDraftBackup() ?? EMPTY_DRAFT,
-            draft,
-            pendingSave,
-          }),
-        );
+        storeQueueEdit({
+          agentId,
+          serverId,
+          deliveryId,
+          editId,
+          originalAttachmentIds: target?.originalAttachmentIds ?? deps.editingOriginalAttachmentIds(),
+          backup: deps.editingDraftBackup() ?? EMPTY_DRAFT,
+          draft,
+          pendingSave,
+        });
       } catch (error) {
         deps.setEditingPendingSave(null);
         deps.setSubmitting(false);
@@ -488,7 +494,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       deps.setEditingDeliveryId(null);
       deps.setEditingEditId(null);
       deps.setEditingPendingSave(null);
-      window.localStorage.removeItem(QUEUE_EDIT_STORAGE_KEY);
+      clearStoredQueueEdit();
       deps.setEditingDraftBackup(null);
       deps.setEditingOriginalAttachmentIds([]);
     }
@@ -526,7 +532,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     if (!draftOverride && deps.currentEditingDeliveryId()) {
       return saveQueuedMessageEdit();
     }
-    const agentId = targetOverride?.agentId ?? deps.props.agent?.id;
+    const agentId = targetOverride?.agentId ?? conversationOwnerId(deps.props);
     const target = targetOverride ?? (agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined);
     const draft = copyComposerDraft(draftOverride ?? deps.currentDraft());
     const text = expandComposerMentions(draft.text);
@@ -668,7 +674,17 @@ export function createComposerActions(deps: ComposerActionsDeps) {
   async function sendSelectionInstruction(messageId: string, body: string): Promise<boolean> {
     const target = deps.currentTarget();
     if (!target || deps.submitting() || !deps.agentReady()) return false;
-    queueSend(target, { text: body, attachments: [], replyToMessageId: messageId }, body);
+    // A file passage is in the body as a quote tag; only a message passage makes a reply.
+    const replyToMessageId = fileQuoteTarget(messageId) ? null : messageId;
+    queueSend(target, { text: body, attachments: [], replyToMessageId }, body);
+    return true;
+  }
+
+  /** A message that a card in the chat sends for the user, such as Continue after a sign-in. */
+  function sendCardMessage(body: string): boolean {
+    const target = deps.currentTarget();
+    if (!target || deps.submitting() || !deps.agentReady()) return false;
+    queueSend(target, { text: body, attachments: [], replyToMessageId: null }, body);
     return true;
   }
 
@@ -685,6 +701,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     submitMessage,
     submitComposer,
     sendSelectionInstruction,
+    sendCardMessage,
     retryPendingSend,
     editPendingSend,
     dismissPendingSend,

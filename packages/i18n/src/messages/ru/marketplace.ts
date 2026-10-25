@@ -267,7 +267,7 @@ export const messages = {
   "marketplace.plugin.resend.prompt.template": "Составьте письмо для сброса пароля для нового сценария.",
   "marketplace.plugin.composio.tagline": "Множество приложений по вашей ссылке Composio",
   "marketplace.plugin.composio.description":
-    "Composio подключает агентов к Gmail, Slack, GitHub и сотням других приложений через один сервер MCP. Создайте сервер в своём аккаунте Composio, добавьте в него нужные приложения и вставьте сюда его ссылку. Ключ API добавляйте, только если ваш сервер его требует.",
+    "Composio подключает агентов к Gmail, Slack, GitHub и сотням других приложений через один сервер MCP. Подключите нужные приложения в своём аккаунте Composio и вставьте сюда его URL MCP и ключ API.",
   "marketplace.plugin.composio.app":
     "Приложения, которые вы добавили на свой сервер MCP Composio, по ссылке из вашего аккаунта Composio.",
   "marketplace.plugin.composio.prompt.inbox":
@@ -277,12 +277,11 @@ export const messages = {
   "marketplace.plugin.composio.prompt.apps": "Какие приложения и действия доступны вам через Composio?",
   "marketplace.plugin.composio.hint.url": "URL сервера MCP в вашем аккаунте Composio",
   "marketplace.plugin.composio.hint.apiKey":
-    "Только если ваш сервер его требует. Он находится в настройках аккаунта Composio.",
+    "Он находится в аккаунте Composio, в разделе Settings > Sessions & API Key.",
   "marketplace.auth.apiKey": "API-ключ",
   "marketplace.auth.personalApiKey": "Личный API-ключ",
   "marketplace.auth.mcpUrl": "URL MCP",
   "marketplace.auth.createKey": "Создать ключ",
-  "marketplace.auth.createServer": "Создать сервер",
   "marketplace.skill.installMenu.install": "Установить",
   "marketplace.skill.installMenu.installNamed": "Установить: {name}",
   "marketplace.skill.installMenu.allAgents": "Все агенты",

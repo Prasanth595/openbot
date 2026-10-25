@@ -13,11 +13,13 @@ import { createMockOpenBot } from "./mock-openbot";
 import { SettingsPageStory } from "./settings-page-story";
 import { previewStorySoundSettings } from "./sound-feedback-fixture";
 
-/** A packaged Windows or Linux run, which offers both switches that the defaults hide. */
+/** A packaged Windows run, which offers every switch that the defaults hide. */
 const storyGeneralSettings: GeneralSettingsValue = {
   ...DEFAULT_GENERAL_SETTINGS,
   launchAtLogin: true,
   keepRunningInBackground: false,
+  keepAwake: false,
+  keepAwakeOnBattery: false,
 };
 
 const storyAppInfo = { name: "OpenBot", version: "0.2.1", platform: "darwin", variant: "dev" } as const;
@@ -159,6 +161,8 @@ function SettingsModalStory(props: {
             onRevokeMobileConnectedDevice={async (sessionId) => {
               setMobileDevices((current) => current.filter((device) => device.sessionId !== sessionId));
             }}
+            onGetRemoteNetworkRoute={mock.api.getRemoteNetworkRoute}
+            onSetRemoteNetworkRoute={(route) => mock.api.setRemoteNetworkRoute({ route })}
             onUpdateAction={runUpdateAction}
             billingApi={billingApi}
             hostedServersApi={props.hostedServers ? hostedServersApi : undefined}
@@ -245,6 +249,17 @@ export const VoiceWhisperHungarian: Story = {
         voiceModelsReady: ["parakeet-tdt-0.6b-v3", "whisper-turbo"],
         voiceSettings: { modelId: "whisper-turbo", language: "hu" },
       }}
+    />
+  ),
+};
+
+/** Downloaded models, and the speech model, each with Remove. */
+export const VoiceModelsDownloaded: Story = {
+  render: () => (
+    <SettingsModalStory
+      initialOpen
+      initialTab="voice"
+      voice={{ voiceModelsReady: ["parakeet-tdt-0.6b-v3", "bark-3.0-plus"], speechModelReady: true }}
     />
   ),
 };

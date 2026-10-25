@@ -2,10 +2,10 @@ import { agentProviderDescriptor } from "@openbot/contracts/agent-providers";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentModelId,
-  AgentModelOption,
   AgentProviderId,
   AgentStatus,
   AvatarHue,
+  ClientAgentModelOption,
   CustomAgentSummary,
   CustomProviderSummary,
   ProviderRuntimeStatus,
@@ -19,6 +19,7 @@ import { currentText, useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
 import { AgentAvatar } from "./AgentAvatar";
 import { AVATAR_HUE_LABEL } from "./avatar-hue-label";
+import { InstructionsLimit, instructionsTooLong } from "./InstructionsLimit";
 
 export interface FirstAgentDraft {
   name: string;
@@ -52,7 +53,7 @@ export interface FirstAgentSetupProps {
   submitting?: boolean;
   error?: string | null;
   /** The live catalog behind the model picker. Absent, the form keeps no model choice. */
-  modelOptions?: AgentModelOption[] | undefined;
+  modelOptions?: ClientAgentModelOption[] | undefined;
   agentStatus?: AgentStatus | undefined;
   runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
   customProviders?: readonly CustomProviderSummary[] | undefined;
@@ -62,6 +63,8 @@ export interface FirstAgentSetupProps {
   onCancelProviderDownload?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onConnectProvider?: ((provider: AgentProviderId) => void | Promise<void>) | undefined;
   onAddCustomProvider?: ((trigger: HTMLElement) => void) | undefined;
+  /** Opens the provider settings from a plus button in the model picker. */
+  onManageProviders?: ((trigger: HTMLElement) => void) | undefined;
   onChange: (value: FirstAgentDraft) => void;
   onSubmit: (value: FirstAgentDraft) => void | Promise<void>;
   onCancel?: (() => void) | undefined;
@@ -179,7 +182,8 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
   const [canScrollSuggestionsBack, setCanScrollSuggestionsBack] = createSignal(false);
   const [canScrollSuggestionsForward, setCanScrollSuggestionsForward] = createSignal(false);
   const [draggingSuggestions, setDraggingSuggestions] = createSignal(false);
-  const canSubmit = () => Boolean(props.value.name.trim()) && !props.submitting;
+  const canSubmit = () =>
+    Boolean(props.value.name.trim()) && !instructionsTooLong(props.value.purpose) && !props.submitting;
   const displayName = () => props.value.name.trim() || t("agent.setup.nameFallback");
 
   function updateSuggestionFades(): void {
@@ -437,11 +441,12 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
               <Textarea
                 value={props.value.purpose}
                 rows={2}
-                maxlength={INPUT_LIMITS.agentDescription}
+                invalid={instructionsTooLong(props.value.purpose)}
                 placeholder={t("agent.setup.purposePlaceholder")}
                 disabled={props.submitting}
                 onValueChange={(purpose) => updateDraft({ purpose })}
               />
+              <InstructionsLimit text={props.value.purpose} />
             </Field>
             <Show when={props.modelOptions}>
               {(options) => (
@@ -461,6 +466,7 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
                       onCancelProviderDownload={props.onCancelProviderDownload}
                       onConnectProvider={props.onConnectProvider}
                       onAddCustomProvider={props.onAddCustomProvider}
+                      onManageProviders={props.onManageProviders}
                       disabled={props.submitting}
                       onChange={(model, provider) => updateDraft({ model, provider })}
                     />

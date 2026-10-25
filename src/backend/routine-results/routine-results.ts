@@ -44,7 +44,7 @@ class RoutineResultFailed extends Schema.TaggedError<RoutineResultFailed>()("Rou
 }) {}
 
 /** A refusal the user reads: the text is already a sentence for them. */
-class RoutineResultError extends Error {}
+export class RoutineResultError extends Error {}
 
 export interface RoutineResultsDependencies {
   store: RoutineResultStore;

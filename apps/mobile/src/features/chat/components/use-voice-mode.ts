@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { BackHandler } from "react-native";
 import { Easing, ReduceMotion, type SharedValue, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
@@ -160,6 +161,17 @@ export function useVoiceMode({
       showReview();
     } else leave("cancel");
   }, [stage, phase, leave, moveTo, showReview]);
+
+  // The user speaks hands-free, and a screen lock puts the app in the
+  // background, which ends the session. Keep the screen on while listening.
+  const keepAwakeTag = useId();
+  useEffect(() => {
+    if (stage !== "listening") return;
+    activateKeepAwakeAsync(keepAwakeTag).catch(() => {});
+    return () => {
+      deactivateKeepAwake(keepAwakeTag).catch(() => {});
+    };
+  }, [stage, keepAwakeTag]);
 
   const stop = useCallback(() => {
     if (stageRef.current !== "listening" || exitRef.current) return;

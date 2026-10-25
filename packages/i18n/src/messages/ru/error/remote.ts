@@ -190,5 +190,10 @@ export const messages = {
   "error.remote.hostOtherAccount": "Этот хост принадлежит другому аккаунту.",
   "error.remote.remoteNotConfigured": "Удалённые подключения не настроены в этой службе OpenBot.",
   "error.remote.hostRefused": "Хост отклонил запрос ({status}).",
+  "error.remote.formUnavailable": "Эта форма больше недоступна.",
   "error.remote.hostedServerRemoval": "Чтобы удалить размещённый сервер, используйте раздел «Оплата».",
+  "error.remote.channelsUnsupported": "Обновите этот сервер на компьютере, чтобы использовать каналы.",
+  "error.remote.channelDeleteUnsupported": "Обновите этот сервер на компьютере, чтобы удалять каналы.",
+  "error.remote.historyRefreshFailed": "Сообщение отправлено, но историю чата обновить не удалось.",
+  "error.remote.taskHistoryRefreshFailed": "Задача изменена, но историю чата обновить не удалось.",
 } as const satisfies PartialTranslation<typeof source>;

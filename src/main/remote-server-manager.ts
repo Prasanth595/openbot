@@ -6,8 +6,8 @@ import { type InviteLinkOptions, type InviteLinkPayload, parseInviteUrl } from "
 import type {
   AgentEvent,
   AgentImportPreview,
-  AgentSummary,
   AvatarImageInput,
+  ClientAgentSummary,
   ConversationPage,
   ConversationPageAnchor,
   ConversationReadState,
@@ -64,6 +64,7 @@ import { INSTANCE_TRANSFER_ROUTES } from "@openbot/contracts/team-protocol/insta
 import { decodeTeamProtocolV1CurrentHttpResponse } from "@openbot/contracts/team-protocol/v1-adapter";
 import { sourceText } from "@openbot/i18n/source";
 import { createFocusUsePing } from "@openbot/team-client/focus-use";
+import { followHostKeyHandovers } from "@openbot/team-client/host-key-handover";
 import {
   HOSTED_HOST_READY_LIMIT_MS,
   HOSTED_START_FAILED_READS,
@@ -98,7 +99,7 @@ import { RemoteServerConnections } from "./remote-server-connections";
 import { RemoteProtocolError, RemoteRequestError } from "./remote-server-errors";
 import { RemoteEventRefresh } from "./remote-server-event-refresh";
 import { RemoteEventStream } from "./remote-server-event-stream";
-import { reconcileWebRtcHosts } from "./remote-server-host-directory";
+import { followedHostKeyHandovers, reconcileWebRtcHosts, verifyHostKeySignature } from "./remote-server-host-directory";
 import { requestJson, throwRemoteResponseError } from "./remote-server-http";
 import { RemotePresenceCache } from "./remote-server-presence";
 import { RemoteServerStore, type TokenCipher } from "./remote-server-store";
@@ -588,6 +589,11 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     return this.#store.activeServerId;
   }
 
+  /** The servers that a chat window shows. Their hosts keep sending chat events. */
+  setChatWindowServers(serverIds: ReadonlySet<string>): void {
+    this.#events.setChatWindowServers(serverIds);
+  }
+
   // What the host on the other end negotiated it can do. An IPC handler asks before calling a route
   // an older host does not serve, so this answers false until compatibility is known rather than
   // waiting for it -- a capability nobody has confirmed is one you cannot use yet.
@@ -709,7 +715,20 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
         if (preview.hostId !== invite.serverId)
           return yield* new RemoteWorkflowError({ cause: new Error(sourceText("error.remote.inviteHostMismatch")) });
         const publicKey = preview.devicePublicKey;
-        if (!publicKey || (yield* remoteDecode(() => fingerprint(publicKey))) !== invite.fingerprint) {
+        const hostFingerprint = publicKey ? yield* remoteDecode(() => fingerprint(publicKey)) : "";
+        // The invitation names the key that the host had when it made the invitation. A signed handover
+        // chain from that key to the current one keeps the invitation valid after a key rotation.
+        if (
+          !publicKey ||
+          (hostFingerprint !== invite.fingerprint &&
+            !(yield* followHostKeyHandovers({
+              hostId: invite.serverId,
+              trustedFingerprint: invite.fingerprint,
+              advertisedPublicKey: publicKey,
+              handovers: preview.keyHandovers,
+              verify: verifyHostKeySignature,
+            })))
+        ) {
           return yield* new RemoteWorkflowError({
             cause: new Error(sourceText("error.remote.inviteIdentityMismatch")),
           });
@@ -722,7 +741,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
         yield* this.#store.unhideHost(accepted.hostId);
         yield* this.#syncWebRtcHosts();
         const synchronized = this.#store.find(accepted.hostId);
-        if (!synchronized || synchronized.fingerprint !== invite.fingerprint) {
+        if (!synchronized || synchronized.fingerprint !== hostFingerprint) {
           return yield* new RemoteWorkflowError({
             cause: new Error(sourceText("error.remote.inviteIdentityChanged")),
           });
@@ -1756,7 +1775,7 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       agentId: string,
       image: AvatarImageInput | null,
       serverId = this.#store.activeServerId,
-    ): Effect.fn.Return<AgentSummary, RemoteWorkflowError, RemoteRequest> {
+    ): Effect.fn.Return<ClientAgentSummary, RemoteWorkflowError, RemoteRequest> {
       const server = yield* remoteDecode(() => this.#store.require(serverId));
       const url = new URL(TEAM_API_ROUTES.agent.avatar(agentId), server.apiUrl);
       const headers = new Headers();
@@ -1828,22 +1847,27 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
       this: RemoteServerManager,
       attachmentId: string,
       serverId = this.#store.activeServerId,
+      preview = false,
     ): Effect.fn.Return<RemoteAttachment, RemoteWorkflowError, RemoteRequest> {
       const server = yield* remoteDecode(() => this.#store.require(serverId));
-      return yield* this.#attachments.get(server.id, attachmentId, () =>
-        this.#owned(
-          Effect.gen({ self: this }, function* () {
-            const response = yield* this.#client.fetch(
-              server,
-              new URL(TEAM_API_ROUTES.attachment(attachmentId), server.apiUrl),
-            );
-            return {
-              bytes: new Uint8Array(yield* remoteCall(() => response.arrayBuffer())),
-              name: contentDispositionFileName(response.headers.get("content-disposition"), attachmentId),
-              mimeType: response.headers.get("content-type") ?? "application/octet-stream",
-            };
-          }),
-        ),
+      return yield* this.#attachments.get(
+        server.id,
+        attachmentId,
+        () =>
+          this.#owned(
+            Effect.gen({ self: this }, function* () {
+              const response = yield* this.#client.fetch(
+                server,
+                new URL(TEAM_API_ROUTES.attachment(attachmentId), server.apiUrl),
+              );
+              return {
+                bytes: new Uint8Array(yield* remoteCall(() => response.arrayBuffer())),
+                name: contentDispositionFileName(response.headers.get("content-disposition"), attachmentId),
+                mimeType: response.headers.get("content-type") ?? "application/octet-stream",
+              };
+            }),
+          ),
+        preview,
       );
     },
     (operation) => this.#owned(operation),
@@ -1949,8 +1973,14 @@ export class RemoteServerManager extends EventEmitter<RemoteServerEvents> {
     const email = yield* remoteDecode(() => this.#centralAccount.getEmail());
     const localHostId = this.#getLocalHostId();
     this.#localMemberLimit = hosts.find((host) => host.hostId === localHostId)?.memberLimit ?? null;
+    const followedHandovers = yield* followedHostKeyHandovers({
+      hosts,
+      servers: this.#store.servers,
+      preservedIdentities: this.#store.preservedIdentities,
+    });
     const { servers, removedHostIds, staleTransportHostIds, pinnedKeys } = reconcileWebRtcHosts({
       hosts,
+      followedHandovers,
       isConnected: (hostId) => transport.isConnected(hostId),
       servers: this.#store.servers,
       preservedIdentities: this.#store.preservedIdentities,

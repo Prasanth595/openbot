@@ -11,6 +11,7 @@ import {
   IconButton,
   LoaderCircle,
   Mic,
+  PanelLeft,
   X,
 } from "@openbot/ui";
 import { SwapLabel, type SwapMotion } from "@openbot/ui/components/SwapLabel";
@@ -28,6 +29,7 @@ import { useText } from "@openbot/ui/text";
 import { prefersReducedMotion } from "@openbot/ui/utils";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createStore, createUniqueId, For, onCleanup, onSettled, Show, untrack } from "solid-js";
+import { TasksEmptyBoard, TasksEmptyPitch } from "./TasksEmpty";
 
 /** The microphone of the Tasks composer. The page shows it; the app records and transcribes. */
 export interface TasksVoice {
@@ -53,9 +55,15 @@ export interface TasksTook {
 export interface TasksPageProps {
   hostName: string;
   onBack?: (() => void) | undefined;
+  /** Whether the agent list shows beside the page. */
+  agentsOpen?: boolean | undefined;
+  /** Shows or hides the agent list. Without it, the header has no button for the list. */
+  onToggleAgents?: (() => void) | undefined;
   agents: AgentProfile[];
   /** The tasks of all agents, also a start that waits. */
   tasks: readonly AgentTask[];
+  /** Whether the task lists of all agents loaded. Only then does a page with no task show how tasks work. */
+  loaded?: boolean | undefined;
   /** The agent of the next task. */
   agentId: string;
   onAgentChange: (agentId: string) => void;
@@ -486,11 +494,15 @@ export function TasksPage(props: TasksPageProps) {
   const { t } = useText();
   const headingId = createUniqueId();
   let heading: HTMLHeadingElement | undefined;
+  const agentsLabel = () =>
+    t(props.agentsOpen ? "conversation.tasks.page.hideAgents" : "conversation.tasks.page.showAgents");
+  // The first start adds a task that waits, so the page shows the list as soon as the user sends.
+  const empty = () => props.loaded === true && props.tasks.length === 0;
   onSettled(() => {
     if (untrack(() => props.onBack)) heading?.focus();
   });
   return (
-    <section class="tasks-page" aria-labelledby={headingId}>
+    <section class="tasks-page" aria-labelledby={headingId} data-empty={empty() ? "" : undefined}>
       <div class="tasks-page-scroll">
         <div class="tasks-page-column">
           <header class="tasks-page-header">
@@ -506,6 +518,21 @@ export function TasksPage(props: TasksPageProps) {
                 </IconButton>
               )}
             </Show>
+            <Show when={props.onToggleAgents}>
+              {(toggle) => (
+                <Button
+                  variant="ghost"
+                  type="button"
+                  class="header-panel-toggle side-panel-toggle"
+                  aria-label={agentsLabel()}
+                  title={agentsLabel()}
+                  aria-expanded={props.agentsOpen ? "true" : "false"}
+                  onClick={() => toggle()()}
+                >
+                  <PanelLeft aria-hidden="true" class="size-[14px]" />
+                </Button>
+              )}
+            </Show>
             <h2 id={headingId} ref={heading} tabindex={-1}>
               {t("conversation.tasks.title")}
               <Show when={props.hostName}>
@@ -518,11 +545,17 @@ export function TasksPage(props: TasksPageProps) {
               </Show>
             </h2>
           </header>
+          <Show when={empty()}>
+            <TasksEmptyPitch />
+          </Show>
           <TasksComposer {...props} />
           <div class="tasks-page-took-slot" aria-live="polite">
             <Show when={props.took}>{(took) => <TaskTookLine {...props} took={took()} />}</Show>
           </div>
           <TasksList {...props} />
+          <Show when={empty()}>
+            <TasksEmptyBoard agents={props.agents} />
+          </Show>
         </div>
       </div>
       <TasksSidePanel tasks={props.tasks} taskId={props.selectedId} panel={props.panel} />

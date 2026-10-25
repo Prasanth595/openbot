@@ -3,6 +3,7 @@ import type { AppTextKey } from "@openbot/i18n";
 import type { AgentProfile } from "@openbot/ui/data";
 import { currentText } from "@openbot/ui/text";
 import { createEffect, createStore, flush, onSettled, reconcile, untrack } from "solid-js";
+import { actionToast } from "../../action-toast";
 import { type DesktopAnalyticsProperties, desktopAnalytics } from "../../analytics";
 import { mergeChannelPage } from "./channel-page-merge";
 
@@ -54,6 +55,8 @@ export interface ChannelsEnvironment {
   beforeOpen: () => void;
   /** Whether a message that arrives now is in front of the reader. */
   canMarkRead: () => boolean;
+  /** Each channel list that the reader of `scope` gets, before the read marks the open channel read. */
+  onList?: (channels: ChannelSummary[], scope: string) => void;
 }
 
 export type ChannelsController = ReturnType<typeof createChannelsController>;
@@ -156,8 +159,11 @@ export function createChannelsController(env: ChannelsEnvironment) {
       const selectedExists = selected !== null && channels.some((channel) => channel.id === selected);
       const page = selectedExists ? await env.port().agent.readChannel({ channelId: selected }) : null;
       if (disposed || account !== env.scopeKey() || id !== refreshId || selected !== state.selectedId) return;
+      env.onList?.(channels, account);
       setState((state) => {
-        state.channels = channels;
+        // Keep each summary object, so the sidebar, which keys its rows by object, does not remount
+        // every channel row (and close an open menu) on each refresh.
+        reconcile(channels, "id")(state.channels);
         if (selected && !selectedExists) {
           state.selectedId = null;
           state.editing = null;
@@ -200,6 +206,9 @@ export function createChannelsController(env: ChannelsEnvironment) {
     }
   }
   async function open(channelId: string) {
+    // A saved selection, a search result or a notification can name a channel on a server that has
+    // no channels.
+    if (!supported()) return;
     env.beforeOpen();
     env.writeSelection(channelId);
     flush(() =>
@@ -241,7 +250,14 @@ export function createChannelsController(env: ChannelsEnvironment) {
     // A `save` is never dropped: settings commit each field as it is left, and a silently
     // discarded autosave is lost work. The service serializes saves per channel and every
     // command is idempotent on its `operationId`, so letting them queue is safe.
-    if (state.pending && input.type !== "stop" && input.type !== "archive" && input.type !== "save") return false;
+    if (
+      state.pending &&
+      input.type !== "stop" &&
+      input.type !== "archive" &&
+      input.type !== "restore" &&
+      input.type !== "save"
+    )
+      return false;
     pendingCommands += 1;
     const attempt =
       failedCommand &&
@@ -294,6 +310,25 @@ export function createChannelsController(env: ChannelsEnvironment) {
           state.pending = pendingCommands > 0;
         });
     }
+  }
+  /**
+   * Sends a message and gives back a page that holds it. Unlike `command`, a failure throws and
+   * leaves the channel error alone: the conversation shows the message as not sent, with its own
+   * Retry, and the retry sends the same `operationId` again.
+   */
+  async function send(input: Extract<ChannelCommand, { type: "send" }>): Promise<ChannelPage> {
+    const account = env.scopeKey();
+    // The host that stored the message gives the page, also when the reader changes scope meanwhile.
+    const port = env.port();
+    const before = state.page?.channel.id === input.channelId ? state.page.throughSequence : null;
+    await port.agent.channelCommand(input);
+    if (disposed || account !== env.scopeKey()) return port.agent.readChannel({ channelId: input.channelId });
+    await refreshAfter();
+    // A refresh that fails keeps the earlier page, which does not hold the message.
+    const page = state.page;
+    return page?.channel.id === input.channelId && (before === null || page.throughSequence > before)
+      ? page
+      : port.agent.readChannel({ channelId: input.channelId });
   }
   async function loadOlder() {
     const channelId = state.selectedId;
@@ -413,6 +448,7 @@ export function createChannelsController(env: ChannelsEnvironment) {
     },
     open,
     editChannel: async (channelId: string) => {
+      if (!supported()) return;
       if (state.selectedId !== channelId) await open(channelId);
       if (state.page?.channel.id !== channelId || state.page.channel.archived) return;
       setState((state) => {
@@ -424,7 +460,22 @@ export function createChannelsController(env: ChannelsEnvironment) {
         throw new Error(state.error ?? currentText().t("channel.error.delete"));
       }
     },
+    /**
+     * A deleted channel comes back with its history. Its stopped tasks stay stopped. The sidebar menu
+     * shows no channel error, so a failure is a toast, and it does not stay for the next channel.
+     */
+    restore: async (channelId: string) => {
+      if (await command({ type: "restore", channelId, operationId: crypto.randomUUID() })) return;
+      if (failedCommand?.type !== "restore" || failedCommand.channelId !== channelId) return;
+      const message = state.error ?? currentText().t("channel.error.update");
+      failedCommand = null;
+      setState((state) => {
+        Object.assign(state, { error: null, errorReference: null });
+      });
+      actionToast.error(message, { report: { operation: "other", source: "action", cause_code: "unknown" } });
+    },
     command,
+    send,
     perform,
     loadOlder,
     close: () => {
@@ -441,11 +492,13 @@ export function createChannelsController(env: ChannelsEnvironment) {
       setState((state) => {
         state.editing = null;
       }),
-    create: () =>
+    create: () => {
+      if (!supported()) return;
       setState((state) => {
         state.editing = "create";
         state.error = null;
-      }),
+      });
+    },
     toggleArchived: () =>
       setState((state) => {
         Object.assign(state, { archived: !state.archived });

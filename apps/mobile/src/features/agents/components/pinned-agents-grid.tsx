@@ -37,10 +37,11 @@ const PINNED_EXIT = FadeOut.duration(140).easing(EASE_OUT).reduceMotion(ReduceMo
 const PINNED_COLUMNS = 4;
 const PINNED_PADDING_X = 12;
 
-export function PinnedAgentsGrid({ agents }: { agents: MobileAgent[] }) {
+/** The pinned agents, then `children`: the pinned channels. */
+export function PinnedAgentsGrid({ agents, children }: PropsWithChildren<{ agents: MobileAgent[] }>) {
   return (
     <Animated.View layout={PINNED_LAYOUT}>
-      {agents.length > 0 ? (
+      {agents.length > 0 || children ? (
         <Animated.View exiting={PINNED_EXIT} style={{ width: "100%" }}>
           <View
             style={{
@@ -55,6 +56,7 @@ export function PinnedAgentsGrid({ agents }: { agents: MobileAgent[] }) {
             {agents.map((agent) => (
               <PinnedAgentItem key={agent.id} agent={agent} />
             ))}
+            {children}
           </View>
         </Animated.View>
       ) : null}
@@ -144,7 +146,7 @@ const PinnedAgentItem = memo(function PinnedAgentItem({ agent }: { agent: Mobile
   );
 });
 
-function PinnedChatItem({ children }: PropsWithChildren) {
+export function PinnedChatItem({ children }: PropsWithChildren) {
   return (
     <Animated.View
       entering={PINNED_ENTER}

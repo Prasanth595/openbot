@@ -8,6 +8,17 @@ export const messages = {
   "settings.language.system": "Langue du système",
   // The logo color setting, General tab.
   "settings.appearance.title": "Apparence",
+  "settings.appearance.theme.title": "Thème",
+  "settings.appearance.theme.description":
+    "Couleurs claires ou sombres. « Système » suit le réglage de votre appareil.",
+  "settings.appearance.theme.system": "Système",
+  "settings.appearance.theme.light": "Clair",
+  "settings.appearance.theme.dark": "Sombre",
+  "settings.appearance.transparentWindow.title": "Fenêtre transparente",
+  "settings.appearance.transparentWindow.description":
+    "Affiche le bureau flouté derrière la fenêtre. Les sites et les menus suivent alors le thème de l’app.",
+  "settings.interfaceSize.title": "Taille de l’interface",
+  "settings.interfaceSize.description": "La taille du texte et des commandes dans OpenBot.",
   "settings.logoColor.title": "Couleur du logo",
   "settings.logoColor.description": "Affichée dans le Dock, la barre des tâches et l’îlot dynamique.",
   "settings.logoColor.buildNote":
@@ -29,6 +40,12 @@ export const messages = {
   "settings.launchAtLogin.description": "Ouvrir l’application lorsque vous vous connectez à cet ordinateur.",
   "settings.keepRunning.title": "Garder OpenBot actif en arrière-plan",
   "settings.keepRunning.description": "Poursuivre les tâches en cours après la fermeture de la fenêtre.",
+  "settings.keepAwake.title": "Empêcher la mise en veille",
+  "settings.keepAwake.description":
+    "Les routines s’exécutent à l’heure tant que l’ordinateur est branché. L’écran peut quand même s’éteindre.",
+  "settings.keepAwakeOnBattery.title": "Aussi sur batterie",
+  "settings.keepAwakeOnBattery.description":
+    "Garder l’ordinateur éveillé aussi sur batterie. La batterie se décharge plus vite.",
   "settings.restoreWorkspace.title": "Restaurer le dernier espace de travail au lancement",
   "settings.restoreWorkspace.description": "Rouvrir l’espace de travail et les tâches de votre session précédente.",
   "settings.externalLinks.title": "Ouvrir les liens externes dans",
@@ -42,6 +59,9 @@ export const messages = {
   "settings.sendShortcut.enter": "Entrée pour envoyer",
   "settings.sendShortcut.modEnterMac": "⌘Entrée pour envoyer",
   "settings.sendShortcut.modEnterWin": "Ctrl+Entrée pour envoyer",
+  "settings.showAgentSteps.title": "Afficher les étapes de l’agent",
+  "settings.showAgentSteps.description":
+    "Ouvre par défaut la réflexion, les étapes d’outils et les changements de souvenirs de chaque tour sur cet appareil et ce navigateur.",
   "settings.busyMessage.title": "Orienter les agents pendant leur travail",
   "settings.busyMessage.description":
     "Les nouveaux messages rejoignent le travail en cours de l’agent, pas la file. Fonctionne avec ChatGPT et Claude.",
@@ -202,6 +222,19 @@ export const messages = {
   "settings.mobileConnect.link.error.revoke": "Impossible de révoquer le lien permanent.",
   "settings.mobileConnect.devices.title": "Appareils connectés",
   "settings.mobileConnect.devices.refreshing": "Actualisation…",
+  "settings.mobileConnect.route.title": "Connexion des appareils",
+  "settings.mobileConnect.route.description":
+    "Pour les téléphones, autres ordinateurs et membres de l’équipe qui se connectent à cet ordinateur.",
+  "settings.mobileConnect.route.openbot.title": "Via OpenBot",
+  "settings.mobileConnect.route.openbot.badge": "Recommandé",
+  "settings.mobileConnect.route.openbot.description":
+    "Fonctionne sur tout réseau. Les chats et fichiers sont chiffrés entre vos appareils.",
+  "settings.mobileConnect.route.private.title": "Réseau privé",
+  "settings.mobileConnect.route.private.tailscale": "Tailscale détecté",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale ou ce Wi-Fi. Les appareils se connectent toujours avec OpenBot. Les chats et fichiers ne passent jamais par les serveurs OpenBot, et les appareils se connectent uniquement sur ce réseau.",
+  "settings.mobileConnect.route.error.load": "Impossible de charger la connexion des appareils.",
+  "settings.mobileConnect.route.error.save": "Impossible de modifier la connexion des appareils.",
   "settings.mobileConnect.disconnectInfo.title": "Déconnecter un appareil",
   "settings.mobileConnect.disconnectInfo.description":
     "L’accès est révoqué immédiatement. L’application mobile peut continuer à afficher son écran actuel jusqu’à ce qu’elle soit rouverte ou ramenée au premier plan.",
@@ -416,6 +449,7 @@ export const messages = {
   "settings.hostedServers.deleteFailed": "Impossible de supprimer le serveur.",
   "settings.hostedServers.plan.label": "Forfait",
   "settings.hostedServers.plan.recommended": "Meilleure offre",
+  "settings.hostedServers.plan.soldOut": "Épuisé",
   "settings.hostedServers.plan.perMonth": "/ mois",
   "settings.hostedServers.plan.disk": "{count} Go de stockage",
   "settings.hostedServers.plan.linux": "Machine Linux",
@@ -445,6 +479,7 @@ export const messages = {
   "settings.voice.model.cancelLabel": "Arrêter le téléchargement de {name}",
   "settings.voice.model.retryLabel": "Télécharger {name} à nouveau",
   "settings.voice.model.useLabel": "Utiliser {name} pour la dictée",
+  "settings.voice.model.removeLabel": "Retirer {name} de cet ordinateur",
   "settings.voice.language.section": "Langue",
   "settings.voice.language.title": "Langue de la dictée",
   "settings.voice.language.description":
@@ -458,6 +493,7 @@ export const messages = {
   "settings.voice.saveFailed": "Impossible d’enregistrer le réglage vocal. Réessayez.",
   "settings.voice.downloadFailed": "Impossible de lancer le téléchargement. Réessayez.",
   "settings.voice.cancelFailed": "Impossible d’arrêter le téléchargement.",
+  "settings.voice.removeFailed": "Impossible de retirer le modèle. Réessayez.",
   "settings.voice.model.elevenlabs.description":
     "Envoie votre voix à ElevenLabs. Le texte s’affiche pendant que vous parlez et reste stable. Utilise votre propre clé API, et ElevenLabs facture chaque utilisation.",
   "settings.voice.model.keySaved": "Clé API enregistrée",

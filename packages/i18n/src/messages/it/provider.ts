@@ -66,9 +66,10 @@ export const messages = {
   "provider.aria.moreActions": "Altre azioni per {name}",
 
   "provider.aria.use": "Usa {name} in OpenBot",
+  "provider.use.inUseOne": "{agent} usa {name}. Cambia il modello di questo agente, poi disattiva {name}.",
   "provider.use.inUse": {
-    one: "{agents} usa {name}. Cambia il modello di questo agente, poi disattiva {name}.",
-    other: "{agents} usano {name}. Cambia il modello di questi agenti, poi disattiva {name}.",
+    one: "{count} agente usa {name}. Cambia il modello di questo agente, poi disattiva {name}.",
+    other: "{count} agenti usano {name}. Cambia il modello di questi agenti, poi disattiva {name}.",
   },
 
   "provider.codeLogin.title": "Accedi a {name} con un codice",
@@ -107,6 +108,7 @@ export const messages = {
   "provider.picker.providers": "Provider di modelli",
   "provider.picker.downloading": "Download {percent}",
   "provider.picker.unavailable": "{name} non è disponibile.",
+  "provider.picker.updateToUse": "Aggiorna OpenBot per usare {name}",
   "provider.picker.models": "Modelli di {name}",
   "provider.picker.addProvider": "Aggiungi provider",
   "provider.picker.download": "Download di {name}",
@@ -171,4 +173,24 @@ export const messages = {
   "provider.account.finishSignIn": "Completa l'accesso nel browser.",
   "provider.account.remove": "Rimuovi account",
   "provider.account.actionFailed": "Impossibile modificare l'account {name}.",
+  "provider.account.resetUsage": "Azzera utilizzo",
+  "provider.account.resetUsageTitle": "Azzerare l'utilizzo di {name}?",
+  "provider.account.resetUsageDescription": {
+    one: "Questo usa il tuo ultimo credito di azzeramento dell'utilizzo. I limiti di utilizzo esauriti di questo account ripartono ora. Non puoi annullare questa azione.",
+    other:
+      "Questo usa 1 dei tuoi {count} crediti di azzeramento dell'utilizzo. I limiti di utilizzo esauriti di questo account ripartono ora. Non puoi annullare questa azione.",
+  },
+  "provider.account.resetUsagePending": "Azzeramento…",
+  "provider.account.resetUsageDone": "I limiti di utilizzo di {name} ripartono ora.",
+  "provider.account.resetUsageNothing": "{name} non ha limiti di utilizzo esauriti. Non è stato usato nessun credito.",
+  "provider.account.resetUsageNoCredit": "{name} non ha più crediti di azzeramento dell'utilizzo.",
+  "provider.account.resetUsageAlreadyRedeemed": "Questo credito di azzeramento di {name} è già stato usato.",
+  "provider.account.resetUsageFailed": "Impossibile azzerare l'utilizzo di {name}.",
+  "provider.settings.cache": "Cache",
+  "provider.settings.promptCache": "Cache dei prompt",
+  "provider.settings.promptCacheDescription":
+    "Per quanto tempo Claude tiene in cache il contesto di un agente tra un turno e l'altro.",
+  "provider.settings.promptCacheHour": "1 ora",
+  "provider.settings.promptCacheMinutes": "5 minuti",
+  "provider.settings.promptCacheLoadFailed": "Impossibile caricare la durata della cache dei prompt di questo server.",
 } as const satisfies PartialTranslation<typeof source>;

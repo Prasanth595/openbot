@@ -1,9 +1,9 @@
+import type { McpConnectFlow } from "@openbot/contracts/mcp-connect-flows";
 import { type AppTextKey, type AppTranslate, translateFor } from "@openbot/i18n";
 import type {
   MarketplacePluginDetail,
   MarketplacePluginServer,
 } from "@openbot/ui/features/settings/marketplace-plugins";
-import type { McpConnectFlow } from "@openbot/ui/features/settings/mcp-connect-auth";
 
 /** The keys of one catalog listing's text. Apps and prompts go by their catalog id. */
 interface PluginTextKeys {
@@ -237,10 +237,8 @@ const AUTH_TEXT: Readonly<Record<string, AppTextKey>> = {
   "MCP URL": "marketplace.auth.mcpUrl",
   "Get a key": "mcp.connect.getKey",
   "Create a key": "marketplace.auth.createKey",
-  "Create a server": "marketplace.auth.createServer",
   "The URL of an MCP server in your Composio account": "marketplace.plugin.composio.hint.url",
-  "Only if your server requires one. Find it in your Composio account settings.":
-    "marketplace.plugin.composio.hint.apiKey",
+  "Find it in your Composio account, in Settings > Sessions & API Key.": "marketplace.plugin.composio.hint.apiKey",
 };
 
 const english = translateFor("en");

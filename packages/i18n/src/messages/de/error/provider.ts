@@ -115,6 +115,8 @@ export const messages = {
   "error.provider.codexNotStarted": "Codex CLI wurde gefunden, konnte aber nicht gestartet werden.",
   "error.provider.codexNotStartedHint":
     "Codex CLI wurde gefunden, konnte aber nicht gestartet werden. Führe `codex --version` in einem neuen Terminal aus.",
+  "error.provider.codexManagedNotStarted":
+    "ChatGPT wurde heruntergeladen, konnte aber nicht gestartet werden. Lade es in OpenBot erneut herunter.",
   "error.provider.codexMissing": "ChatGPT wurde nicht heruntergeladen. Lade es in OpenBot herunter, um fortzufahren.",
   "error.provider.codexConfigIgnored": {
     one: "Codex hat {count} Einstellung in seiner Konfiguration ignoriert: {settings}. Korrigiere oder entferne sie oder aktualisiere Codex.",
@@ -130,6 +132,8 @@ export const messages = {
   "error.provider.claudeNotStarted": "Claude CLI wurde gefunden, konnte aber nicht gestartet werden.",
   "error.provider.claudeNotStartedHint":
     "Claude CLI wurde gefunden, konnte aber nicht gestartet werden. Führe `claude --version` in einem neuen Terminal aus.",
+  "error.provider.claudeManagedNotStarted":
+    "Claude wurde heruntergeladen, konnte aber nicht gestartet werden. Lade es in OpenBot erneut herunter.",
   "error.provider.claudeMissing": "Claude wurde nicht heruntergeladen. Lade es in OpenBot herunter, um fortzufahren.",
   "error.provider.grokOutdated": "Grok CLI {version} ist zu alt. OpenBot benötigt 1.0.5 oder neuer.",
   "error.provider.grokNotStarted": "Grok CLI wurde gefunden, konnte aber nicht gestartet werden.",
@@ -182,6 +186,10 @@ export const messages = {
     "Die CLI von {provider} bearbeitet einen Durchlauf. Warte auf den Abschluss und verbinde sie dann erneut.",
   "error.provider.opencodeCredentialsRejected":
     "Der Modellanbieter hat den API-Schlüssel abgelehnt. Korrigiere den OpenCode-Schlüssel in den Einstellungen oder den Anbieterschlüssel mit `opencode auth login`. Versuche es dann erneut oder wähle ein anderes Modell.\n{detail}",
+  "error.provider.opencodeAuthRequired":
+    "OpenCode hat keine Anmeldung für den Modellanbieter „{provider}“. Wähle ein Modell mit der Markierung „Kostenlos“ oder verbinde den Anbieter: Füge einen OpenCode-Go-Schlüssel in den OpenCode-Einstellungen ein oder führe `opencode auth login` in einem Terminal aus. Versuche es dann erneut.",
+  "error.provider.opencodeAuthRequiredUnknown":
+    "OpenCode hat keine Anmeldung für den Anbieter dieses Modells. Wähle ein Modell mit der Markierung „Kostenlos“ oder verbinde den Anbieter: Füge einen OpenCode-Go-Schlüssel in den OpenCode-Einstellungen ein oder führe `opencode auth login` in einem Terminal aus. Versuche es dann erneut.",
   "error.provider.opencodeKeyExpired":
     "Dein OpenCode-API-Schlüssel ist abgelaufen. Erstelle in der OpenCode Console einen neuen Schlüssel, füge ihn in den OpenCode-Einstellungen ein und versuche es dann erneut.",
   "error.provider.opencodeServiceFailure":
@@ -227,6 +235,8 @@ export const messages = {
   "error.provider.antigravitySignIn": "Melde dich mit Google an, um Gemini zu verwenden.",
   "error.provider.antigravityRateLimited":
     "Gemini hat die Anfrage abgelehnt, weil ein Ratenlimit oder das Kontingent des Tarifs erreicht ist. Warte ein paar Minuten oder wähle ein anderes Modell und versuche es dann erneut.\n{detail}",
+  "error.provider.antigravityQuotaReached":
+    "Google meldet, dass ein Gemini-Nutzungslimit erreicht ist. Das Limit kann für ein einzelnes Modell gelten, daher kann die Nutzungsseite deines Tarifs noch Rest anzeigen. Wähle ein anderes Gemini-Modell oder warte auf das Zurücksetzen.\n{detail}",
   "error.provider.antigravityModelUnavailable":
     "Gemini kann dieses Modell gerade nicht verwenden. Wähle ein anderes Modell und versuche es dann erneut.\n{detail}",
   "error.provider.antigravityServiceFailure":
@@ -272,6 +282,7 @@ export const messages = {
     "Eine Agenten-ID darf nur Kleinbuchstaben, Ziffern oder `-` enthalten und darf nicht die ID eines integrierten Anbieters sein.",
   "error.provider.customAgentEnvInvalid":
     "Ein Variablenname darf nur Buchstaben, Ziffern oder `_` enthalten und nicht mit einer Ziffer beginnen. Verwende jeden Namen einmal und höchstens 16 Namen.",
+  "error.provider.customAgentUsagePromptInvalid": "Ein Nutzungsbefehl muss eine Zeile mit höchstens 256 Zeichen sein.",
   "error.provider.customAgentCommandInvalid":
     "Der Befehl muss ein vollständiger Pfad, ein mit ~/ beginnender Pfad oder ein Befehlsname ohne Leerzeichen sein.",
   "error.provider.customAgentArgsInvalid":
@@ -308,6 +319,9 @@ export const messages = {
   "error.provider.useChangeFailed": "OpenBot konnte die Anbietereinstellung nicht ändern.",
   "error.provider.accountsUnsupported": "{provider} unterstützt nur ein Konto.",
   "error.provider.accountNeedsConnection": "Verbinde {provider}, bevor du ein weiteres Konto hinzufügst.",
+  "error.provider.usageResetUnsupported": "{provider} kann Nutzungslimits nicht zurücksetzen.",
+  "error.provider.usageResetNotConnected":
+    "Melde dich erneut bei diesem {provider}-Konto an, bevor du seine Nutzung zurücksetzt.",
   "error.provider.accountLimit": "{provider} unterstützt höchstens {limit} Konten.",
   "error.provider.accountNotFound":
     "Dieses {provider}-Konto ist nicht auf diesem Computer. Aktualisiere und versuche es erneut.",

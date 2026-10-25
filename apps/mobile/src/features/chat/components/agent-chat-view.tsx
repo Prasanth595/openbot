@@ -1,6 +1,9 @@
 import type { RespondToPromptInput } from "@openbot/contracts/ipc";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
+import { ChatChannelWorkRow } from "@/features/channels/components/chat-channel-work-row";
+import { useChannels } from "@/features/channels/components/use-channels";
+import { useAgentViewOnly } from "@/features/servers/model/use-server-roles";
 import { useAgentActivity } from "@/features/workspace/components/use-agent-activity";
 import { useApprovalRequests } from "@/features/workspace/components/use-live-workspace";
 import {
@@ -10,7 +13,9 @@ import {
 } from "@/features/workspace/context/mobile-workspace-context";
 import { openTurnActivity } from "@/features/workspace/model/agent-activity";
 import { showsOnline } from "@/features/workspace/model/server-status";
+import { useText } from "@/shared/lib/text";
 import { chatRowIndex, latestReadableMessage, projectChatMessages, withFailureReasons } from "../model/chat-messages";
+import { useAgentMentionSkills } from "../model/use-agent-mention-skills";
 import { ChatTaskRows, useOpenAgentTasks } from "./chat-task-rows";
 import { ChatView } from "./chat-view";
 import { useChatQueue } from "./use-chat-queue";
@@ -26,6 +31,7 @@ export function MobileChatView({
   focusMessageId?: string;
   onLeave: () => void;
 }) {
+  const { t } = useText();
   const workspace = useMobileWorkspaceReader();
   const agents = useMobileWorkspaceSelector((current) => current.agents);
   const conversationStore = useMobileWorkspaceSelector((current) => current.conversationStore);
@@ -66,12 +72,23 @@ export function MobileChatView({
   );
   const tasks = useOpenAgentTasks(agent.serverId, agent.id);
   const liveActivity = openTurnActivity(useAgentActivity(agent.id), conversation);
+  const threadId = conversation?.threadId ?? null;
+  // A turn on another thread, such as channel work, is not this chat's work, as on desktop. A host
+  // with channel-attention-v1 names the channel of the thread, and a row below opens it.
+  const otherThread = Boolean(liveActivity?.threadId && threadId && liveActivity.threadId !== threadId);
+  const channels = useChannels(agent.serverId).channels;
+  const workChannel = otherThread
+    ? channels.find(
+        (channel) => !channel.archived && channel.threads?.some((thread) => thread.threadId === liveActivity?.threadId),
+      )
+    : undefined;
   // A task turn is the task's work, not this chat's: its row below says that the agent works.
   const activity =
-    liveActivity?.turnId && tasks.some((task) => task.activeTurnId === liveActivity.turnId) ? undefined : liveActivity;
+    otherThread || (liveActivity?.turnId && tasks.some((task) => task.activeTurnId === liveActivity.turnId))
+      ? undefined
+      : liveActivity;
   const serverApprovals = useApprovalRequests(agent.serverId);
-  const threadId = conversation?.threadId ?? null;
-  // As on the desktop, only this chat's thread.
+  // As on the desktop, only this chat's thread. A channel task of the same agent asks in the channel.
   const approvals = useMemo(
     () =>
       serverApprovals.filter(
@@ -113,6 +130,8 @@ export function MobileChatView({
       // The list can show the message, and clear the focus, before the request ends.
       if (messageId && request.current === id)
         setFocus((current) => (current?.messageId === messageId ? { messageId, loaded: true } : current));
+      // Events keep a loaded chat up to date while the connection stays, so it opens without a read.
+      if (conversationStore.isUpToDate(agent.id)) return;
       // A latest page that meets the window around the message joins the two.
       await loadConversation(agent.id, agent.serverId);
     };
@@ -165,10 +184,12 @@ export function MobileChatView({
       Boolean(conversation?.activeTurnId) &&
       message.turnId === conversation?.activeTurnId,
   );
+  const viewOnly = useAgentViewOnly(agent.serverId, agent.id);
+  const mentionSkills = useAgentMentionSkills(agent.id, agent.serverId, showsOnline(server));
   const questionForm = useQuestionPrompt(
     agent.id,
     activePrompt?.kind === "question" ? activePrompt : undefined,
-    showsOnline(server),
+    showsOnline(server) && !viewOnly,
     respondToPrompt,
   );
   return (
@@ -177,17 +198,26 @@ export function MobileChatView({
       queue={queue}
       agents={serverAgents}
       mentionAgents={mentionAgents}
+      mentionSkills={mentionSkills}
       projectedMessages={messages}
       referenceMessages={references}
       ready={Boolean(conversation)}
       historyLoadFailed={historyLoadFailed}
       // The phone keeps a message while the server is offline and sends it when it is back.
-      canSend
+      canSend={!viewOnly}
+      notice={viewOnly ? t("mobile.chat.viewOnly") : null}
       activity={activity}
       activeTurnId={conversation?.activeTurnId ?? null}
       stopTurn={stopTurn}
       questionForm={questionForm}
-      activityAccessory={<ChatTaskRows tasks={tasks} serverId={agent.serverId} />}
+      activityAccessory={
+        <>
+          {workChannel && liveActivity ? (
+            <ChatChannelWorkRow channel={workChannel} activity={liveActivity} serverId={agent.serverId} />
+          ) : null}
+          <ChatTaskRows tasks={tasks} serverId={agent.serverId} />
+        </>
+      }
       threadId={threadId}
       approvals={approvals}
       readBoundary={latest ? `${latest.id}:${latest.status}` : null}

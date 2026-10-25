@@ -1,6 +1,6 @@
 import type { AgentApproval, AgentTask, ConversationSnapshot } from "@openbot/contracts/ipc";
 import type { AgentProfile } from "@openbot/ui/data";
-import { onCleanup } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
 import { fn } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { TasksView } from "../src/features/tasks/TasksView";
@@ -184,8 +184,14 @@ function conversationOf(task: AgentTask): ConversationSnapshot {
   };
 }
 
-function TasksPageStory(props: { tasks: readonly AgentTask[]; approvals?: AgentApproval[]; agents?: AgentProfile[] }) {
+function TasksPageStory(props: {
+  tasks: readonly AgentTask[];
+  approvals?: AgentApproval[];
+  agents?: AgentProfile[];
+  agentsToggle?: boolean;
+}) {
   const previousApi = window.openbot;
+  const [agentsOpen, setAgentsOpen] = createSignal(false);
   const tasks: Record<string, AgentTask[]> = {};
   for (const task of props.tasks) tasks[task.agentId] = [...(tasks[task.agentId] ?? []), task];
   const mock = createMockOpenBot({
@@ -209,6 +215,8 @@ function TasksPageStory(props: { tasks: readonly AgentTask[]; approvals?: AgentA
         onAttachmentAction={fn()}
         approvals={props.approvals ?? []}
         onRespondApproval={fn(async () => true)}
+        agentsOpen={agentsOpen()}
+        onToggleAgents={props.agentsToggle ? () => setAgentsOpen((open) => !open) : undefined}
       />
     </div>
   );
@@ -228,6 +236,8 @@ export const Default: Story = { render: () => <TasksPageStory tasks={TASKS} /> }
 export const Empty: Story = { render: () => <TasksPageStory tasks={[]} /> };
 /** Thirty agents: the agent menu fits the window and scrolls to the last agent. */
 export const ManyAgents: Story = { render: () => <TasksPageStory tasks={[]} agents={MANY_AGENTS} /> };
+/** In the app frame: the header button shows or hides the agent list. Its label follows the state. */
+export const AgentListButton: Story = { render: () => <TasksPageStory tasks={TASKS} agentsToggle /> };
 
 /** A running task asks to write outside its workspace. Its row and panel say that it waits for you. */
 const WAITING_APPROVAL: AgentApproval = {

@@ -133,8 +133,9 @@ export function useChatMotion(
   const measurements = useRef({ viewport: 0, content: 0, composer: 0 });
   // Whether the list had rows when it last finished its first position. Null until it does once.
   const [placedWithRows, setPlacedWithRows] = useState<boolean | null>(null);
-  // Rows that come into an empty list get a new first position, so the list waits for it.
-  const listPlaced = placedWithRows === hasRows;
+  // Rows that come into an empty list get a new first position, so the list waits for it. An empty
+  // list has no position to wait for, and Legend List calls `onReady` only after it lays out a row.
+  const listPlaced = !hasRows || placedWithRows === true;
   const shown = useRef(false);
   const heldOpening = useRef(holdOpening);
   const current = useRef({ lastUserId });

@@ -1,22 +1,28 @@
+import { isKnownAgentProvider } from "@openbot/contracts/agent-providers";
+import type { AppAppearance } from "@openbot/contracts/app-appearance";
 import type { AppLanguage } from "@openbot/contracts/app-language";
 import { HOSTED_SERVER_CONTACT_URL } from "@openbot/contracts/hosted-servers";
 import {
   type AddedAgent,
-  type AgentApproval,
-  type AgentModelOption,
   type AgentProviderId,
   type AgentStatus,
   type AppInfo,
-  type BrowserTakeoverRequest,
   CHANNEL_CHATS_CAPABILITY,
+  type ChannelSummary,
+  type ClientAgentModelOption,
   canAdministerServer,
+  decodeAgentBackupModelSettings,
   decodeAgentHostSettings,
+  decodeAgentTaskLimitSettings,
   type ServerConnectionState,
   type ServerSummary,
 } from "@openbot/contracts/ipc";
+import { AGENT_BACKUP_MODELS_ROUTES } from "@openbot/contracts/team-protocol/agent-backup-models-v1";
 import { AGENT_HOST_SETTINGS_ROUTES } from "@openbot/contracts/team-protocol/agent-host-settings-v1";
 import { AGENT_IMPORT_CAPABILITY } from "@openbot/contracts/team-protocol/agent-import-v1";
+import { AGENT_TASK_LIMIT_ROUTES } from "@openbot/contracts/team-protocol/agent-task-limit-v1";
 import { AGENT_TASKS_CAPABILITY } from "@openbot/contracts/team-protocol/agent-tasks-v1";
+import { BROWSER_PROFILES_CAPABILITY } from "@openbot/contracts/team-protocol/browser-profiles-v1";
 import { CONNECTORS_CAPABILITY } from "@openbot/contracts/team-protocol/connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "@openbot/contracts/team-protocol/context-reset-v1";
 import { AGENT_HIDDEN_CAPABILITY, TEAM_AGENT_CREATE_MODEL_CAPABILITY } from "@openbot/contracts/team-protocol/current";
@@ -29,7 +35,9 @@ import { ROUTINE_FLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/routi
 import { ROUTINE_RECOVERY_CAPABILITY } from "@openbot/contracts/team-protocol/routine-recovery-v1";
 import { SIDE_QUESTION_CAPABILITY } from "@openbot/contracts/team-protocol/side-question-v1";
 import { SIGN_IN_RELAY_CAPABILITY } from "@openbot/contracts/team-protocol/sign-in-relay-v1";
+import { WEBHOOK_TESTS_CAPABILITY } from "@openbot/contracts/team-protocol/webhook-tests-v1";
 import { runTeamEffect } from "@openbot/team-client";
+import { channelForThread } from "@openbot/team-client/channel-notifications";
 import {
   cancelHostUpdate,
   checkHostForUpdate,
@@ -40,6 +48,7 @@ import {
   getAgentAdminSettings,
   getHostAgentAccess,
   getHostAgentMemoryLimit,
+  getHostPromptCacheTtl,
   getHostReleaseStatus,
   getHostTimezone,
   getHostUpdateStatus,
@@ -47,6 +56,7 @@ import {
   listHostedSites,
   setHostAgentAccess,
   setHostAgentMemoryLimit,
+  setHostPromptCacheTtl,
   setHostTimezone,
   setHostUpdateSettings,
   startHostUpdate,
@@ -78,7 +88,7 @@ import type { SettingsPagePlacement } from "@openbot/ui/features/settings/Settin
 import { createSettingsHostedServersStore } from "@openbot/ui/features/settings/stores/hosted-servers-store";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { SidebarCommunityCard } from "@openbot/ui/features/sidebar/SidebarCommunityCard";
-import { computeSidebarAgentStates } from "@openbot/ui/features/sidebar/sidebar-agent-states";
+import { computeSidebarAgentStates, sidebarAgentWaits } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
 import { PageRail, type PageRailPage } from "@openbot/ui/features/window/PageRail";
 import { useText } from "@openbot/ui/text";
@@ -121,7 +131,10 @@ import { type CreationPreference, resolveCreationModel } from "../agents/agent-c
 import { claimErrorToast, readableAgentError } from "../agents/agent-error-text";
 import { withHostAccountUsage, withHostProfileAccount } from "../agents/host-provider-accounts";
 import { createRemoteAgentAdmin, updateRemoteAgent } from "../agents/remote-agent-admin";
-import { ChannelConversation } from "../channels/ChannelConversation";
+import type { ServerBrowserProfilesOptions } from "../browser/ServerBrowserProfilesPanel";
+import { createBrowserProfilesStore } from "../browser/stores/browser-profiles-store";
+import { ChannelErrorNotice } from "../channels/ChannelConversationParts";
+import { createChannelConversation } from "../channels/channel-conversation";
 import { readChannelSelection, writeChannelSelection } from "../channels/channel-selection";
 import { ChannelsControllerProvider } from "../channels/channels-context";
 import { createChannelsController } from "../channels/channels-controller";
@@ -136,6 +149,7 @@ import type { AgentSettingsRequest } from "../conversation/conversation-types";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import type { FilesPort } from "../files/files-port";
 import { hostSetupProviderProps } from "../onboarding/host-setup-provider-props";
+import { createRoutineTimezonePrompt } from "../schedule/routine-timezone-prompt";
 import type { ScheduleRoutine } from "../schedule/SchedulePanel";
 import { AddServerOverlay, type AddServerResume } from "../servers/AddServerOverlay";
 import {
@@ -149,7 +163,12 @@ import type { HostAgentAccessCalls } from "../servers/ServerRolesSection";
 import type { ServerHostedSitesOptions, ServerSettingsSection } from "../servers/ServerSettingsModal";
 import type { HostTimezoneCalls } from "../servers/ServerTimezoneSetting";
 import type { HostUpdateCalls } from "../servers/ServerUpdatePanel";
-import { remoteAdminServer, remoteUpdateServer, serverRoleCanAdminister } from "../servers/server-capabilities";
+import {
+  remoteAdminServer,
+  remoteUpdateServer,
+  serverCanAdminister,
+  serverRoleCanAdminister,
+} from "../servers/server-capabilities";
 import { createServerConnectionToast } from "../servers/server-connection-toast";
 import {
   offerServerUpdate,
@@ -158,6 +177,7 @@ import {
   showServerUpdate,
 } from "../servers/server-update-flow";
 import { licenseContactUs, trackLicenseEvent } from "../settings/license-analytics";
+import type { HostPromptCacheTtlCalls } from "../settings/provider-prompt-cache";
 import { createCommunityCardVisibility } from "../sidebar/community-card";
 import { isReaderAuthor } from "../team/reader-identity";
 import { RailHelpMenu } from "../window/RailHelpMenu";
@@ -171,6 +191,7 @@ import { createWebAccountUsage } from "./web-account-usage";
 import { createWebAgentImportCalls } from "./web-agent-import";
 import { openWebLink } from "./web-attachments";
 import { createWebBillingCalls, createWebLicenseCalls } from "./web-billing";
+import { webBitwardenConnectorPort } from "./web-bitwarden-connector";
 import { createWebChannelsPort } from "./web-channels-runtime";
 import { createWebWorkspace, type WebRuntimeFactory } from "./web-client-context";
 import { createWebConversationRuntime } from "./web-conversation-runtime";
@@ -246,6 +267,9 @@ type WebWorkspaceProps = {
   /** The interface language this browser keeps. Account settings change it. */
   language: AppLanguage;
   onChangeLanguage: (language: AppLanguage) => void;
+  /** The theme this browser keeps. Account settings change it. */
+  appearance: AppAppearance;
+  onChangeAppearance: (appearance: AppAppearance) => void;
 };
 
 const WebAccountSettings = lazy(() => import("./WebAccountSettings"));
@@ -265,7 +289,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const { t, sourceText } = text;
   const layout = useLayout();
   const [status, setStatus] = createSignal<AgentStatus>(CONNECTING_STATUS);
-  const [models, setModels] = createSignal<AgentModelOption[]>([]);
+  const [models, setModels] = createSignal<ClientAgentModelOption[]>([]);
   /**
    * Each model read takes the next number. A list is shown only when no later read has been shown,
    * so a slow first read cannot replace the list that a ready status read again. A host change marks
@@ -273,7 +297,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
    */
   let modelsRequest = 0;
   let modelsShown = 0;
-  function showModels(request: number, list: AgentModelOption[]): void {
+  function showModels(request: number, list: ClientAgentModelOption[]): void {
     if (request <= modelsShown) return;
     modelsShown = request;
     setModels(list);
@@ -505,11 +529,29 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (workspace.state.host?.hostId === hostId && workspace.state.agents.some((agent) => agent.id === agentId))
       await select(agentId);
   }
-  const { setMuted, setNotificationLevel } = createWebNotificationRouting({
+  async function openNotifiedChannel(hostId: string, channelId: string) {
+    setMobilePane("conversation");
+    if (hostId !== workspace.state.host?.hostId) {
+      const host = workspace.state.hosts.find((item) => item.hostId === hostId);
+      if (!host) return;
+      await workspace.connect(host);
+    }
+    if (workspace.state.host?.hostId === hostId) await channels.open(channelId);
+  }
+  const { setMuted, setNotificationLevel, notifyChannelReplies } = createWebNotificationRouting({
     workspace,
     notifications,
     t,
     onOpen: (hostId, agentId) => void openNotified(hostId, agentId),
+    onOpenChannel: (hostId, channelId) => void openNotifiedChannel(hostId, channelId),
+    // Only the open host has a channel list. A prompt of another host names the agent only.
+    channelForThread: (hostId, threadId) =>
+      hostId === workspace.state.host?.hostId
+        ? channelForThread(
+            untrack(() => channels.state.channels),
+            threadId,
+          )
+        : null,
   });
   const [searchOpen, setSearchOpen] = createSignal(false);
   const communityCard = createCommunityCardVisibility();
@@ -564,6 +606,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   // The same owner or admin reads and saves `missedPolicy` and the missed-run history on such a host.
   const routineRecoveryEnabled = () =>
     eventsEnabled() && workspace.state.capabilities.includes(ROUTINE_RECOVERY_CAPABILITY);
+  // The same owner or admin asks such a host to send a test event to a webhook routine.
+  const webhookTestsEnabled = () => eventsEnabled() && workspace.state.capabilities.includes(WEBHOOK_TESTS_CAPABILITY);
   const providerAdmin = createWebProviderSettings({
     server: () => (workspace.runtime.admin ? server() : undefined),
     request: hostRequest,
@@ -592,7 +636,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   /** Whether the composer's sign-in notice can connect the agent's provider from this tab. */
   const composerSignIn = () => {
     const provider = conversationAgent()?.provider;
-    return provider !== undefined && (providerSettings()?.connection?.connectKind(provider) ?? null) !== null;
+    return (
+      provider !== undefined &&
+      isKnownAgentProvider(provider) &&
+      (providerSettings()?.connection?.connectKind(provider) ?? null) !== null
+    );
   };
   const runtime = createWebConversationRuntime(
     workspace.runtime,
@@ -608,6 +656,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       canAdministerServer(workspace.state.host?.role),
     routineRecoveryEnabled,
     () => workspace.state.capabilities.includes(SIDE_QUESTION_CAPABILITY),
+    webhookTestsEnabled,
+    () => workspace.state.capabilities.includes(BROWSER_PROFILES_CAPABILITY),
   );
   const remoteAgentAdmin = createRemoteAgentAdmin(
     () => {
@@ -620,6 +670,29 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         hostRequest(serverId)("POST", AGENT_HOST_SETTINGS_ROUTES.settings, decodeAgentHostSettings, { agentId }),
       updateAgentHostSettings: (input, serverId) =>
         hostRequest(serverId)("POST", AGENT_HOST_SETTINGS_ROUTES.update, decodeAgentHostSettings, { ...input }),
+      getAgentBackupModels: (agentId, serverId) =>
+        hostRequest(serverId)("POST", AGENT_BACKUP_MODELS_ROUTES.settings, decodeAgentBackupModelSettings, {
+          agentId,
+        }),
+      updateAgentBackupModels: ({ agentId, backupModels }, serverId) =>
+        hostRequest(serverId)("POST", AGENT_BACKUP_MODELS_ROUTES.update, decodeAgentBackupModelSettings, {
+          agentId,
+          backupModels: backupModels && {
+            automatic: backupModels.automatic,
+            order: backupModels.order.map(({ provider, model, providerAccountId }) => {
+              const choice: Record<string, string> = { provider, model };
+              if (providerAccountId !== undefined) choice.providerAccountId = providerAccountId;
+              return choice;
+            }),
+          },
+        }),
+      getAgentTaskLimit: (agentId, serverId) =>
+        hostRequest(serverId)("POST", AGENT_TASK_LIMIT_ROUTES.settings, decodeAgentTaskLimitSettings, { agentId }),
+      updateAgentTaskLimit: ({ agentId, taskLimit }, serverId) =>
+        hostRequest(serverId)("POST", AGENT_TASK_LIMIT_ROUTES.update, decodeAgentTaskLimitSettings, {
+          agentId,
+          taskLimit,
+        }),
       getAgentAdminSettings: (agentId, serverId) =>
         runTeamEffect(
           getAgentAdminSettings(hostRequest(serverId), agentId).pipe(Effect.mapError((error) => error.cause)),
@@ -637,11 +710,17 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     const agent = selected && host ? withHostProfileAccount(selected, host) : selected;
     const settings = remoteAgentAdmin.settings();
     const automation = remoteAgentAdmin.automation();
+    const backupModels = remoteAgentAdmin.backupModels();
+    const usageLimitReturn = remoteAgentAdmin.usageLimitReturn();
+    const taskLimit = remoteAgentAdmin.taskLimit();
     return agent
       ? {
           ...agent,
           ...(settings ? { access: settings.access } : {}),
           ...(automation === undefined ? {} : { allowAutomation: automation }),
+          ...(backupModels ? { backupModels } : {}),
+          ...(usageLimitReturn ? { usageLimitReturn } : {}),
+          ...(typeof taskLimit === "number" ? { taskLimit } : {}),
         }
       : agent;
   });
@@ -661,6 +740,24 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   });
   /** Whether a page other than the agents covers the conversation. A message there is not seen. */
   const pageCovered = () => page() !== "agents";
+  /**
+   * As on desktop: the Tasks page shows in the middle pane, and wins over the other panes. The agent list
+   * is hidden each time the page opens, until the user shows it. A row of the list closes the page, as
+   * each row calls `showAgents`.
+   */
+  const tasksOpen = () => page() === "tasks";
+  const [tasksAgentsOpen, setTasksAgentsOpen] = createSignal(false);
+  createEffect(page, (next) => {
+    if (next !== "tasks") setTasksAgentsOpen(false);
+  });
+  /** The list stays while a connection screen covers the page: the screen does not span the sidebar. */
+  const tasksAgentsHidden = () =>
+    tasksOpen() &&
+    !tasksAgentsOpen() &&
+    workspace.state.status === "online" &&
+    !workspace.state.panelsFailed &&
+    !hostOffline() &&
+    !blockedServer();
   /** Shows the agents and closes the other pages. */
   function showAgents() {
     setAccountSettingsOpen(false);
@@ -691,6 +788,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const connectorTarget = createMemo(() => remoteAdminServer(server(), CONNECTORS_CAPABILITY));
   const githubPort = webGitHubConnectorPort(() => hostRequest());
   const onePasswordPort = webOnePasswordConnectorPort(() => hostRequest());
+  const bitwardenPort = webBitwardenConnectorPort(() => hostRequest());
   const webMessaging = webHostMessaging(hostRequest, () =>
     workspace.state.capabilities.includes(DISCORD_ACCESS_CAPABILITY),
   );
@@ -701,6 +799,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       {
         github: () => githubPort,
         onePassword: () => onePasswordPort,
+        bitwarden: () => bitwardenPort,
         messaging: hostMessagingApi(
           () => connectorTarget()?.id,
           () => webMessaging.api,
@@ -872,6 +971,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         setHostAgentMemoryLimit(hostRequest(serverId), limit).pipe(Effect.mapError((error) => error.cause)),
       ),
   };
+  const hostPromptCacheTtlCalls: HostPromptCacheTtlCalls = {
+    getPromptCacheTtl: async (serverId) =>
+      runTeamEffect(getHostPromptCacheTtl(hostRequest(serverId)).pipe(Effect.mapError((error) => error.cause))),
+    setPromptCacheTtl: async (ttl, serverId) =>
+      runTeamEffect(setHostPromptCacheTtl(hostRequest(serverId), ttl).pipe(Effect.mapError((error) => error.cause))),
+  };
   const hostAgentAccessCalls: HostAgentAccessCalls = {
     getAgentAccess: async (serverId) =>
       runTeamEffect(getHostAgentAccess(hostRequest(serverId)).pipe(Effect.mapError((error) => error.cause))),
@@ -944,6 +1049,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     () => workspace.state.host?.hostId ?? "",
     eventsEnabled,
     routineRecoveryEnabled,
+    webhookTestsEnabled,
   );
   const channelsSupported = () =>
     workspace.state.status === "online" &&
@@ -961,6 +1067,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   // On a small screen the sidebar pane covers the chat, and so does the usage report. A covered
   // message was not seen.
   const canMarkRead = () => document.hasFocus() && mobilePane() === "conversation" && !pageCovered() && !routinesView();
+  /** The channel list before the newest one, for the reader it was read for. A reply notifies once. */
+  let channelBaseline: { scope: string; channels: ChannelSummary[] } | null = null;
   const channels = createChannelsController({
     port: () => channelsPort,
     agents: workspace.profiles,
@@ -982,6 +1090,12 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       setMessageFocusRequest(null);
     },
     canMarkRead,
+    onList: (list, scope) => {
+      const hostId = workspace.state.host?.hostId;
+      const previous = channelBaseline?.scope === scope ? channelBaseline.channels : null;
+      channelBaseline = { scope, channels: list };
+      if (hostId) notifyChannelReplies(hostId, previous, list);
+    },
   });
   onCleanup(
     workspace.onHostEvent((event) => {
@@ -1014,7 +1128,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   const firstAgent = () => workspace.state.agentsLoaded && workspace.profiles().length === 0 && createSupported();
   /** An open channel still takes the pane, as a channel closes the desktop form. */
   const agentFormOpen = () => creating() || (firstAgent() && !channelOpen());
-  const agentChatOpen = () => !agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && !routinesView();
+  const agentChatOpen = () =>
+    !tasksOpen() && !agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && !routinesView();
   /**
    * The provider that a server's provider step chose, by server. In memory only, as on desktop: the
    * saved setup choice is of the desktop computer, not of the server.
@@ -1036,10 +1151,52 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   createEffect(firstAgent, (first) => {
     if (first && !untrack(channelOpen)) setCreating(true);
   });
-  const webhookRoutines = webEventRoutinesApi((...args) => hostRequest()(...args), routineRecoveryEnabled);
+  const webhookRoutines = webEventRoutinesApi(
+    (...args) => hostRequest()(...args),
+    routineRecoveryEnabled,
+    webhookTestsEnabled,
+  );
+  // Asks to move the connected host's routines after this device's time zone changed.
+  createRoutineTimezonePrompt(() => {
+    const current = server();
+    if (current?.state !== "online" || !workspace.runtime.admin || !eventsEnabled()) return [];
+    return [
+      {
+        id: current.id,
+        name: current.name,
+        calendar: (input) => scheduleSource.calendar(input, current.id),
+        events: webhookRoutines,
+        timezone: serverCanAdminister(current, "host-timezone-v1") ? hostTimezoneCalls : undefined,
+      },
+    ];
+  });
   const routineFlowsHost = webRoutineFlowsHost(workspace.runtime, workspace.onHostEvent, () =>
     eventsEnabled() ? webhookRoutines : undefined,
   );
+  /** The host's Providers settings, which an owner or admin of the host can open. */
+  const openProviderSettings = (trigger: HTMLElement) => {
+    const current = server();
+    if (current) void openServerSettings(current.id, trigger, "providers");
+  };
+  // The Browser profiles section, for an owner or admin of a host with `browser-profiles-v1`. One
+  // store per host, so the list of the last host never shows for the next.
+  // The store follows the host id, so a new summary of the same host keeps the loaded list.
+  const browserProfileHostId = createMemo(() => {
+    const current = server();
+    return serverCanAdminister(current, BROWSER_PROFILES_CAPABILITY) ? current?.id : undefined;
+  });
+  const browserProfiles = createMemo(() => {
+    const calls = runtime.browserProfiles;
+    return calls && browserProfileHostId() !== undefined ? createBrowserProfilesStore(() => calls) : undefined;
+  });
+  const browserProfileSettings = createMemo((): ServerBrowserProfilesOptions | undefined => {
+    const store = browserProfiles();
+    return store ? { store, listAgents: async () => workspace.profiles() } : undefined;
+  });
+  const openBrowserProfileSettings = (trigger: HTMLElement) => {
+    const current = server();
+    if (current) void openServerSettings(current.id, trigger, "browser-profiles");
+  };
   /** A new agent on the canvas starts on the model the agent form would pick. */
   const newAgentModels = createMemo((): DiagramModelChoice | undefined => {
     if (!workspace.state.capabilities.includes(TEAM_AGENT_CREATE_MODEL_CAPABILITY)) return undefined;
@@ -1081,16 +1238,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         );
     },
   );
-  const channelApprovals = createMemo(() => {
-    const approvals: Record<string, AgentApproval | undefined> = {};
-    for (const approval of workspace.state.approvals) approvals[approval.agentId] = approval;
-    return approvals;
-  });
-  const channelTakeovers = createMemo(() => {
-    const takeovers: Record<string, BrowserTakeoverRequest | undefined> = {};
-    for (const request of workspace.state.takeovers) takeovers[request.agentId] = request;
-    return takeovers;
-  });
   const sidebarActivity = createMemo(() => {
     // The agent conversation shows only the waits of the agent's own thread. A wait in a channel
     // thread stays out of "Needs you", because selecting the row cannot answer it.
@@ -1122,6 +1269,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     };
   });
   const sidebarAgentStates = createMemo(() => computeSidebarAgentStates(sidebarActivity()));
+  const agentWaits = createMemo(() => sidebarAgentWaits(sidebarActivity()));
   const sidebarAgentMoods = createMemo(() => computeAgentAvatarMoods(sidebarActivity()));
   const browserEnabled = createMemo(
     () =>
@@ -1313,6 +1461,16 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     void select(agentId);
     setSettingsRequest({ agentId, nonce: Date.now(), routine: { routineId: routine.id, name: routine.name } });
   }
+  function createRoutine(agentId: string): void {
+    setMobilePane("conversation");
+    void select(agentId);
+    setSettingsRequest({ agentId, nonce: Date.now(), routine: "new" });
+  }
+  /** As on desktop: the empty canvas opens the agent's chat with a new routine in its settings. */
+  function createCanvasRoutine(agentId: string): void {
+    layout.setSidebarView("agents");
+    createRoutine(agentId);
+  }
   const unavailable = async (): Promise<never> => {
     throw new Error(t("webClient.error.desktopOnly"));
   };
@@ -1323,6 +1481,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
         <div class="app-window web-app-window">
           <PageRail
             hidden={false}
+            logo={{ variant: "production", href: "/" }}
             current={railPage()}
             usageRows={usageRows()}
             onAgents={() => showSidebarView("agents")}
@@ -1422,9 +1581,10 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               })
             }
             windowPage={page()}
+            sidebarHidden={tasksAgentsHidden()}
             page={
               <Show
-                when={page() === "usage" || page() === "schedule" || page() === "tasks" ? server() : undefined}
+                when={page() === "usage" || page() === "schedule" ? server() : undefined}
                 fallback={
                   <Show when={settingsKind()} keyed>
                     {(kind) => (
@@ -1458,26 +1618,6 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       </Loading>
                     }
                   >
-                    <Match when={page() === "tasks"}>
-                      <Loading>
-                        <TasksView
-                          serverId={target().id}
-                          hostName={target().name}
-                          onBack={closeHostPage}
-                          source={tasksSource}
-                          agents={workspace.profiles()}
-                          onOpenLink={(url) => void openWebLink(url)}
-                          onAttachmentAction={(attachment) =>
-                            void runtime.agent.openAttachment({ attachmentId: attachment.id, action: "download" })
-                          }
-                          approvals={workspace.state.approvals}
-                          onRespondApproval={async (approval, decision) => {
-                            await workspace.approve({ requestId: approval.requestId, decision });
-                            return true;
-                          }}
-                        />
-                      </Loading>
-                    </Match>
                     <Match when={page() === "schedule"}>
                       <Loading>
                         <ScheduleView
@@ -1493,6 +1633,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                             void select(agentId);
                           }}
                           onOpenRoutine={openRoutine}
+                          onCreateRoutine={createRoutine}
                         />
                       </Loading>
                     </Match>
@@ -1518,10 +1659,11 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   deletedChannels={
                     channelsListed() ? channels.state.channels.filter((channel) => channel.archived) : []
                   }
-                  activeChannelId={channels.state.selectedId}
+                  activeChannelId={tasksOpen() ? null : channels.state.selectedId}
                   onSelectChannel={openChannel}
                   onEditChannel={(id) => openChannel(id, true)}
                   onDeleteChannel={channels.deletionSupported() ? channels.remove : undefined}
+                  onRestoreChannel={channels.deletionSupported() ? channels.restore : undefined}
                   showingArchivedChannels={channelsListed() && channels.state.archived}
                   onToggleArchivedChannels={channelsListed() ? channels.toggleArchived : undefined}
                   onCreateChannel={channelsListed() ? channels.create : undefined}
@@ -1556,7 +1698,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     ...serverActionCallbacks,
                   }}
                   agents={workspace.profiles()}
-                  activeAgentId={channelOpen() ? "" : (workspace.state.selectedId ?? "")}
+                  activeAgentId={tasksOpen() || channelOpen() ? "" : (workspace.state.selectedId ?? "")}
                   people={[]}
                   directThreads={[]}
                   activeDirectMemberId={null}
@@ -1568,6 +1710,13 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   }
                   collapsedSectionIds={workspace.preferences.collapsedSidebarSectionIds()}
                   onMutateLayout={workspace.mutateSidebarLayout}
+                  sectionDuplicateSupported={
+                    workspace.state.status === "online" &&
+                    workspace.state.capabilities.includes("agent-duplication") &&
+                    workspace.state.capabilities.includes("sidebar-layout")
+                  }
+                  duplicatingSectionIds={workspace.duplicatingSectionIds()}
+                  onDuplicateSection={workspace.duplicateSection}
                   onToggleSection={workspace.preferences.toggleSidebarSection}
                   pinnedItems={workspace.preferences.pinnedSidebarItems()}
                   peopleOrder={[]}
@@ -1717,6 +1866,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       calls={accountCalls}
                       language={props.language}
                       onChangeLanguage={props.onChangeLanguage}
+                      appearance={props.appearance}
+                      onChangeAppearance={props.onChangeAppearance}
                       onOpenBilling={() => setBillingOpen(true)}
                       onSignOut={signOut}
                     />
@@ -1830,7 +1981,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                       hostUpdate={{ calls: hostUpdateCalls }}
                       hostTimezone={{ calls: hostTimezoneCalls }}
                       hostMemoryLimit={{ calls: hostMemoryLimitCalls }}
+                      hostPromptCacheTtl={{ calls: hostPromptCacheTtlCalls }}
                       agentAccess={{ calls: hostAgentAccessCalls, listAgents: () => workspace.runtime.listAgents() }}
+                      browserProfiles={browserProfileSettings()}
                       // Any member imports into a host with `agent-import-v1`.
                       agentImport={
                         workspace.state.capabilities.includes(AGENT_IMPORT_CAPABILITY)
@@ -1892,7 +2045,31 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
               </>
             }
           >
-            <Show when={serverOnboarding()}>
+            <Show when={tasksOpen() ? server() : undefined}>
+              {(target) => (
+                <Loading>
+                  <TasksView
+                    serverId={target().id}
+                    hostName={target().name}
+                    onBack={closeHostPage}
+                    agentsOpen={!tasksAgentsHidden()}
+                    onToggleAgents={() => setTasksAgentsOpen(tasksAgentsHidden())}
+                    source={tasksSource}
+                    agents={workspace.profiles()}
+                    onOpenLink={(url) => void openWebLink(url)}
+                    onAttachmentAction={(attachment) =>
+                      void runtime.agent.openAttachment({ attachmentId: attachment.id, action: "download" })
+                    }
+                    approvals={workspace.state.approvals}
+                    onRespondApproval={async (approval, decision) => {
+                      await workspace.approve({ requestId: approval.requestId, decision });
+                      return true;
+                    }}
+                  />
+                </Loading>
+              )}
+            </Show>
+            <Show when={tasksOpen() ? undefined : serverOnboarding()}>
               {(settings) => (
                 <Loading>
                   <ServerOnboarding
@@ -1918,13 +2095,16 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 </Loading>
               )}
             </Show>
-            <Show when={agentFormOpen() && !serverOnboarding()}>
+            <Show when={!tasksOpen() && agentFormOpen() && !serverOnboarding()}>
               <WebAgentSettings
                 runtime={workspace.runtime}
                 capabilities={workspace.state.capabilities}
                 first={firstAgent()}
                 preference={serverSetupChoice()}
                 customProviders={providerSettings()?.customProviders}
+                onManageProviders={providerSettings() ? openProviderSettings : undefined}
+                liveModels={models()}
+                liveStatus={status()}
                 // A new form starts empty, with the avatar that the first-agent row showed.
                 initialDraft={{ ...createFirstAgentDraft(), ...untrack(agentAvatar) }}
                 onDraftChange={({ avatarSeed, avatarHue }) => setAgentAvatar({ avatarSeed, avatarHue })}
@@ -1936,24 +2116,119 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 }}
               />
             </Show>
-            <Show when={!agentFormOpen() && channelOpen()}>
-              <ChannelConversation
-                connectionReady={workspace.state.status === "online"}
-                isOwnMessage={(authorId) =>
-                  isReaderAuthor(authorId, {
-                    memberId: workspace.state.memberId,
-                    accountUserId: props.accountId,
-                    onOwnComputer: false,
-                  })
-                }
-                pendingApprovals={channelApprovals()}
-                pendingTakeovers={channelTakeovers()}
-                browserTabs={workspace.state.browserTabs}
-                onSelectAgent={(id) => {
-                  setMobilePane("conversation");
-                  void select(id);
+            <Show when={!tasksOpen() && !agentFormOpen() && channelOpen()}>
+              {/* Keyed by the channel: the view reads its channel once, so another channel opens a new view. */}
+              <Show when={channels.state.selectedId} keyed>
+                {(channelId) => {
+                  const isOwnSender = (senderId: string) =>
+                    isReaderAuthor(senderId, {
+                      memberId: workspace.state.memberId,
+                      accountUserId: props.accountId,
+                      onOwnComputer: false,
+                    });
+                  const channelView = createChannelConversation({
+                    channelId,
+                    isOwnSender,
+                    connectionReady: () => workspace.state.status === "online",
+                    // The routines of a joined host go through its event API, which the channels port gives.
+                    routines: {
+                      localHost: () => false,
+                      eventsServerId: () => undefined,
+                      routineRecovery: () => false,
+                      webhookTests: () => false,
+                    },
+                    approvals: () => workspace.state.approvals,
+                    takeovers: () => workspace.state.takeovers,
+                  });
+                  return (
+                    <Conversation
+                      runtime={runtime}
+                      channel={channelView.source}
+                      notice={<ChannelErrorNotice />}
+                      connectors={connectors}
+                      agentStatus={workspace.state.status === "online" ? providerAdmin.status() : CONNECTING_STATUS}
+                      agent={undefined}
+                      agents={workspace.profiles()}
+                      mentionAgents={channelView.mentionAgents()}
+                      modelOptions={[]}
+                      messages={channelView.messages()}
+                      unreadCount={channelView.unreadCount()}
+                      firstUnreadMessageId={channelView.firstUnreadMessageId()}
+                      loaded={channelView.loaded()}
+                      hasOlder={channelView.hasOlder()}
+                      unloadedHistory={channelView.unloadedHistory()}
+                      activeTurnId={channelView.activeTurnId()}
+                      skillsMarketplaceOpen={marketplaceOpen()}
+                      mcpSettingsOpen={serverSettings.state.open || marketplaceOpen()}
+                      globalOverlayOpen={
+                        joinOpen() ||
+                        serverSettings.state.open ||
+                        searchOpen() ||
+                        marketplaceOpen() ||
+                        hasVisibleToasts()
+                      }
+                      settingsRequest={channelView.settingsRequest()}
+                      messageFocusRequest={messageFocusRequest()}
+                      queue={undefined}
+                      browserRuntime={workspace.runtime.browser}
+                      browserTabs={workspace.state.browserTabs}
+                      activeBrowserTabId={workspace.state.activeBrowserTabId}
+                      browserVisibilitySuspended={workspace.state.status !== "online" || pageCovered()}
+                      workspaceCovered={pageCovered() || hostOffline()}
+                      browserControlState={workspace.state.browserControlState}
+                      server={server()}
+                      presence={
+                        workspace.state.presence ?? { serverId: server()?.id ?? null, members: [], updatedAt: "" }
+                      }
+                      currentUserEmail={props.accountEmail ?? ""}
+                      isOwnSender={isOwnSender}
+                      browserEnabled={browserEnabled()}
+                      remoteDesktopEnabled={false}
+                      remoteDesktopSessionActive={false}
+                      remoteDesktopVisible={false}
+                      prompt={channelView.prompt()}
+                      promptUiBlock={channelView.promptUiBlock()}
+                      approval={channelView.approval()}
+                      browserTakeover={channelView.browserTakeover()}
+                      onSelectAgent={(id) => {
+                        setMobilePane("conversation");
+                        void select(id);
+                      }}
+                      onUpdateAgent={async (agentId, updates) => {
+                        await updateRemoteAgent(
+                          remoteAgentAdmin,
+                          { agentId, ...updates },
+                          workspace.runtime.updateAgent,
+                        );
+                        await workspace.refresh();
+                      }}
+                      onSetAgentAvatar={async (agentId, image) => {
+                        await workspace.runtime.setAvatar(agentId, image);
+                        await workspace.refresh();
+                      }}
+                      onSendMessage={(text, attachments, replyTo, target, clientMessageId) => {
+                        // A sent request is what a notification later reports, so the browser asks here, from the user's action.
+                        requestWebNotificationPermission();
+                        return channelView.onSendMessage(text, attachments, replyTo, target, clientMessageId);
+                      }}
+                      onMarkRead={channelView.onMarkRead}
+                      onLoadOlder={channelView.onLoadOlder}
+                      onTypingChange={() => {}}
+                      onAnswerPrompt={channelView.onAnswerPrompt}
+                      onRespondToApproval={channelView.onRespondToApproval}
+                      onRespondToBrowserTakeover={channelView.onRespondToBrowserTakeover}
+                      onCancelQueuedMessage={() => {}}
+                      onSteerQueuedMessage={() => {}}
+                      onUpdateQueuedMessage={() => Promise.resolve(false)}
+                      onReorderQueue={() => {}}
+                      onActivateBrowserTab={workspace.activateBrowserTab}
+                      onCloseBrowserTab={(tabId) => workspace.runtime.closeBrowserTab(tabId)}
+                      onOpenRemoteDesktop={unavailable}
+                      onStop={channelView.onStop}
+                    />
+                  );
                 }}
-              />
+              </Show>
             </Show>
             <Show when={!agentFormOpen() && !channelOpen() && noHost()}>
               <WebConnectComputer
@@ -1971,7 +2246,9 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 onRefresh={() => void workspace.run(workspace.refreshHosts)}
               />
             </Show>
-            <Show when={!agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && routinesView()}>
+            <Show
+              when={!tasksOpen() && !agentFormOpen() && !channelOpen() && !noHost() && !hostOffline() && routinesView()}
+            >
               {/* A host switch starts the canvas again, with that host's webhook relay status. */}
               <Show when={routineFlowsHost ? workspace.state.host?.hostId : undefined} keyed>
                 {(_hostId) => (
@@ -1984,6 +2261,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                           agents={workspace.profiles()}
                           newAgentModels={newAgentModels()}
                           createAgent={createCanvasAgent}
+                          onCreateRoutine={createCanvasRoutine}
                         />
                       </Loading>
                     )}
@@ -2017,14 +2295,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   (providerSettings()?.connection?.connectKind(provider) ?? null) !== null
                 }
                 onSignInProvider={composerSignIn() ? connectFromComposer : undefined}
-                onManageProviders={
-                  providerSettings()
-                    ? (trigger: HTMLElement) => {
-                        const current = server();
-                        if (current) void openServerSettings(current.id, trigger, "providers");
-                      }
-                    : undefined
-                }
+                onManageProviders={providerSettings() ? openProviderSettings : undefined}
+                onManageBrowserProfiles={browserProfiles() ? openBrowserProfileSettings : undefined}
                 agent={conversationAgent()}
                 agents={workspace.profiles()}
                 modelOptions={models()}
@@ -2041,6 +2313,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 activityDetail={
                   workspace.state.selectedId ? workspace.state.progress[workspace.state.selectedId]?.detail : undefined
                 }
+                turnStepLines={workspace.stepLines()}
                 skillsMarketplaceOpen={marketplaceOpen()}
                 mcpSettingsOpen={serverSettings.state.open || marketplaceOpen()}
                 globalOverlayOpen={
@@ -2077,6 +2350,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                   setMobilePane("conversation");
                   void select(id);
                 }}
+                agentWaits={agentWaits()}
                 onUpdateAgent={async (agentId, updates) => {
                   await updateRemoteAgent(remoteAgentAdmin, { agentId, ...updates }, workspace.runtime.updateAgent);
                   await workspace.refresh();
@@ -2112,6 +2386,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                 onRespondToApproval={view.respondToApproval}
                 onAlwaysAllowApproval={view.alwaysAllowApproval()}
                 agentAutoApproves={remoteAgentAdmin.autoApproves()}
+                remoteBackupModelsLoaded={remoteAgentAdmin.backupModels() !== undefined}
+                remoteTaskLimitLoaded={remoteAgentAdmin.taskLimit() !== undefined}
                 onUpdateAgentPermissions={remoteAgentAdmin.settings() ? remoteAgentAdmin.update : undefined}
                 onClearAgentContext={clearSelectedAgentContext()}
                 onRespondToBrowserTakeover={(decision) => workspace.respondToBrowserTakeover(decision)}

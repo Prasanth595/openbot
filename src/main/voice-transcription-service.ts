@@ -76,9 +76,8 @@ interface ActiveStream {
 }
 
 /**
- * What the renderer is told when the build carries no speech recognition runtime at all. Linux
- * packages ship without one, so this is the whole of voice on that platform: a stated limit, not a
- * download of a model that nothing can read.
+ * What the renderer is told when the build carries no speech recognition runtime at all: a stated
+ * limit, not a download of a model that nothing can read.
  */
 const RUNTIME_UNAVAILABLE_MESSAGE = sourceText("error.voice.runtimeUnavailable");
 
@@ -178,6 +177,23 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
   ) {
     if (!isLocalVoiceModelId(modelId)) return this.#cloudStatus();
     return this.#runtimeMissing(modelId) ?? (yield* this.#models[modelId].cancel());
+  }).bind(this);
+
+  /**
+   * Deletes a downloaded model from this computer, and stops its download first. The model in use
+   * can go too: the next dictation downloads it again, as it does for a model not downloaded yet.
+   */
+  readonly removeModel = Effect.fn("VoiceTranscription.removeModel")(function* (
+    this: VoiceTranscriptionService,
+    modelId: VoiceModelId,
+  ) {
+    if (!isLocalVoiceModelId(modelId))
+      return yield* new VoiceOperationError({ cause: new Error("A cloud model has no files to remove.") });
+    if (this.#busy) return yield* new VoiceOperationError({ cause: new Error(sourceText("error.voice.removeBusy")) });
+    // A transcription that starts during the removal waits in `prepare`, then downloads the model again.
+    return yield* this.#models[modelId].remove(
+      Effect.suspend(() => (this.#hostModelId === modelId ? this.#endHost() : Effect.void)),
+    );
   }).bind(this);
 
   getSettings(): VoiceSettings {
@@ -444,6 +460,16 @@ export class VoiceTranscriptionService extends EventEmitter<VoiceTranscriptionEv
   #cancelIdleStop(): void {
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
+  }
+
+  /** Ends the host and waits until it exits, so that no process has the model files open. */
+  #endHost(): Effect.Effect<void> {
+    const host = this.#host;
+    if (!host) return Effect.void;
+    return Effect.callback<void>((resume) => {
+      host.onExit(() => resume(Effect.void));
+      this.#stopHost();
+    });
   }
 
   /** Ends the host. Its exit is not reported as a failure: nothing waits on it any more. */

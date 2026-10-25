@@ -1,7 +1,7 @@
 import type { AgentModelId } from "./ipc-agent-identity";
-import type { AgentAuthState } from "./ipc-agent-status";
+import type { AccountUsageLimit, AgentAuthState } from "./ipc-agent-status";
 import type { ExternalDestination } from "./ipc-app-auth";
-import { isOneOf } from "./runtime-values";
+import { isOneOf, isString } from "./runtime-values";
 
 /**
  * The coding agents OpenBot can drive, and everything about one that is the same wherever it is
@@ -36,6 +36,45 @@ export type AgentProviderId = (typeof AGENT_PROVIDERS)[number];
 
 export function isAgentProvider(value: unknown): value is AgentProviderId {
   return isOneOf(AGENT_PROVIDERS, value);
+}
+
+/** The form of every provider id, including one that a newer host adds. */
+export const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9-]{0,63}$/u;
+
+declare const FOREIGN_PROVIDER: unique symbol;
+/**
+ * A provider that a newer host runs and this OpenBot does not know. Only client data holds one: the
+ * host's own agents, database and drivers use `AgentProviderId`.
+ */
+export type ForeignProviderId = string & { readonly [FOREIGN_PROVIDER]: true };
+/** The provider of an agent or a model that a client reads from a host. */
+export type AgentProviderRef = AgentProviderId | ForeignProviderId;
+
+export function isForeignProviderId(value: unknown): value is ForeignProviderId {
+  return isString(value) && PROVIDER_ID_PATTERN.test(value) && !isAgentProvider(value);
+}
+
+export function isAgentProviderRef(value: unknown): value is AgentProviderRef {
+  return isAgentProvider(value) || isForeignProviderId(value);
+}
+
+/** Whether this OpenBot can set up, sign in and pick models for the provider. */
+export function isKnownAgentProvider(provider: AgentProviderRef): provider is AgentProviderId {
+  return isAgentProvider(provider);
+}
+
+/** The provider when this build does not know it, else undefined. */
+export function foreignProvider(provider: AgentProviderRef): ForeignProviderId | undefined {
+  return isKnownAgentProvider(provider) ? undefined : provider;
+}
+
+/**
+ * The provider name to put in front of a user. A foreign provider shows the name its host sends,
+ * else its id.
+ */
+export function providerDisplayName(provider: AgentProviderRef, hostLabel?: string): string {
+  if (isAgentProvider(provider)) return agentProviderName(provider);
+  return hostLabel?.trim() || provider;
 }
 
 export interface AgentProviderDescriptor {
@@ -94,8 +133,9 @@ export interface AgentProviderDescriptor {
   readonly workspaceEnforcement: "tool-sandbox" | "command-sandbox" | "confined-process";
   /**
    * How the CLI takes a message into a running turn. `native`: it reads the message at its next
-   * step. `deferred`: the protocol has no steer request (ACP), so the message can wait until the
-   * turn ends. Only a `native` provider steers a message sent in `steer` mode; the others queue it.
+   * step (Grok through its `x.ai/interject` ACP extension). `deferred`: the protocol has no steer
+   * request (ACP), so the message can wait until the turn ends. Only a `native` provider steers a
+   * message sent in `steer` mode; the others queue it.
    */
   readonly steer: "native" | "deferred";
   /**
@@ -108,7 +148,7 @@ export interface AgentProviderDescriptor {
    * Whether OpenBot can read the plan's remaining usage. `false`: the CLI exposes no usage reading,
    * so the dock says the provider does not report usage instead of waiting for a reading. Declared
    * here because the renderer cannot see the drivers; set it to `true` with a driver's usage read
-   * (Codex and Claude read it themselves, Grok and OpenCode through `readRateLimits`).
+   * (Codex and Claude read it themselves, Grok, OpenCode, Antigravity and Cursor through `readRateLimits`).
    */
   readonly reportsUsage: boolean;
   /**
@@ -180,7 +220,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     signInPageEnd: "callback",
     skillFolders: [".agents/skills"],
     workspaceEnforcement: "confined-process",
-    steer: "deferred",
+    steer: "native",
     concurrentTurns: true,
     reportsUsage: true,
     approvalsInFullAccess: true,
@@ -226,7 +266,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     workspaceEnforcement: "confined-process",
     steer: "deferred",
     concurrentTurns: true,
-    reportsUsage: false,
+    reportsUsage: true,
     approvalsInFullAccess: true,
   },
   // The Cursor CLI (`cursor-agent acp`) with the user's Cursor plan. Sign-in is the ACP
@@ -248,7 +288,7 @@ const AGENT_PROVIDER_DESCRIPTOR_TABLE = {
     workspaceEnforcement: "confined-process",
     steer: "deferred",
     concurrentTurns: true,
-    reportsUsage: false,
+    reportsUsage: true,
     approvalsInFullAccess: true,
   },
   // The Cline CLI (`cline --acp`). Sign-in is the ACP `cline` method, which opens a browser. A Cline
@@ -527,7 +567,52 @@ export function isFreeOpencodeModel(id: string, name: string): boolean {
 /**
  * Whether the provider's account quota limits this model. OpenCode reports only the Go quota, and
  * OpenCode also runs free, custom and own-sign-in models that the Go quota does not limit.
+ * Antigravity's own reading is a Gemini quota group; its Claude and GPT models share another group,
+ * which only the named groups (`usageGroupForModel`) show. Gemini model ids can be code names, so only
+ * a Claude or GPT id is left out.
  */
 export function accountUsageCoversModel(provider: AgentProviderId, model: string | null | undefined): boolean {
-  return provider !== "opencode" || Boolean(model?.toLowerCase().startsWith("opencode-go/"));
+  if (provider === "opencode") return Boolean(model?.toLowerCase().startsWith("opencode-go/"));
+  if (provider === "antigravity") return !/^(?:claude|gpt)/iu.test(model ?? "");
+  return true;
+}
+
+/**
+ * The windows that limit the model: the quota group that lists it when the reading lists the models
+ * of its groups, or else the reading itself. Undefined when no group lists the model.
+ */
+export function usageQuotaForModel(
+  limit: AccountUsageLimit,
+  model: string | null | undefined,
+): Pick<AccountUsageLimit, "primary" | "secondary"> | undefined {
+  return model && limit.groups?.some((group) => group.models.length > 0)
+    ? usageGroupForModel(limit.groups, model)
+    : limit;
+}
+
+/**
+ * The quota group that lists the model. Antigravity lists families ("Gemini Flash", "Gemini 4 Argon")
+ * and the model ID adds a version and an effort (`gemini-3.8-flash-high`), so each word of a listed
+ * name must be a word of the ID. The longest such name wins: "Gemini Flash Lite" before "Gemini Flash".
+ */
+export function usageGroupForModel<Group extends { models: readonly string[] }>(
+  groups: readonly Group[],
+  model: string,
+): Group | undefined {
+  const id = new Set(modelWords(model));
+  let best: { group: Group; length: number } | undefined;
+  for (const group of groups)
+    for (const listed of group.models) {
+      const words = modelWords(listed);
+      if (words.length > (best?.length ?? 0) && words.every((word) => id.has(word)))
+        best = { group, length: words.length };
+    }
+  return best?.group;
+}
+
+function modelWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9.]+/u)
+    .filter(Boolean);
 }

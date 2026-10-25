@@ -7,13 +7,14 @@ import { type ParamListBase, useNavigation } from "expo-router/react-navigation"
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { Alert, BackHandler, StyleSheet, View } from "react-native";
+import { Alert, BackHandler, StyleSheet, View, type ViewInstance } from "react-native";
 import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
 import Animated, { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 
 import type { WelcomeHandOff } from "@/features/agents/components/empty-agents-scene";
+import { InstructionsLimit, instructionsTooLong } from "@/features/agents/components/instructions-limit";
 import { agentInitialMessage } from "@/features/agents/model/agent-initial-message";
 import { getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
 import { mobileAnalytics } from "@/features/analytics/mobile-analytics";
@@ -219,7 +220,7 @@ export function OnboardingFlow({
   // The hero: where each step wants it, where its layer is, and the swipe of the look step.
   const [slots, setSlots] = useState<Partial<Record<Step, HeroSlotRect>>>({});
   const [heroOrigin, setHeroOrigin] = useState({ x: 0, y: 0 });
-  const heroLayer = useRef<View>(null);
+  const heroLayer = useRef<ViewInstance>(null);
   // The height of the step area with no keyboard. A step without a text field keeps it while the
   // keyboard closes over it, so its characters stand where they will stay and the hero lands on
   // them, not above them.
@@ -373,7 +374,7 @@ export function OnboardingFlow({
 
   // The empty home has the layout of the welcome. Skipped on the welcome, the flow fades off the
   // same group and text, and the home's action starts where the welcome's main action stands.
-  const primaryPlace = useRef<View>(null);
+  const primaryPlace = useRef<ViewInstance>(null);
   const finishing = useRef(false);
   const skip = () => {
     if (finishing.current) return;
@@ -469,7 +470,11 @@ export function OnboardingFlow({
           onPress: () => go(custom ? "role" : "task", 1),
         };
       case "role":
-        return { label: t("mobile.onboarding.name.continue"), onPress: () => go("task", 1) };
+        return {
+          label: t("mobile.onboarding.name.continue"),
+          disabled: instructionsTooLong(customDescription),
+          onPress: () => go("task", 1),
+        };
       case "task":
         return {
           label: pending
@@ -497,6 +502,8 @@ export function OnboardingFlow({
           showsPlans ? () => router.push({ pathname: "/hosted-server", params: { entryPoint: "onboarding" } }) : null
         }
         onInvitation={() => router.push("/add-server")}
+        onBack={previous !== null ? back : null}
+        onSkip={skip}
       />
     ) : step === "agent" ? (
       <AgentStep
@@ -536,10 +543,11 @@ export function OnboardingFlow({
         onChange={setCustomDescription}
         label={t("mobile.onboarding.custom.roleLabel")}
         placeholder={t("mobile.onboarding.custom.rolePlaceholder")}
-        maxLength={INPUT_LIMITS.agentDescription}
         color={draftColor}
         disabled={false}
-      />
+      >
+        <InstructionsLimit text={customDescription} />
+      </ConversationStep>
     ) : step === "task" ? (
       <ConversationStep
         motion={motion}

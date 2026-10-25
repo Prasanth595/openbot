@@ -5,15 +5,21 @@ To add a provider, or to see how a provider signs in on a joined server, read
 
 ## Built-in tool discovery
 
-`agent/tool-catalog.ts` exposes nine direct tools and three discovery tools to every adapter.
+`agent/tool-catalog.ts` exposes ten direct tools and three discovery tools to every adapter.
 Claude uses its native question tool instead of `ask_user`. The direct tools are `ask_user`,
 `attach_files_to_response`, `list_agents`, `send_message`, `search_memories`, `remember`,
-`forget_memory`, `react_to_user_message`, and `routine_no_update`. External plugin registration stays with each provider adapter.
+`forget_memory`, `react_to_user_message`, `routine_no_update`, and `routine_report_failure`. External plugin registration stays with each provider adapter.
 
 `tool_search` uses local keyword matching. Exact names come first, then word matches, with stable
-catalog order for ties. It returns five results by default and at most ten. `tool_describe` returns
-the original schemas for up to ten qualified names, plus guidance from `agent/tool-guidance.ts`.
-Identical guidance appears once per response. The initial catalog lists names without schemas.
+catalog order for ties. It returns five results by default and at most ten. It accepts `queries`, or
+one `query` string, because models often send one string. Up to three strong results, an exact name or
+queries that contain each word of the tool name without its namespace, include the original schema and guidance, so the agent can call them
+without a describe step. Each model step sends the full context again, so one step less saves more
+input than the added schema costs. A query word that is only in the namespace, or one shared verb
+such as "read", does not make a result strong. The other results have a short description only. `tool_describe`
+returns the original schemas for up to ten qualified names, plus guidance from
+`agent/tool-guidance.ts`. Identical guidance appears once per response. The initial catalog lists
+names without schemas.
 
 `tool_call` accepts `{ name: "namespace.tool", arguments: { ... } }`. The router resolves only
 original built-in names. It preserves the request, thread, turn, and call identifiers and the abort
@@ -28,7 +34,7 @@ receive them through the local MCP bridge.
 
 `agent/developer-instructions.ts` puts stable rules first, profile and workspace settings next,
 and memories last. Detailed browser, administration, routine, hosting, data, and visual guidance
-loads through `tool_describe`. Essential secret handling and untrusted-content rules stay in the
+loads through `tool_search` or `tool_describe`. Essential secret handling and untrusted-content rules stay in the
 permanent instructions. ACP and Muse still insert these shorter instructions on each normal turn.
 Retention after compaction is not assumed. Compaction thresholds are unchanged.
 
@@ -86,12 +92,28 @@ response. Claude manages compaction natively. ACP and custom ACP expose no expli
 operation to the OpenBot scheduler. Unsupported or native-managed clients cannot reserve its queue
 for a no-op request. Request completion clears the hold and keeps the minimum-growth guard.
 
+Antigravity reports its context fill but has no compact operation, so its flavor sets the `handoff`
+mode. `ThreadLifecycle.rotateProviderSession` saves the work steps, closes the session, and starts a
+new session on the same public thread. Its first turn takes the history handoff, as after a provider
+switch. The agent, thread, workspace and messages stay. Only the agent's own chat rotates: an
+execution thread has no handoff. The harness also compacts by itself; that only lowers the reported
+fill.
+
 Codex retains the 80% threshold based on its last reported token usage and context-window size.
 Cumulative account usage is not context occupancy. A missing report is not zero usage. No fixed
 200,000-token context window, per-turn model summary, or new automatic model call is added.
 
 The design uses Hermes's on-demand discovery, stable instruction ordering, and bounded local
 history recall as references. OpenBot retains each native provider's session and compaction rules.
+
+## Model catalog
+
+`ModelCatalog.refresh` (`src/backend/agent/model-catalog.ts`) reads `model/list` from each running
+CLI the same way. It has no provider branch. A provider whose list differs sets `catalog` on its
+driver in `src/backend/provider-drivers.ts`: Codex pages its list and reports a Fast tier, Claude
+Code names its models itself, OpenCode drops models that the stored key cannot use and keeps its
+free tier when discovery fails, and a custom agent gets the full request timeout. A new provider
+adds its rule there, not in the catalog.
 
 ## Provider CLI updates
 
@@ -114,6 +136,18 @@ install is used. The newest version in the store that verifies is the one that r
 broken upstream release without an OpenBot release. It suppresses an offer only: it does not remove
 a version a user already installed. A list that cannot be read blocks nothing.
 
+The `Provider CLI canary` workflow (`.github/workflows/provider-cli-canary.yml`) finds a broken
+release before many users install it. Every six hours it reads the newest release of each provider
+for each target, installs the newest OpenCode through `ProviderRuntimeManager`, and runs the
+conformance cases on it with the free `opencode/big-pickle` model and no account
+(`bun run test:provider-cli-canary`). The run fails when the install is not the version that an
+update installs now, so a failed release read cannot make it test the pinned CLI. Each turn fails
+after five minutes, so a hung CLI still writes the report. The second failed run in a row opens one
+issue, and a run that passes closes it. An issue that a person closes stays closed until the canary
+passes and then fails two times again. The other
+providers need an account, so the canary only reads their releases; `test:provider-conformance` runs
+the same cases on each ACP driver over a fake agent.
+
 The provider runtime holds new turns while it installs and activates that managed executable. It
 keeps the previous client until the candidate is ready; activation failure removes the rejected
 artifact and preserves the old runtime, so a release that does not start leaves the last working CLI
@@ -122,6 +156,16 @@ in use. Download status stays `finishing` until activation succeeds.
 CLI resolution prefers an explicit `OPENBOT_*_PATH`, then the installed managed copy, then an
 automatically discovered system CLI. Updates never run the system CLI's updater. An explicit path
 suppresses managed update offers. Startup uses the same selection and reads the executable's version.
+On macOS and Linux, discovery looks in the folders of the login-shell `PATH` (`loginSearchPath` in
+`src/backend/cli.ts`, shared with ACP and custom agents and cached for 60 s), then in fixed user
+folders: `~/.local/bin`, `~/.npm-global/bin`, `~/.volta/bin`, `~/.bun/bin`, the pnpm home, Homebrew
+and the system folders. nvm folders are not searched, because only nvm's shell setup selects a
+version. The login shell is `$SHELL` when it is a known POSIX shell or fish; otherwise macOS uses
+`/bin/zsh`. The version probe and each process that OpenBot starts for the CLI (app server, ACP,
+Claude sessions, sign-in and sign-out) start with the resolved `launchPath`: the login-shell
+folders, then OpenBot's own, then the CLI's folder for a system copy. An app that Finder starts can
+then run a `#!/usr/bin/env node` CLI. A CLI that exists but does not start reports whether the
+managed copy or the user's copy failed.
 
 Installed runtimes live in one store per computer, `appData/OpenBot/provider-runtimes`, which is the
 path the packaged app always used: its `userData` is `appData/OpenBot`. Development profiles differ
@@ -280,7 +324,8 @@ deliveries while it writes, and reports success only after a new process runs wi
 That one variable turns on two products: OpenCode reports OpenCode Zen and OpenCode Go as a single
 catalog, on the separate endpoints `opencode.ai/zen/v1` and `opencode.ai/zen/go/v1`, and OpenBot
 supports only Go. So `isOpencodeModelUnusableWithStoredKey` in `src/backend/agent/provider-models.ts`
-drops the paid Zen models from `ModelCatalog.refresh` while OpenBot is the one supplying the key;
+drops the paid Zen models from `ModelCatalog.refresh` (through the OpenCode driver's
+`catalog.usableWithStoredKey`) while OpenBot is the one supplying the key;
 with no key stored those models can only come from the user's own OpenCode sign-in, which does
 buy them. Neither `/models` endpoint authenticates, so entitlement cannot be read back and the
 split is a product rule rather than a check.
@@ -298,6 +343,12 @@ Free means a display name ending in "Free", or an id in a short explicit list
 `isFreeOpencodeModel` in `packages/contracts/src/agent-providers.ts` is shared with the picker badge in
 `packages/ui/src/components/provider-model-options.ts`, so a badge and a default cannot disagree
 about what costs money.
+
+A keyless OpenCode still lists models whose provider has no sign-in. OpenCode 2.1.1 fails a turn on
+one with `-32000` "provider authentication required" and no provider ID. `OPENCODE_ACP_FLAVOR`
+maps that code to `error.provider.opencodeAuthRequired`, which names the provider from the model ID
+before its first `/` and lists the fixes: a Free model, a Go key, or `opencode auth login`.
+
 Provider session IDs remain in `projection_provider_sessions`; migration 17 adds OpenCode while
 preserving turn links. Provider switches keep the same agent, workspace, and local thread.
 Migrations 17, 22, 23, 24 and 26 widen the table's provider `CHECK`. Migration 28 removes it, so a
@@ -314,12 +365,23 @@ The server has no `--version`, so staging writes `antigravity-package.json` and
 `verifyInstalledRuntime` reads the version from that file (`versionFile`). OpenBot never searches
 `PATH`, because the Antigravity editor installs an `antigravity` command that is not this server.
 
+The server offers its Claude and GPT models only to a client whose `initialize` `clientInfo.name` is
+`zed`, `xcode`, `jetbrains.*` or `android studio*` (`supports_third_party_models` in 1.4.3). Other
+clients get only the Gemini models. So `ANTIGRAVITY_ACP_FLAVOR.clientInfo` sends the name `zed` and
+the title `OpenBot`. The server also sends the name and version to Google in its User-Agent
+(`_surface`), so Google sees OpenBot's requests as `zed/0.1.0`.
+
 Sign in is an ACP `authenticate` call with `oauth-personal`, in a separate process
 (`src/backend/acp-sign-in.ts`). On Linux, OpenBot reads the Google sign-in link from the
 server and opens it with the desktop browser. The server browser launch is disabled for this
 process so the page opens once. A failed browser launch gives an actionable error; the OAuth
 link and browser error details are not logged. Other platforms let the server open the browser.
-A status probe must never call `authenticate`. The serving client does not call it.
+A valid saved Google token answers `authenticate` with no browser page. So a Reconnect of a
+connected Google sign-in, with no saved key, first calls ACP `logout` when `initialize` advertises
+`agentCapabilities.auth.logout` (runtime 1.4.1 and later). The Google page then opens. The token is
+shared by every OpenBot profile on the computer, so they all sign out. A Reconnect is refused while
+a Gemini turn runs. When the sign-in stops after the logout answered, OpenBot stops the old client
+and reports Gemini signed out; a failure keeps its own reason. A status probe must never call `authenticate`. The serving client does not call it.
 OpenBot checks authentication through model discovery (`session/new`), not the auth methods
 advertised by `initialize`. The runtime can answer "Authentication required", which OpenBot
 reports as sign-in required. In runtime 1.3.0, a saved OAuth method with no valid token can also
@@ -376,14 +438,68 @@ does not create that manifest. An invalid override remains an error: OpenBot doe
 it with the managed runtime. Managed updates do not change the explicit override.
 
 The server runs confined; `antigravityStatePaths` gives it `~/.gemini/antigravity-acp` and
-`~/.gemini/artifacts` and protects its settings files. Migration 22 adds `antigravity` to
+`~/.gemini/artifacts` and protects its settings files. On macOS, runtime 1.4.0 and later keep the
+Google sign-in in the login Keychain only when a test item can be written there at start, and a
+confined process cannot write the Keychain (#2988). So every Antigravity process, the sign-in
+included, gets `AGY_ACP_FORCE_FILE_STORAGE=1` and keeps the token in
+`~/.gemini/antigravity-acp/acp_token.json`, as on Linux and Windows. A token that an earlier
+version saved in the Keychain is not read, so the user signs in again once. Migration 22 adds `antigravity` to
 `projection_provider_sessions`.
 
-The server has no usage reading, so the descriptor sets `reportsUsage: false`: the usage poll does
-not start Gemini, the dock says usage is not reported, and a limit failure is shown as a turn error
-instead of waiting for a usage notice. `GEMINI_REQUEST_FAILURES` in `src/backend/acp-client.ts`
-names a rate limit or quota, an unavailable model, and a service failure from Google's status
-text. Antigravity does not document these texts.
+From 1.4.0 the server keeps the token, `settings.json` (which names the sign-in method) and its
+conversations in `$GEMINI_HOME/antigravity-acp`, with `~/.gemini` when the variable is not set. So
+Gemini can hold more than one account: each account after the first gets `GEMINI_HOME` set to its
+own folder (`antigravityReadsGeminiHome` gates the rows, the sign-in, the checks, the usage reads and
+the agent start), and `antigravityStatePaths` confines its process to that folder. Each new session
+leaves a conversation database in that folder, so a usage read of an account with no agent process
+starts no process: the account shows its reading from the sign-in check. The sandbox cannot create folders in a new account's home, so OpenBot makes them.
+The account sign-in is the same ACP `authenticate` call as the first account's; a Reconnect calls
+`logout` first. So a Reconnect refuses while an agent on the account runs a turn, and it stops the
+account's idle agent processes, which keep the old token. A saved Gemini API key belongs to the
+first account: an account process never gets `GEMINI_API_KEY`. The server reports no email and the token file holds none, so OpenBot cannot see
+that two accounts are the same Google account. A joined server signs the account in through the
+live view, because `provider-account-relay-v1` names Codex and Claude only.
+
+From 1.4.1 the server answers a prompt that starts with `/usage` itself, without a model turn: it
+reads the Google account's quota summary and sends one Markdown answer. The driver's
+`readRateLimits` sends it in a session that no thread owns (`privatePrompt` in
+`src/backend/acp-client.ts`). Each process keeps that one session for every read, because each new
+Antigravity session leaves a conversation database in `~/.gemini/antigravity-acp/conversations`,
+also after it closes. `src/backend/antigravity-usage.ts` reads one group of the answer's
+"Quota Limits" section into the windows. Google can give a model a group of its own, such as Gemini 4
+Argon, so a read for a model takes the group whose "Models within this group" list names it (#3055),
+and a model that no group names has no reading. The dock's read, with no model, takes the "Gemini
+Models" group. Each reading also carries every group by name and models (`AccountUsageLimit.groups`),
+so the usage popover shows one line per group and the composer notice uses the group of the agent's
+model (`usageGroupForModel`). The ring stays on the reading's own group. The Team API codecs do not
+send `groups`, so a remote client shows the one reading. The Claude and GPT models that Antigravity
+also runs share another limit, so `accountUsageCoversModel` keeps them out of the plan-limit hold. An
+older runtime, an
+API key sign-in ("Not applicable for current authentication method") and an answer that does not
+parse give no reading. A saved Gemini API key comes before the Google sign-in, so the provider
+status sets `apiKeyInUse`, and the API key section of the Gemini provider page says that the key,
+not the plan, serves the turns. The dock shows no Gemini row then, because it has no reading.
+
+A limit failure stays a turn error even though the descriptor sets `reportsUsage: true`, because
+many Gemini setups have no reading to explain it. `GEMINI_REQUEST_FAILURES` in
+`src/backend/acp-flavor-antigravity.ts` names a rate limit or quota, an unavailable model, and a
+service failure from Google's status text. Antigravity does not document these texts.
+
+Antigravity 1.3.0 reports a spent per-user quota as answer text, `Usage Limit Reached` and Google's
+reset time. The flavor shows it with `error.provider.antigravityQuotaReached`, not the rate-limit
+text, because the quota resets in days. The server names no bucket, so the message says that the
+limit can be for one model and that the plan's usage page can still show room.
+
+Antigravity 1.3.0 and later send ACP `usage_update` after each model step: `used` is the size of
+the last model call, and `size` is the model's context window. The adapter turns it into
+`thread/tokenUsage/updated`, also after a turn that OpenBot already ended. 1.2.1, the pinned
+first-install version, sends none, so the ring stays hidden until the runtime updates. The update
+has no category breakdown.
+
+Antigravity 1.4.3 also returns `usage` from `session/prompt`: the tokens of that prompt only, measured
+from the session's total at the turn's start. A restored session starts from its saved total.
+`src/backend/agent/usage-collection.ts` books each prompt result as its own counter (`promptId`, because
+a delivery that runs again keeps its turn ID) and adds `thoughtTokens` to the output. 1.4.1 and earlier return no `usage`.
 
 Antigravity 1.3.0 keeps `session/prompt` open until its harness reports
 `STATE_FULLY_IDLE`. A background task can thus keep a turn open after answer text
@@ -422,6 +538,20 @@ user's permissions. `cursorStatePaths` lets it write `~/.cursor` and protects th
 hooks, rules, MCP and permission files there and in the CLI config folder, and the
 `.workspace-trusted` and `mcp-approvals.json` files in each folder in `projects`. Migration 24 adds
 `cursor` to `projection_provider_sessions`.
+
+The CLI reports no usage over ACP. The driver's `readRateLimits` (`src/backend/cursor-usage.ts`)
+sends the request that the CLI sends itself, `aiserver.v1.DashboardService/GetCurrentPeriodUsage`
+as Connect JSON to `https://api2.cursor.sh` or `CURSOR_API_ENDPOINT`, with the CLI's access token.
+The token comes from where the CLI keeps it: on macOS the login Keychain item `cursor-access-token`
+(account `cursor-user`), read with `/usr/bin/security` because the CLI writes it with that tool,
+then `~/.cursor/auth.json`; on Linux `$XDG_CONFIG_HOME/cursor/auth.json` or
+`~/.config/cursor/auth.json`; on Windows `%APPDATA%\Cursor\auth.json`. Cursor does not document
+this API. `autoPercentUsed` (Cursor's own models) fills the primary window and `apiPercentUsed`
+(all other models) the secondary one, both for the billing cycle; the dock names them by slot for a
+`cursor` row, because both windows have the same length. A plan with only `totalPercentUsed` fills
+the primary window. No token, a 401 or 403, or no percentage gives no reading. The dock poll calls
+`readCursorUsage` directly, as it does for OpenCode, so it does not start the CLI for a reading.
+`scripts/cursor-usage-e2e.ts` covers it.
 
 Team API v1–v5 do not know `cursor`. The host hides Cursor agents, models, status, and sign-in
 state from peers on those versions, and the `providers-v1` to `providers-v3` routes omit it. A route
@@ -474,8 +604,26 @@ v5 peer still gets the filtered view.
 The v4, v5, v6 and v7 base schemas are one codec, `provider-aware-codec.ts`. Each `v<N>-base.ts` passes
 `createProviderAwareCodec` a frozen profile: the providers, the signed-in auth kinds and the agent
 model charset. The v7 profile also raises the capability limit from 64 to 128 (`v7-base.ts`).
-Nothing else differs between these versions. Do not edit a released profile; a new
-provider needs a new protocol version.
+Nothing else differs between these versions. Do not edit a released profile.
+
+Team API v8 opens the profile: `providers` and `authKinds` are `"open"`, so any id that matches
+`OPEN_PROVIDER_ID` (`^[a-z][a-z0-9-]{0,63}$`) passes, and each provider status row can carry a
+`displayName` of up to 80 characters (`v8-base.ts`). The codec still rejects a malformed row. A
+provider added after v8 needs no new protocol version. The `providers-v8` routes
+(`/v1/admin/providers/v8/*`) carry the runtimes as a keyed list, not as one fixed object.
+
+The host hides a provider from a peer below v8 when that protocol's frozen list does not have it
+(`FROZEN_PROVIDERS` in `src/main/team-api/provider-visibility.ts`). So a new provider is hidden
+from old peers with no change there. Do not edit those lists. A local-only provider
+(`LOCAL_ONLY_PROVIDERS`, now only Inception) is hidden from peers on every protocol, v8 too, and the
+peer key routes refuse its key.
+
+A v8 client keeps the agents of a provider that its build does not know (`ForeignProviderId`,
+`AgentProviderRef`). The agent stays in the list and chat works, because the host runs it. The
+provider and model pickers show the agent disabled, with "Update OpenBot to use {name}" and the
+neutral `unknown` logo. They do not reset the agent. The model picker and the backup models leave
+out the models of that provider. Host types (`AgentProviderId`, the database, the drivers) stay
+closed.
 
 ### Custom agents
 
@@ -497,8 +645,10 @@ next list starts another.
 
 `src/main/custom-agent-store.ts` keeps `custom-agents.json`: env names in plain text and all env
 values in one `safeStorage` ciphertext. `list()` returns summaries; only the backend gets the
-values. `customAgents.check` starts the program in a temporary folder, sends `initialize` only, and
-stops its process group. The scan (`src/backend/acp-agent-scan.ts`) looks up the preset names on the
+values. `customAgents.check` starts the program in a temporary folder, sends `initialize`, opens one
+`session/new` there with no MCP servers to read the model names, and stops its process group. A
+failed `session/new` (an agent that needs sign-in first) gives no models and does not fail the
+check. The registry install check (`acp-registry-install.ts`) sends `initialize` only. The scan (`src/backend/acp-agent-scan.ts`) looks up the preset names on the
 login-shell `PATH` and in the user's folders, and never starts a file. An agent and its check start
 with the `PATH` that its command was looked up in (`agentLaunchPath`): the absolute folders of the
 login-shell `PATH`, then those of OpenBot's own, so an app that Finder starts can still run a
@@ -507,6 +657,21 @@ same `PATH`, so their Bash tool and hooks find the user's tools; an `env.PATH` i
 wins. The agents run confined with no state paths. Migration 23 adds `acp` to
 `projection_provider_sessions`. The host hides `acp` agents, models, status, and sign-in state from
 peers before protocol 5, and the `customAgents` IPC group is local only.
+
+A custom agent can have a usage prompt (`usagePrompt`, "Usage command" in the form), one line such
+as `/usage`. `customAgents.usage` asks each agent that has one: `ProviderRuntime.customAgentUsage`
+sends it through `readUsageText` on the agent's model list process, in the session that no thread
+owns (`privatePrompt`). The answer is redacted and kept to `CUSTOM_AGENT_LIMITS.usageAnswer`
+characters. OpenBot does not read a percent from it, so `acp` keeps `reportsUsage: false`: the rail
+shows the agent's logo with no ring, and its hover card shows the text. The renderer polls with the
+plan usage interval, only while the local server is active. One read runs at a time, and a read from
+the last minute answers the next request. While `acp` is released, the read returns the last answers
+and starts the router again only when an answer is older than an hour or its prompt changed. A read
+that times out cancels the prompt in the agent. A prompt that the agent does not answer itself is a
+model turn on each read. The registry install result of `acp-registry-v1` has no `usagePrompt`, so
+the summary check accepts a summary without it. An older build drops `usagePrompt` from `custom-agents.json`
+the next time it saves the file. An instance transfer does not carry it, because the import never
+saves a custom agent.
 
 ### Local detection and endpoint edit
 
@@ -534,6 +699,49 @@ the change while an agent uses the provider. New model assignments use the same 
 The switch is local IPC only; released Team API adapters stay unchanged. Remote
 clients receive the host's filtered model list.
 
+### Backup models and failover
+
+An agent keeps an ordered list of backup models (`AgentBackupModels`, at most 8) in `agent_json`.
+The settings page, the admin route `agent-backup-models-v1`, and the `update_profile` tool set it.
+When the list is automatic, `UsageLimitGate` and `AgentService.#usageLimitMove` move the agent to the
+first ready model in the order that no hold covers. `usageLimitReturn` keeps the model the agent
+left, and the agent goes back to it when its hold ends. A model the user picks drops the return.
+
+Two holds move an agent:
+
+- A plan usage limit holds the queue of every agent on that provider account and model until the
+  reset. A usage reset that the user starts also ends it (see [Usage reset credits](#usage-reset-credits)).
+- A provider error holds nothing. `TurnLifecycle` checks the turn's error with `classifyFailure`.
+  The causes are `billing`, `provider_unavailable`, `rate_limit`, `authentication`, `network` and
+  `timeout`. When the turn did no work yet (`!acted`) and the agent has a ready backup, the turn's
+  messages go back to the queue and `UsageLimitGate.failed` passes over that model for 10 minutes.
+  The next drain moves the agent, and the turn runs again on the backup with no error banner. The
+  hold also ends when a turn on the model completes. A restart clears the holds, so the first drain
+  after it goes back. The return is marked `cause: "provider-error"`, so the notes read
+  `model-switch:provider-error` and `model-switch:provider-error-ended`.
+
+A turn that wrote text or ran a tool fails with its error, as with no backup. Tasks, channel tasks,
+a refused `turn/start`, and a provider that fails to start do not fail over. A message runs again at
+most once for each model that failed it, so a move that cannot happen shows the error on the next
+failure; the check for a ready backup runs again when the turn ends.
+
+### Usage reset credits
+
+Codex can give an account usage reset credits: one restores the spent usage limits of the account at
+once (issue #2859). `account/rateLimits/read` counts them in `rateLimitResetCredits.availableCount`,
+and `account/rateLimitResetCredit/consume` spends one; both are stable Codex app-server methods since
+0.156.0. `ProviderRuntime.#refreshUsage` keeps the count of each client with its usage reading.
+`usageResets` reads the provider's own sign-in again while its process runs, and keeps the last count
+while it is released; an account after the first uses the reading that the dock keeps for five
+minutes. An account whose reading has no count is left out. `resetUsage` sends the consume with a new
+`idempotencyKey` for each reset the user asks for, through the running client, an agent's process or a
+short one in the account's folder. Then it reads the account's usage again and sends `usage-changed`.
+After the answer `reset`, or `nothingToReset` (no limit of the account is spent), `AgentService` calls
+`UsageLimitGate.accountReset`, which ends each limit of that account, so its held agents start again. Other providers have no credits: `resetUsage` refuses them.
+
+Settings > Providers shows **Reset usage** in the ⋯ menu of a connected account that has a credit.
+The confirmation names the credits left, and the answer shows under the accounts. A joined server
+uses the optional `provider-usage-reset-v1` routes (see [Admin capabilities](servers.md#admin-capabilities)).
 
 ## Provider settings and the ACP registry
 
@@ -581,7 +789,7 @@ calls `pi.registerProvider("inception", …)` with the Mercury models; the key i
 environment and a `globalThis` slot, because Pi runs extensions again on `switch_session`. The
 Inception client lists only the `inception` models, with bare ids such as `mercury-3`. The Pi client
 does not load this extension, so it keeps only the user's own `inception` models. Without a key the provider has no models and asks for a key. Inception is local-only:
-no Team API protocol carries it.
+no Team API protocol carries it, v8 included (`LOCAL_ONLY_PROVIDERS`).
 
 ## Muse
 
@@ -646,5 +854,9 @@ the token comparison. Later local estimates do not restore that comparison.
 The progress percentage is an estimate based on elapsed time and the preceding compaction duration
 in this process. It never proves completion. Terminal provider events control success and failure.
 The latest marker and timing are runtime state, not new saved conversation messages. A provider
-summary is not copied into this state. This connection adds no manual-compaction endpoint and
-makes no extra model turn.
+summary is not copied into this state.
+
+`agent:compact-context` asks for a compaction now, below the threshold too. The popover offers it
+when `autoCompactAt` is set, which means that OpenBot compacts the thread (`events`, `request` or
+`handoff`). It refuses while a turn, a queued message or a session start needs the session. It is
+local only: the Team API has no route, and a joined server's agent shows no ring.

@@ -1,10 +1,14 @@
-import type { AgentSummary, ConversationMessage, QueueDeliveryStatus } from "@openbot/contracts/ipc";
+import type { ClientAgentSummary, ConversationMessage, QueueDeliveryStatus } from "@openbot/contracts/ipc";
 import {
+  CONVERSATION_MEMORY_CHANGES_ITEM_TYPE,
   CONVERSATION_PLAN_ITEM_TYPE,
   CONVERSATION_SUBAGENTS_ITEM_TYPE,
   hostedSiteConversationEvent,
+  isChannelChangeMarker,
   isContextResetMarker,
+  isVaultChangeMarker,
   marketplaceSuggestionEvent,
+  mcpSignInEvent,
   modelSwitchReason,
   parseConversationPlanText,
   routineConversationEvent,
@@ -25,7 +29,7 @@ import type { TaskListItem } from "@openbot/ui/features/conversation/TaskList";
 import { currentText } from "@openbot/ui/text";
 import { isRoutineEventItem } from "./features/conversation/conversation-read-state";
 
-export function toAgentProfile(stored: AgentSummary): AgentProfile {
+export function toAgentProfile(stored: ClientAgentSummary): AgentProfile {
   return {
     id: stored.id,
     name: stored.name,
@@ -42,6 +46,8 @@ export function toAgentProfile(stored: AgentSummary): AgentProfile {
     ...(stored.allowNewChat === undefined ? {} : { allowNewChat: stored.allowNewChat }),
     ...(stored.quickAcknowledgement === undefined ? {} : { quickAcknowledgement: stored.quickAcknowledgement }),
     ...(stored.fastMode === undefined ? {} : { fastMode: stored.fastMode }),
+    ...(stored.ownBrowserSession === undefined ? {} : { ownBrowserSession: stored.ownBrowserSession }),
+    ...(stored.browserProfileId === undefined ? {} : { browserProfileId: stored.browserProfileId }),
     ...(stored.busyMessageMode === undefined ? {} : { busyMessageMode: stored.busyMessageMode }),
     ...(stored.taskLimit === undefined ? {} : { taskLimit: stored.taskLimit }),
     ...(stored.backupModels === undefined ? {} : { backupModels: stored.backupModels }),
@@ -66,6 +72,7 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
   const actionMarker = chatActionMarker(message, ownerAgentId, routineEvent, routineRunEvent, hostedSiteEvent);
   const plan = messagePlan(message);
   const subagents = message.itemType === CONVERSATION_SUBAGENTS_ITEM_TYPE ? message.subagents : undefined;
+  const memoryChanges = message.author === "system" && message.itemType === CONVERSATION_MEMORY_CHANGES_ITEM_TYPE;
   const senderMember = message.author === "user" ? message.senderMember : undefined;
   const status =
     message.exchange || message.routine
@@ -96,7 +103,9 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
           ? "plan"
           : subagents?.length
             ? "subagents"
-            : "text",
+            : memoryChanges
+              ? "memory-changes"
+              : "text",
     ...(exchangeSenderId === undefined ? {} : { senderAgentId: exchangeSenderId }),
     ...(senderMember === undefined ? {} : { senderMember }),
     ...(message.replyToMessageId === undefined ? {} : { replyToMessageId: message.replyToMessageId }),
@@ -113,6 +122,8 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
     ...(actionMarker ? { actionMarker } : {}),
     ...(plan ? { plan } : {}),
     ...(subagents?.length ? { subagents } : {}),
+    ...(memoryChanges && message.memoryChanges ? { memoryChanges: message.memoryChanges } : {}),
+    ...(message.trace === undefined ? {} : { trace: message.trace }),
     ...(status === undefined ? {} : { status }),
   };
 }
@@ -121,7 +132,7 @@ export function toAgentMessage(message: ConversationMessage, ownerAgentId?: stri
  * The plan of a `plan` message. A peer on a released Team API protocol sends only the checklist
  * text, so the plan is read back from it.
  */
-export function messagePlan(message: ConversationMessage): AgentMessagePlan | null {
+function messagePlan(message: ConversationMessage): AgentMessagePlan | null {
   if (message.author !== "assistant" || message.itemType !== CONVERSATION_PLAN_ITEM_TYPE) return null;
   const plan = message.plan ?? parseConversationPlanText(message.text);
   if (!plan?.steps.length) return null;
@@ -177,7 +188,9 @@ export function toAgentMessages(
       const text = cleanAgentMessageText(message.text);
       existing.items = [...(existing.items ?? []), text];
       existing.itemIds = [...(existing.itemIds ?? []), message.id];
+      existing.itemCreatedAt = [...(existing.itemCreatedAt ?? []), message.createdAt];
       existing.streaming = existing.streaming || message.status === "streaming";
+      if (message.trace) existing.trace = message.trace;
       continue;
     }
 
@@ -194,6 +207,8 @@ export function toAgentMessages(
       kind: "thinking",
       items: [text],
       itemIds: [message.id],
+      itemCreatedAt: [message.createdAt],
+      ...(message.trace === undefined ? {} : { trace: message.trace }),
     };
     thinkingByTurn.set(key, thinking);
     result.push(thinking);
@@ -216,6 +231,14 @@ export function agentProfilesEqual(left: AgentProfile, right: AgentProfile): boo
     JSON.stringify(left.usageLimitReturn) === JSON.stringify(right.usageLimitReturn) &&
     left.access === right.access &&
     left.computerUse === right.computerUse &&
+    left.allowAutomation === right.allowAutomation &&
+    left.allowNewChat === right.allowNewChat &&
+    left.quickAcknowledgement === right.quickAcknowledgement &&
+    left.fastMode === right.fastMode &&
+    left.ownBrowserSession === right.ownBrowserSession &&
+    left.browserProfileId === right.browserProfileId &&
+    left.busyMessageMode === right.busyMessageMode &&
+    left.taskLimit === right.taskLimit &&
     left.threadId === right.threadId &&
     left.avatarSeed === right.avatarSeed &&
     left.avatarHue === right.avatarHue &&
@@ -307,10 +330,15 @@ function chatActionMarker(
   const switchReason = modelSwitchReason(message);
   if (switchReason)
     return { kind: "model-switch", reason: switchReason, text: message.text, timestamp: message.createdAt };
+  if (isChannelChangeMarker(message))
+    return { kind: "channel-change", text: message.text, timestamp: message.createdAt };
+  if (isVaultChangeMarker(message)) return { kind: "vault-change", text: message.text, timestamp: message.createdAt };
   const skillEvent = skillConversationEvent(message);
   if (skillEvent) return { ...skillEvent, kind: "skill-lifecycle", timestamp: message.createdAt };
   const suggestion = marketplaceSuggestionEvent(message);
   if (suggestion) return { kind: "marketplace-suggestion", appId: suggestion.appId, timestamp: message.createdAt };
+  const signIn = mcpSignInEvent(message);
+  if (signIn) return { kind: "mcp-sign-in", mcpServerId: signIn.mcpServerId, timestamp: message.createdAt };
   if (routineEvent) {
     return {
       kind: "routine-lifecycle",

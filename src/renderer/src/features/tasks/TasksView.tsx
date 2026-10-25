@@ -42,6 +42,8 @@ export interface TasksViewProps {
   serverId: string;
   hostName: string;
   onBack?: (() => void) | undefined;
+  agentsOpen?: boolean | undefined;
+  onToggleAgents?: (() => void) | undefined;
   source: TasksSource;
   agents: AgentProfile[];
   /** Absent where the client cannot record. */
@@ -490,8 +492,13 @@ export function TasksView(props: TasksViewProps) {
     <TasksPage
       hostName={props.hostName}
       onBack={props.onBack}
+      agentsOpen={props.agentsOpen}
+      onToggleAgents={props.onToggleAgents}
       agents={props.agents}
       tasks={tasks()}
+      // A list that did not load keeps its agent out, so a failed load does not show the empty page.
+      // With no agents yet, the agent list did not load.
+      loaded={props.agents.length > 0 && props.agents.every((agent) => state.snapshots[agent.id] !== undefined)}
       agentId={agentId()}
       onAgentChange={(id) => {
         writeAgentSelection(TASK_AGENT_STORAGE_KEY, props.serverId, id);

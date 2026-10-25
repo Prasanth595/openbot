@@ -6,6 +6,16 @@ export const messages = {
   "settings.language.description": "OpenBot zeigt Menüs, Schaltflächen und Nachrichten in dieser Sprache an.",
   "settings.language.system": "Systemstandard",
   "settings.appearance.title": "Darstellung",
+  "settings.appearance.theme.title": "Design",
+  "settings.appearance.theme.description": "Helle oder dunkle Farben. „System“ folgt der Einstellung deines Geräts.",
+  "settings.appearance.theme.system": "System",
+  "settings.appearance.theme.light": "Hell",
+  "settings.appearance.theme.dark": "Dunkel",
+  "settings.appearance.transparentWindow.title": "Transparentes Fenster",
+  "settings.appearance.transparentWindow.description":
+    "Zeigt den unscharfen Schreibtisch hinter dem Fenster. Websites und Menüs nutzen dann das App-Design.",
+  "settings.interfaceSize.title": "Größe der Oberfläche",
+  "settings.interfaceSize.description": "Die Größe von Text und Bedienelementen in OpenBot.",
   "settings.logoColor.title": "Logofarbe",
   "settings.logoColor.description": "Im Dock, in der Taskleiste und in Dynamic Island.",
   "settings.logoColor.buildNote":
@@ -26,6 +36,12 @@ export const messages = {
   "settings.launchAtLogin.description": "Die App öffnen, wenn du dich an diesem Computer anmeldest.",
   "settings.keepRunning.title": "OpenBot im Hintergrund weiter ausführen",
   "settings.keepRunning.description": "Aktive Aufgaben nach dem Schließen des Fensters weiter ausführen.",
+  "settings.keepAwake.title": "Computer wach halten",
+  "settings.keepAwake.description":
+    "Routinen laufen pünktlich, solange der Computer am Strom hängt. Der Bildschirm kann sich trotzdem ausschalten.",
+  "settings.keepAwakeOnBattery.title": "Auch im Akkubetrieb",
+  "settings.keepAwakeOnBattery.description":
+    "Den Computer auch im Akkubetrieb wach halten. Der Akku entlädt sich schneller.",
   "settings.restoreWorkspace.title": "Letzten Arbeitsbereich beim Start wiederherstellen",
   "settings.restoreWorkspace.description": "Den Arbeitsbereich und die Aufgaben der letzten Sitzung öffnen.",
   "settings.externalLinks.title": "Externe Links öffnen in",
@@ -37,6 +53,9 @@ export const messages = {
   "settings.sendShortcut.enter": "Mit Enter senden",
   "settings.sendShortcut.modEnterMac": "Mit ⌘Enter senden",
   "settings.sendShortcut.modEnterWin": "Mit Strg+Enter senden",
+  "settings.showAgentSteps.title": "Agentenschritte anzeigen",
+  "settings.showAgentSteps.description":
+    "Öffnet Denken, Werkzeugschritte und Erinnerungsänderungen jedes Durchlaufs standardmäßig auf diesem Gerät und in diesem Browser.",
   "settings.busyMessage.title": "Agenten während der Arbeit steuern",
   "settings.busyMessage.description":
     "Neue Nachrichten fließen in die aktuelle Arbeit des Agenten ein, nicht in die Warteschlange. Funktioniert mit ChatGPT und Claude.",
@@ -192,6 +211,19 @@ export const messages = {
   "settings.mobileConnect.link.error.revoke": "Der dauerhafte Link konnte nicht widerrufen werden.",
   "settings.mobileConnect.devices.title": "Verbundene Geräte",
   "settings.mobileConnect.devices.refreshing": "Wird aktualisiert…",
+  "settings.mobileConnect.route.title": "Wie Geräte sich verbinden",
+  "settings.mobileConnect.route.description":
+    "Für Telefone, andere Computer und Teammitglieder, die sich mit diesem Computer verbinden.",
+  "settings.mobileConnect.route.openbot.title": "Über OpenBot",
+  "settings.mobileConnect.route.openbot.badge": "Empfohlen",
+  "settings.mobileConnect.route.openbot.description":
+    "Funktioniert in jedem Netzwerk. Chats und Dateien sind zwischen deinen Geräten verschlüsselt.",
+  "settings.mobileConnect.route.private.title": "Privates Netzwerk",
+  "settings.mobileConnect.route.private.tailscale": "Tailscale gefunden",
+  "settings.mobileConnect.route.private.description":
+    "Tailscale oder dieses WLAN. Geräte melden sich weiter mit OpenBot an. Chats und Dateien gehen nie über OpenBot-Server, und Geräte verbinden sich nur in diesem Netzwerk.",
+  "settings.mobileConnect.route.error.load": "Verbindungsart konnte nicht geladen werden.",
+  "settings.mobileConnect.route.error.save": "Verbindungsart konnte nicht geändert werden.",
   "settings.mobileConnect.disconnectInfo.title": "Gerät trennen",
   "settings.mobileConnect.disconnectInfo.description":
     "Der Zugriff wird sofort widerrufen. Die mobile App kann ihren aktuellen Bildschirm weiter anzeigen, bis sie erneut geöffnet oder aus dem Hintergrund zurückgeholt wird.",
@@ -412,6 +444,7 @@ export const messages = {
   "settings.hostedServers.deleteFailed": "Der Server konnte nicht gelöscht werden.",
   "settings.hostedServers.plan.label": "Tarif",
   "settings.hostedServers.plan.recommended": "Preistipp",
+  "settings.hostedServers.plan.soldOut": "Ausverkauft",
   "settings.hostedServers.plan.perMonth": "/ Monat",
   "settings.hostedServers.plan.disk": "{count} GB Speicherplatz",
   "settings.hostedServers.plan.linux": "Linux-Rechner",
@@ -445,6 +478,7 @@ export const messages = {
   "settings.voice.model.cancelLabel": "Download von {name} stoppen",
   "settings.voice.model.retryLabel": "{name} erneut herunterladen",
   "settings.voice.model.useLabel": "{name} für das Diktat verwenden",
+  "settings.voice.model.removeLabel": "{name} von diesem Computer entfernen",
   "settings.voice.language.section": "Sprache",
   "settings.voice.language.title": "Diktiersprache",
   "settings.voice.language.description": "Die Sprache, die du sprichst. Automatisch erkennt sie aus der Aufnahme.",
@@ -457,6 +491,7 @@ export const messages = {
   "settings.voice.saveFailed": "Die Spracheinstellung konnte nicht gespeichert werden. Versuche es erneut.",
   "settings.voice.downloadFailed": "Der Download konnte nicht starten. Versuche es erneut.",
   "settings.voice.cancelFailed": "Der Download konnte nicht gestoppt werden.",
+  "settings.voice.removeFailed": "Das Modell konnte nicht entfernt werden. Versuche es erneut.",
   "settings.voice.model.elevenlabs.description":
     "Überträgt deine Stimme an ElevenLabs. Der Text erscheint beim Sprechen und bleibt stabil. Nutzt deinen eigenen API-Schlüssel, und ElevenLabs berechnet jede Nutzung.",
   "settings.voice.model.keySaved": "API-Schlüssel gespeichert",

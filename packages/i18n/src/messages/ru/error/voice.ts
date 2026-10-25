@@ -4,6 +4,8 @@ import type { messages as source } from "../../en/error/voice";
 export const messages = {
   "error.voice.downloadFailed": "Не удалось загрузить голосовую модель. Повторите попытку.",
   "error.voice.downloadStopped": "Загрузка голосовой модели остановлена.",
+  "error.voice.removeBusy": "Дождитесь окончания расшифровки голоса, затем удалите модель.",
+  "error.voice.removeFailed": "Не удалось удалить голосовую модель. Повторите попытку.",
   "error.voice.runtimeUnavailable": "Локальная расшифровка голоса недоступна на этой платформе.",
   "error.voice.busy": "Расшифровка голоса уже выполняется.",
   "error.voice.modelUnavailable": "Голосовая модель недоступна.",

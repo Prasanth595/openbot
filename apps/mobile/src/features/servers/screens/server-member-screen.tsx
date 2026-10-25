@@ -5,6 +5,7 @@ import { Alert, View } from "react-native";
 import { useUniwind } from "uniwind";
 import { SERVER_ROLE_LABEL_KEYS } from "@/features/servers/model/server-role";
 import { useServerMembers } from "@/features/servers/model/use-server-members";
+import { memberRoleNames, useServerRoles } from "@/features/servers/model/use-server-roles";
 import {
   SettingsContent,
   SettingsNote,
@@ -21,7 +22,7 @@ const EXPIRY_FORMAT = { month: "short", day: "numeric", hour: "numeric", minute:
 
 /**
  * Server sheet > Members > one person: their role and access. An owner or admin changes the role
- * of another member or removes them; the owner and your own membership stay read-only here, and
+ * of another member, opens the Roles page of a member, or removes them; the owner and your own membership stay read-only here, and
  * Server settings has Leave. An email invitation opens here too, and its owner or admin revokes it.
  */
 export function ServerMemberScreen() {
@@ -33,6 +34,7 @@ export function ServerMemberScreen() {
     inviteId?: string;
   }>();
   const { server, teamDirectory, canManage, members, invites, action, perform } = useServerMembers(serverId);
+  const roles = useServerRoles(serverId);
   const member = membershipId
     ? members.data?.find((candidate) => candidate.membershipId === membershipId && candidate.status === "active")
     : undefined;
@@ -61,6 +63,7 @@ export function ServerMemberScreen() {
     const self = member.membershipId === server.membershipId;
     const manageable = canManage && member.role !== "owner" && !self;
     const memberRole = member.role;
+    const memberRoles = memberRoleNames(roles.list, member.membershipId);
     return (
       <SettingsContent>
         <Identity
@@ -119,6 +122,30 @@ export function ServerMemberScreen() {
           ) : null}
         </SettingsSection>
         {error}
+        {/* Roles apply only to a member: an owner or admin can use all agents. */}
+        {manageable && memberRole === "member" && roles.available ? (
+          <SettingsSection footer={t("mobile.server.roles.memberHint")}>
+            <SettingsRow
+              supportingText={
+                roles.roles.isError
+                  ? errorMessage(roles.roles.error, t("mobile.server.roles.loadFailed"))
+                  : !roles.list
+                    ? t("mobile.server.roles.loading")
+                    : memberRoles.length
+                      ? format.list(memberRoles)
+                      : t("mobile.server.roles.memberNone")
+              }
+              onPress={() =>
+                router.push({
+                  pathname: "/server-settings/member-roles",
+                  params: { serverId, membershipId: member.membershipId },
+                })
+              }
+            >
+              <Typography.Paragraph>{t("mobile.server.roles.title")}</Typography.Paragraph>
+            </SettingsRow>
+          </SettingsSection>
+        ) : null}
         {manageable ? (
           <SettingsSection>
             <SettingsRow

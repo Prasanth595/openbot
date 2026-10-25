@@ -47,12 +47,15 @@ function shortPath(path: string) {
 export function ChatApprovalCard({
   approval,
   agentName,
+  showAgentName,
   serverName,
   canAnswer,
   respond,
 }: {
   approval: PendingApproval;
   agentName: string;
+  /** In a channel, several agents can ask. In an agent's own chat, the name is the chat's. */
+  showAgentName: boolean;
   serverName: string;
   canAnswer: boolean;
   respond: (decision: ApprovalDecision) => Promise<void>;
@@ -114,6 +117,11 @@ export function ChatApprovalCard({
         style={{ borderCurve: "circular" }}
       >
         <View className="gap-1">
+          {showAgentName ? (
+            <Typography.Paragraph type="body-xs" className="text-text-secondary" numberOfLines={1}>
+              {t("mobile.chat.approval.from", { name: agentName })}
+            </Typography.Paragraph>
+          ) : null}
           <View className="flex-row items-center gap-2">
             <ShieldAlert color={String(warningText)} size={16} strokeWidth={2.2} />
             <Typography.Paragraph weight="semibold" className="min-w-0 flex-1" accessibilityRole="header">

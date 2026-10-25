@@ -24,6 +24,7 @@ export const messages = defineMessages("mobile.search", {
   "mobile.search.task.tryAgain": "Try again",
   "mobile.search.filter.all": "All",
   "mobile.search.filter.agents": "Agents",
+  "mobile.search.filter.channels": "Channels",
   "mobile.search.filter.messages": "Messages",
   "mobile.search.filter.files": "Files",
   "mobile.search.filter.routines": "Routines",
