@@ -247,7 +247,8 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         if (file) rememberComposerFile(attachment, file);
       });
       const accepted = await addAttachments(imported, target);
-      if (!accepted.length) return;
+      // The draft refused the files and shows why. The text of a copy still comes, with their names.
+      if (!accepted.length) return copy?.text ? insert(expandAttachmentReferences(copy.text)) : undefined;
       const replacements = new Map((copy?.sourceIds ?? []).map((id, index) => [id, accepted[index]]));
       const text =
         copy === undefined
