@@ -17,6 +17,8 @@ export const messages = {
   "agent.instructions.length": "{length} / {limit}",
   "agent.instructions.tooLong": "Talimatları {limit} karaktere kısaltın. Daha uzun talimatlar kaydedilmez.",
   "agent.setup.model": "Ajan modeli",
+  "agent.setup.channel": "Kanal",
+  "agent.setup.channelNone": "Kanal yok",
   "agent.setup.creating": "Ajan oluşturuluyor…",
   "agent.setup.create": "Ajan oluştur",
   "agent.setup.suggestions": "Öneriler",

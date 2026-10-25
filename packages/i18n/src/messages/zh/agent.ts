@@ -17,6 +17,8 @@ export const messages = {
   "agent.instructions.length": "{length} / {limit}",
   "agent.instructions.tooLong": "请把指令缩短到 {limit} 个字符以内。过长的指令不会保存。",
   "agent.setup.model": "助手模型",
+  "agent.setup.channel": "频道",
+  "agent.setup.channelNone": "无频道",
   "agent.setup.creating": "正在创建助手…",
   "agent.setup.create": "创建助手",
   "agent.setup.suggestions": "推荐",

@@ -17,6 +17,8 @@ export const messages = {
   "agent.instructions.length": "{length} / {limit}",
   "agent.instructions.tooLong": "指示を{limit}文字以内に短くしてください。これより長い指示は保存されません。",
   "agent.setup.model": "エージェントのモデル",
+  "agent.setup.channel": "チャンネル",
+  "agent.setup.channelNone": "チャンネルなし",
   "agent.setup.creating": "エージェントを作成中…",
   "agent.setup.create": "エージェントを作成",
   "agent.setup.suggestions": "おすすめ",

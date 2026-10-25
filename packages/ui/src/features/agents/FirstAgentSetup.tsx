@@ -12,7 +12,17 @@ import type {
   ProviderRuntimeStatus,
 } from "@openbot/contracts/ipc";
 import type { AppTextKey, AppTranslate } from "@openbot/i18n";
-import { Button, Field, Input, Textarea } from "@openbot/ui";
+import {
+  Button,
+  Field,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@openbot/ui";
 import { createSignal, For, onSettled, Show } from "solid-js";
 import { AVATAR_HUE_CHOICES, avatarCandidateSeeds, avatarHeadColor, avatarHueSwatch } from "../../bloub-avatar";
 import { ProviderModelPicker } from "../../components/ProviderModelPicker";
@@ -30,6 +40,10 @@ export interface FirstAgentDraft {
   suggestionId: string | null;
   provider: AgentProviderId;
   model: AgentModelId;
+  /** The channel the new agent joins once it exists. `null`: the agent joins none. */
+  channelId?: string | null | undefined;
+  /** The sidebar section the new agent is placed in. `null`: the agent stays unassigned. */
+  sectionId?: string | null | undefined;
   /** The reasoning level the user chose. Absent, the agent starts on the model's default level. */
   reasoningEffort?: AgentReasoningEffort | undefined;
 }
@@ -49,6 +63,12 @@ export interface FirstAgentSuggestion {
   animationOffset: number;
 }
 
+/** A channel or sidebar section the new agent can be put in. */
+export interface FirstAgentChannelOption {
+  id: string;
+  name: string;
+}
+
 export interface FirstAgentSetupProps {
   value: FirstAgentDraft;
   suggestions: FirstAgentSuggestion[];
@@ -57,6 +77,10 @@ export interface FirstAgentSetupProps {
   error?: string | null;
   /** The live catalog behind the model picker. Absent, the form keeps no model choice. */
   modelOptions?: ClientAgentModelOption[] | undefined;
+  /** The channels the agent can join. Absent or empty, the form shows no channel choice. */
+  channels?: readonly FirstAgentChannelOption[] | undefined;
+  /** The sidebar sections the agent can be placed in. Absent or empty, the form shows no section choice. */
+  sections?: readonly FirstAgentChannelOption[] | undefined;
   agentStatus?: AgentStatus | undefined;
   runtimeStatuses?: Partial<Record<AgentProviderId, ProviderRuntimeStatus>> | undefined;
   customProviders?: readonly CustomProviderSummary[] | undefined;
@@ -73,7 +97,43 @@ export interface FirstAgentSetupProps {
   onCancel?: (() => void) | undefined;
 }
 
+/** The select's option for "no choice": the select cannot hold an empty key. */
+const NO_CHOICE = "none";
+
 export const FIRST_AGENT_AVATAR_SEEDS = avatarCandidateSeeds("first-bot", "first-bot", 0);
+
+/** A row like the model picker's: its label on the left and the select's choice on the right. */
+function DraftChoiceSelect(props: {
+  label: string;
+  noneLabel: string;
+  choices: readonly FirstAgentChannelOption[];
+  value: string | null | undefined;
+  disabled: boolean | undefined;
+  onChange: (id: string | null) => void;
+}) {
+  const options = () => [{ id: NO_CHOICE, name: props.noneLabel }, ...props.choices];
+  const selected = () => options().find((option) => option.id === (props.value ?? NO_CHOICE)) ?? null;
+  return (
+    <Select<FirstAgentChannelOption>
+      class="first-agent-channel"
+      options={options()}
+      optionValue="id"
+      optionTextValue="name"
+      value={selected()}
+      disabled={props.disabled}
+      onChange={(option) => props.onChange(option && option.id !== NO_CHOICE ? option.id : null)}
+      itemComponent={(item) => <SelectItem item={item.item}>{item.item.rawValue.name}</SelectItem>}
+    >
+      <SelectTrigger class="first-agent-channel-trigger" aria-label={props.label}>
+        <span class="first-agent-channel-label">{props.label}</span>
+        <SelectValue<FirstAgentChannelOption> class="first-agent-channel-value">
+          {(state) => state.selectedOption()?.name}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent />
+    </Select>
+  );
+}
 
 const SUGGESTION_MOMENTUM_FRICTION = 0.88;
 const SUGGESTION_MOMENTUM_MINIMUM = 0.01;
@@ -314,6 +374,8 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
       suggestionId: suggestion.id,
       provider: props.value.provider,
       model: props.value.model,
+      channelId: props.value.channelId,
+      sectionId: props.value.sectionId,
       reasoningEffort: props.value.reasoningEffort,
     });
   }
@@ -497,6 +559,26 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
                   )}
                 </Show>
               )}
+            </Show>
+            <Show when={props.channels?.length}>
+              <DraftChoiceSelect
+                label={t("agent.setup.channel")}
+                noneLabel={t("agent.setup.channelNone")}
+                choices={props.channels ?? []}
+                value={props.value.channelId}
+                disabled={props.submitting}
+                onChange={(channelId) => updateDraft({ channelId })}
+              />
+            </Show>
+            <Show when={props.sections?.length}>
+              <DraftChoiceSelect
+                label={t("sidebar.section.fallback")}
+                noneLabel={t("sidebar.section.unassigned")}
+                choices={props.sections ?? []}
+                value={props.value.sectionId}
+                disabled={props.submitting}
+                onChange={(sectionId) => updateDraft({ sectionId })}
+              />
             </Show>
           </div>
 

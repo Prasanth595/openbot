@@ -16,6 +16,8 @@ export const messages = defineMessages("agent", {
   "agent.instructions.length": "{length} / {limit}",
   "agent.instructions.tooLong": "Shorten the instructions to {limit} characters. Longer instructions are not saved.",
   "agent.setup.model": "Agent model",
+  "agent.setup.channel": "Channel",
+  "agent.setup.channelNone": "No channel",
   "agent.setup.creating": "Creating agent…",
   "agent.setup.create": "Create agent",
   "agent.setup.suggestions": "Suggestions",

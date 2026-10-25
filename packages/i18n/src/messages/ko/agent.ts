@@ -17,6 +17,8 @@ export const messages = {
   "agent.instructions.length": "{length} / {limit}",
   "agent.instructions.tooLong": "지침을 {limit}자 이내로 줄여 주세요. 더 긴 지침은 저장되지 않아요.",
   "agent.setup.model": "에이전트 모델",
+  "agent.setup.channel": "채널",
+  "agent.setup.channelNone": "채널 없음",
   "agent.setup.creating": "에이전트 만드는 중…",
   "agent.setup.create": "에이전트 만들기",
   "agent.setup.suggestions": "추천",

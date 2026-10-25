@@ -447,6 +447,25 @@ export function createChannelsController(env: ChannelsEnvironment) {
       return null;
     },
     open,
+    /** Adds an agent to a channel's members. `false`: the channel is unknown or the save failed. */
+    addAgent: (channelId: string, agentId: string) => {
+      const channel = state.channels.find((candidate) => candidate.id === channelId);
+      if (!channel) return Promise.resolve(false);
+      if (channel.members.some((member) => member.agentId === agentId)) return Promise.resolve(true);
+      return command({
+        type: "save",
+        operationId: crypto.randomUUID(),
+        channelId,
+        update: true,
+        draft: {
+          name: channel.name,
+          title: channel.title,
+          instructions: channel.instructions,
+          members: [...channel.members, { agentId }],
+          leadAgentId: channel.leadAgentId ?? agentId,
+        },
+      });
+    },
     editChannel: async (channelId: string) => {
       if (!supported()) return;
       if (state.selectedId !== channelId) await open(channelId);
