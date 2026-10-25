@@ -36,7 +36,7 @@ export const messages = {
   // The sidebar section that OpenBot puts the Slack Orchestrator in. The user can rename it.
   "status.messaging.integrationsSection": "集成",
   // The page a development Slack install ends on.
-  "status.messaging.signInReceived": "OpenBot 已收到 Slack 安装请求，你可以关闭此标签页。",
+  "status.messaging.signInReceived": "OpenBot 已收到 Slack 安装请求，你可以关闭该标签页。",
   "status.messaging.signInUnknown": "该 Slack 安装不是由 OpenBot 发起的，请在 OpenBot 中重新开始。",
   // Text that OpenBot posts in a Telegram chat, and the Telegram Orchestrator agent. Telegram users
   // read the posts. The user can rename the agent.

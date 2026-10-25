@@ -136,7 +136,21 @@ export function SideQuestionPanel(props: SideQuestionPanelProps) {
       </Show>
       <div class="composer-wrap">
         <Show when={props.error}>
-          {(error) => <ComposerNotice tone="danger" title={t("conversation.sideQuestion.failed")} body={error()} />}
+          {(error) => (
+            <ComposerNotice
+              tone="danger"
+              title={t("conversation.sideQuestion.failed")}
+              body={error()}
+              action={
+                // The failed question is back in the draft, so Retry asks the draft again.
+                <Show when={props.draft.trim()}>
+                  <Button variant="outline" size="sm" type="button" disabled={asking()} onClick={ask}>
+                    {t("common.retry")}
+                  </Button>
+                </Show>
+              }
+            />
+          )}
         </Show>
         <form
           class="composer side-question-composer"

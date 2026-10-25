@@ -9,7 +9,7 @@ import { Badge, buttonVariants, ContextMenu } from "@openbot/ui";
 import { Show } from "solid-js";
 import { useText } from "../../text";
 import { ChannelAvatar } from "../channels/ChannelAvatar";
-import { SidebarChannelContextMenu } from "./SidebarChannelContextMenu";
+import { SidebarChannelContextMenu, SidebarDeletedChannelContextMenu } from "./SidebarChannelContextMenu";
 import { sidebarMessageTime } from "./sidebar-filtering";
 import { useSidebarScope } from "./sidebar-scope";
 
@@ -70,7 +70,7 @@ export function SidebarChannelRow(rowProps: { channel: ChannelSummary }) {
           <span class="agent-row-avatar">
             <ChannelAvatar members={rowProps.channel.members} agents={props.agents} layout="cluster" />
             <Show when={rowProps.channel.unreadCount > 0}>
-              <Badge class="person-unread-badge" variant="primary-light" shape="pill" aria-hidden="true">
+              <Badge class="person-unread-badge" variant="primary-light" aria-hidden="true">
                 {Math.min(rowProps.channel.unreadCount, 99)}
               </Badge>
             </Show>
@@ -81,7 +81,7 @@ export function SidebarChannelRow(rowProps: { channel: ChannelSummary }) {
                 <strong>{rowProps.channel.name}</strong>
                 <Show when={title()}>
                   {(label) => (
-                    <Badge class="agent-role-badge" size="sm" title={label()}>
+                    <Badge class="agent-role-badge" title={label()}>
                       <span>{label()}</span>
                     </Badge>
                   )}
@@ -97,7 +97,14 @@ export function SidebarChannelRow(rowProps: { channel: ChannelSummary }) {
             <span class="sr-only">{t("sidebar.channel.unread", { count: rowProps.channel.unreadCount })}</span>
           </Show>
         </ContextMenu.Trigger>
-        <Show when={!rowProps.channel.archived}>
+        <Show
+          when={!rowProps.channel.archived}
+          fallback={
+            <Show when={props.onRestoreChannel}>
+              <SidebarDeletedChannelContextMenu channel={rowProps.channel} />
+            </Show>
+          }
+        >
           <SidebarChannelContextMenu channel={rowProps.channel} pinned={false} />
         </Show>
       </ContextMenu.Root>

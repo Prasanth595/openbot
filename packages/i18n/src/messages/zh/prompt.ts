@@ -60,5 +60,14 @@ export const messages = {
   "prompt.browser.cancelling": "正在取消…",
   "prompt.browser.pageFallback": "浏览器页面",
   "prompt.browser.hostFallback": "浏览器",
+  "prompt.browser.signInBlocked.label": "登录被拦截",
+  "prompt.browser.signInBlocked.title": "{host} 拦截了来自 {server} 的登录",
+  "prompt.browser.signInBlocked.cancelledTitle": "已取消登录 {host}",
+  "prompt.browser.signInBlocked.body":
+    "请在这台电脑上登录。OpenBot 只会把 {host} 的登录状态发送给 {server}，{name} 随后继续工作。",
+  "prompt.browser.signInBlocked.cancelledBody": "登录已取消。",
+  "prompt.browser.signInBlocked.waiting": "正在等待登录",
+  "prompt.browser.signInBlocked.waitingButton": "正在等待登录…",
+  "prompt.browser.signInBlocked.page": "{server} 上的 {host}",
   "prompt.inputRequiredAnnouncement": "需要你输入。{question}",
 } as const satisfies PartialTranslation<typeof source>;

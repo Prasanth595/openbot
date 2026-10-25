@@ -35,7 +35,7 @@ import { causeHelpers } from "../backend/effect-boundary";
 import { toArrayBuffer } from "./agent-marketplace-service";
 import type { CentralAuthManager } from "./central-auth-manager";
 import type { LocalSkillLibrary } from "./local-skill-library";
-import { listManagedSkillsForChat, MANAGED_SKILL_FOLDERS } from "./managed-skill-service";
+import { listManagedSkillsForChat, MANAGED_SKILL_FOLDERS, MANAGED_SKILL_SLUGS } from "./managed-skill-service";
 import { listFolderSkills } from "./skill-folder-discovery";
 import { archiveDirectory, inspectArchive, inspectSkillMarkdown, normalizedFiles } from "./skill-package";
 
@@ -285,7 +285,8 @@ export class SkillMarketplaceService {
         } else result.push({ kind: "marketplace", ...(yield* this.publishedReferenceEffect(agent, entry)) });
       }
       for (const skill of yield* listFolderSkills(agent, lockedSlugs(lock)).pipe(toSkillMarketplaceFailure)) {
-        if (skill.problem || !skill.location) continue;
+        // A managed skill without its ownership marker is still OpenBot's: every install writes its own.
+        if (skill.problem || !skill.location || MANAGED_SKILL_SLUGS.has(skill.slug)) continue;
         result.push(yield* embeddedSkill(join(agent.workspacePath, skill.location, "SKILL.md"), skill.name));
       }
       // An install writes each skill to a folder named by its slug, so two skills with one slug would

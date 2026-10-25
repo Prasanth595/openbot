@@ -5,7 +5,7 @@ export const messages = {
   // Agent marketplace and agent link errors.
   "error.marketplace.timezoneInvalid": "本地时区无效。",
   "error.marketplace.installedAgentMissing": "已安装的助手已不存在。",
-  "error.marketplace.differentListing": "此本地助手是从另一个市场助手安装的。",
+  "error.marketplace.differentListing": "该本地助手是从另一个市场助手安装的。",
   "error.marketplace.marketplaceAvatarInvalid": "市场助手的头像无效。",
   "error.marketplace.shareCardInvalid": "分享卡片无效。",
   "error.marketplace.cannotPublish": "该助手无法发布。",

@@ -43,6 +43,15 @@ export const messages = {
   "error.backend.channelDeleteUnsupported": "Dieser Server unterstützt das Löschen von Kanälen nicht.",
   "error.backend.browserNavigateUnsupported":
     "Dieser entfernte Host unterstützt die Navigation über die Adressleiste in einem vorhandenen Tab nicht.",
+  "error.backend.browserUserControlBusy":
+    "Dieser Browser-Tab wartet auf ein Geheimnis. Beantworte zuerst die Anfrage nach dem Geheimnis.",
+  "error.backend.browserUserControlUnsupported":
+    "Dieser entfernte Host unterstützt die Übernahme eines Browser-Tabs nicht.",
+  "error.backend.browserSignInUnsupported":
+    "Dieser entfernte Host kann keine Anmeldung von diesem Computer übernehmen.",
+  "error.backend.browserSignInOpenFailed": "OpenBot konnte das Anmeldefenster nicht öffnen.",
+  "error.backend.browserSignInReadFailed": "OpenBot konnte die Anmeldung im Fenster nicht lesen.",
+  "error.backend.browserStopUnsupported": "Dieser entfernte Host kann das Laden einer Seite nicht stoppen.",
   "error.backend.sharedDataLocalOnly":
     "Geteilte Daten werden auf dem Computer verwaltet, auf dem diese Agenten laufen.",
   "error.backend.browserUrlProtocol": "Im Browser sind nur HTTP(S)-URLs erlaubt.",
@@ -57,8 +66,6 @@ export const messages = {
   "error.backend.channelMemberUnavailable": "Ein Kanalmitglied ist nicht verfügbar.",
   "error.backend.channelArchived":
     "Stelle diesen Kanal wieder her, bevor du Nachrichten sendest oder Aufgaben änderst.",
-  "error.backend.channelsRetired":
-    "Kanäle werden nicht mehr unterstützt. Lege Agenten in einen Abschnitt der Seitenleiste, damit sie zusammenarbeiten.",
   "error.backend.channelReferenceUnavailable": "Die referenzierte Kanalnachricht ist nicht verfügbar.",
   "error.backend.channelTaskNotFound": "Kanalaufgabe nicht gefunden.",
   "error.backend.channelTaskComplete": "Diese Aufgabe ist bereits abgeschlossen.",
@@ -67,6 +74,11 @@ export const messages = {
   "error.backend.channelRoutingTooLong":
     "Diese Anfrage überschreitet die Kontextgrenze für die Zuweisung. Wähle ein Mitglied oder sende eine kürzere Anfrage.",
   "error.backend.channelTaskMemberRequired": "Wähle ein Mitglied für diese Aufgabe.",
+  "error.backend.channelRoutingFailed": "Die Zuweisung ist fehlgeschlagen. Wähle ein Mitglied oder versuche es erneut.",
+  "error.backend.channelLeadTimedOut":
+    "Die Kanalleitung hat nicht rechtzeitig geantwortet. Wähle ein Mitglied oder versuche es erneut.",
+  "error.backend.channelLeadFailed":
+    "Die Kanalleitung konnte diese Nachricht nicht zuweisen. Wähle ein Mitglied oder versuche es erneut.",
   "error.backend.channelRequestMemberRequired": "Wähle ein Mitglied für diese Anfrage.",
   "error.backend.channelDeliveryNotCreated": "Die Kanalzustellung wurde nicht erstellt.",
   "error.backend.channelAssignmentStopped": "Dieser Kanalauftrag wurde gestoppt oder ersetzt.",
@@ -214,6 +226,8 @@ export const messages = {
   "error.backend.mcpSignInCancelled": "Die Anmeldung wurde abgebrochen.",
   "error.backend.mcpSignInTimedOut": "Die Anmeldung wurde im Browser nicht abgeschlossen.",
   "error.backend.mcpSignInResponseTimedOut": "Die Antwort auf die Anmeldung kam nicht rechtzeitig an.",
+  "error.backend.mcpSignInMetadataUnreadable":
+    "OpenBot konnte die Anmeldeinformationen dieses Servers nicht lesen. Prüfe die Serveradresse und versuche es erneut.",
   "error.backend.mcpServerExited":
     "Der Server wurde beendet, bevor er geantwortet hat. Führe den Befehl in einem Terminal aus, um seinen Fehler zu sehen.",
   "error.backend.mcpOAuthProxyUnavailable":
@@ -234,6 +248,11 @@ export const messages = {
   "error.backend.oauthTooManyRedirects": "Der OAuth-Endpunkt hat zu oft weitergeleitet.",
   "error.backend.oauthRedirectOrigin":
     "Der OAuth-Endpunkt hat zu {origin} weitergeleitet. Die Zugangsdaten wurden daher nicht weitergegeben.",
+  "error.backend.oauthTimedOut": "Der OAuth-Endpunkt {origin} hat nicht rechtzeitig geantwortet.",
+  "error.backend.oauthResponseTooLarge": "Der OAuth-Endpunkt {origin} hat eine zu große Antwort gesendet.",
+  "error.backend.oauthResponseUnreadable": "Die Antwort des OAuth-Endpunkts {origin} konnte nicht gelesen werden.",
+  "error.backend.mcpOAuthPrivateEndpoint":
+    "Der OAuth-Endpunkt {origin} liegt in einem privaten Netzwerk, der MCP-Server ist aber öffentlich. Die Zugangsdaten wurden daher nicht gesendet.",
   "error.backend.sidebarSectionLimit": "Ein Server kann bis zu {limit} Seitenleistenabschnitte haben.",
   "error.backend.sectionNameRequired": "Ein Abschnittsname ist erforderlich.",
   "error.backend.sectionNameTooLong": "Der Abschnittsname ist zu lang.",
@@ -243,6 +262,7 @@ export const messages = {
   "error.backend.directMessageSelf": "Du kannst dir selbst keine Direktnachricht senden.",
   "error.backend.readBoundaryUnavailable": "Die Leseposition ist nicht mehr verfügbar.",
   "error.backend.sharedFileOutside": "Die geteilte Datei muss im geteilten Verzeichnis liegen.",
+  "error.backend.sharedPathIsFolder": "Der geteilte Pfad ist ein Ordner, keine Datei.",
   "error.backend.sharedPathNotFile": "Der geteilte Pfad ist keine Datei.",
   "error.backend.workspaceFileOutside": "Die Arbeitsbereichsdatei muss im Arbeitsbereich des Agenten liegen.",
   "error.backend.workspacePathNotFile": "Der Arbeitsbereichspfad ist keine Datei.",
@@ -261,17 +281,28 @@ export const messages = {
     "Der aktive Durchlauf wurde geändert, bevor diese Nachricht gesteuert werden konnte.",
   "error.backend.steerUnsupported":
     "Dieser Anbieter kann einen laufenden Durchlauf nicht steuern. Deine Nachricht bleibt in der Warteschlange.",
+  "error.backend.steerRoutineRun":
+    "Gerade läuft eine Routine. Deine Nachricht bleibt in der Warteschlange und startet nach der Routine.",
   "error.backend.steerQueuedOnly": "Nur Nachrichten in der Warteschlange können gesteuert werden.",
   "error.backend.promptInactive": "Diese Rückfrage ist nicht mehr aktiv.",
   "error.backend.promptAnswerMismatch": "Eine Antwort passt zu keiner aktiven Frage.",
   "error.backend.approvalInactive": "Diese Genehmigung ist nicht mehr aktiv.",
   "error.backend.takeoverInactive": "Diese Browserübernahme ist nicht mehr aktiv.",
   "error.backend.authSubmitting": "Die Authentifizierung wird bereits übermittelt.",
+  "error.backend.apiKeySaveFailed": "OpenBot konnte den API-Schlüssel nicht speichern. Versuche es erneut.",
+  "error.backend.apiKeyNotAllowed": "Nur der Serverinhaber oder ein Admin kann einen API-Schlüssel eingeben.",
+  "error.backend.apiKeySaving": "Der API-Schlüssel wird bereits gespeichert.",
   "error.backend.authRequestInactive": "Diese sichere Authentifizierungsanfrage ist nicht mehr aktiv.",
   "error.backend.secureAuthUnavailable": "Die sichere Authentifizierung ist nicht verfügbar.",
   "error.backend.browserUrlRequired": "Eine Browser-URL ist erforderlich.",
   "error.backend.browserUrlTooLong": "Die Browser-URL ist zu lang.",
   "error.backend.browserTabLimit": "Im Browser können bis zu {limit} Tabs geöffnet sein.",
+  "error.backend.browserProfileMissing":
+    "Das Browserprofil dieses Agenten existiert nicht mehr. Wähle in den Agenteneinstellungen ein anderes Profil.",
+  "error.backend.browserProfileNotFound": "Dieses Browserprofil existiert nicht mehr.",
+  "error.backend.browserProfileNameTaken": "Es gibt bereits ein Browserprofil mit diesem Namen.",
+  "error.backend.browserSessionInUse": "Ein Tab verwendet diese Browsersitzung noch. Versuche es noch einmal.",
+  "error.backend.browserProfileLimit": "Du kannst bis zu {limit} Browserprofile haben.",
   "error.backend.browserLowMemory":
     "Dieser Server hat wenig freien Arbeitsspeicher. Der Browser kann daher keinen weiteren Tab öffnen. Schließe einen Tab oder warte, bis andere Agenten fertig sind.",
   "error.backend.browserOpenFailed": "{url} konnte nicht geöffnet werden: {reason}",

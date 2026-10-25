@@ -42,7 +42,7 @@ export const messages = {
   "marketplace.try.readFailed": "OpenBot 无法读取该助手的技能，请重试。",
   "marketplace.try.enable": "请在助手设置中启用该技能后再试用。",
   "marketplace.try.repair": "请在助手设置中修复该技能后再试用。",
-  "marketplace.try.update": "请更新该技能后再试用此版本。",
+  "marketplace.try.update": "请更新该技能后再试用该版本。",
   "marketplace.try.composerUnavailable": "助手输入框不可用。",
 
   // The Marketplace window. {name} is an agent, app or skill name. {count} is a number.
@@ -146,6 +146,13 @@ export const messages = {
   "marketplace.plugin.notion.prompt.findSpec": "找到当前的发布方案，并总结其中的待定问题。",
   "marketplace.plugin.notion.prompt.meetingNotes": "把这些要点整理成团队空间里的结构化会议记录。",
   "marketplace.plugin.notion.prompt.updateDoc": "用新的发布检查清单更新入职文档。",
+  "marketplace.plugin.cobrain.tagline": "AI 助手的共享记忆",
+  "marketplace.plugin.cobrain.description":
+    "Cobrain 是一份 Markdown 记忆，你连接的每个 AI 都可以读取和写入。助手开工前会加载客户或项目的上下文，搜索过去的笔记和决定，并保存所学内容，让下一次对话从上一次结束的地方继续。每位用户登录自己的 Cobrain 账号。",
+  "marketplace.plugin.cobrain.app": "通过一个 MCP 服务器，在你的 Cobrain 中读取、搜索和写入笔记。",
+  "marketplace.plugin.cobrain.prompt.startSession": "开始之前，请先加载我在 Cobrain 中的这个项目的上下文。",
+  "marketplace.plugin.cobrain.prompt.searchDecision": "在我的 Cobrain 笔记中搜索我们关于定价的决定。",
+  "marketplace.plugin.cobrain.prompt.saveNote": "在 Cobrain 中保存一条笔记，记下我们今天做了什么、还剩什么。",
   "marketplace.plugin.figma.tagline": "设计与原型",
   "marketplace.plugin.figma.description":
     "Figma 让助手读取设计文件、检查组件、样式与变量，并把生产规格交给工程师。它连接这台电脑上 Figma 桌面应用里的 MCP 服务器。该服务器目前只能读取设计，写入支持仍在开发中。",
@@ -226,12 +233,19 @@ export const messages = {
   "marketplace.plugin.resend.prompt.template": "为新流程起草一封密码重置邮件。",
   "marketplace.plugin.composio.tagline": "通过你自己的 Composio 链接连接大量应用",
   "marketplace.plugin.composio.description":
-    "Composio 通过一个 MCP 服务器把助手连接到 Gmail、Slack、GitHub 以及数百个其他应用。在你的 Composio 账号中创建服务器，把想要的应用加进去，再把链接粘贴到这里。只有当你的服务器需要密钥时才填 API 密钥。",
+    "Composio 通过一个 MCP 服务器把助手连接到 Gmail、Slack、GitHub 以及数百个其他应用。在你的 Composio 账号中连接想要的应用，然后把它的 MCP URL 和 API 密钥粘贴到这里。",
   "marketplace.plugin.composio.app": "通过你 Composio 账号中的链接，使用你添加到 Composio MCP 服务器的应用。",
   "marketplace.plugin.composio.prompt.inbox": "总结我的未读邮件，并为紧急的几封起草回复。",
   "marketplace.plugin.composio.prompt.handoff": "把这个拉取请求的摘要发到我们的团队频道。",
   "marketplace.plugin.composio.prompt.apps": "通过 Composio 你能使用哪些应用和操作？",
 
+  // The connect form text of the catalog listings. Each English text is the catalog's own text, byte for byte.
+  "marketplace.plugin.composio.hint.url": "你的 Composio 账号中某个 MCP 服务器的链接",
+  "marketplace.plugin.composio.hint.apiKey": "可在你的 Composio 账号的 Settings > Sessions & API Key 中找到。",
+  "marketplace.auth.apiKey": "API 密钥",
+  "marketplace.auth.personalApiKey": "个人 API 密钥",
+  "marketplace.auth.mcpUrl": "MCP 链接",
+  "marketplace.auth.createKey": "创建密钥",
   // Skills. {label} is the install button text: an agent name, "All agents" or "2 agents".
   "marketplace.skill.installMenu.install": "安装",
   "marketplace.skill.installMenu.installNamed": "安装 {name}",

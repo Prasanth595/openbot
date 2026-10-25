@@ -21,14 +21,17 @@ service, which passes them to this computer.
    collapsed. You can rename it or change its model in agent settings.
 4. In Slack, mention @OpenBot in any public channel, or send it a direct message.
 
+To connect another workspace, select **Add workspace**. One Slack Orchestrator answers every
+workspace, so a workspace that you add later skips step 3.
+
 OpenBot joins every public channel of the workspace when it connects, and each public channel that is
 created later. Slack shows "joined #channel" in each one. A private channel needs an invitation:
 `/invite @OpenBot`.
 
 A workspace answers to one OpenBot server. Another account cannot connect a workspace that your
 server answers until you disconnect it. **Disconnect** revokes the token, removes it from this
-computer and unlinks the workspace. It also deletes the Slack Orchestrator with its conversations, and
-the **Integrations** section when no agent is left in it. While the orchestrator works on a turn,
+computer and unlinks the workspace. When it is the last workspace, it also deletes the Slack
+Orchestrator with its conversations, and the **Integrations** section when no agent is left in it. While the orchestrator works on a turn,
 Disconnect stops with an error and changes nothing: stop the agent first.
 
 Only the computer that runs the agents can connect Slack, because Slack returns to that computer's
@@ -74,12 +77,17 @@ for it.
    **Integrations** sidebar section, as the Slack Orchestrator does.
 4. In Discord, mention @OpenBot in a channel.
 
+To connect another Discord server, select **Add Discord server**. One Discord Orchestrator answers
+every Discord server, so a server that you add later skips step 3. **Who can use OpenBot** sets, for
+each Discord server, the roles whose members can mention OpenBot. With no role, everyone can.
+
 OpenBot sees each channel that its role can view. To keep OpenBot out of a channel, remove the view
 permission of its role there.
 
 A Discord server answers to one OpenBot server. Another account cannot connect a Discord server that
 your server answers until you disconnect it. **Disconnect** unlinks the Discord server and removes it
-from this computer. It also deletes the Discord Orchestrator with its conversations, as for Slack.
+from this computer. When it is the last Discord server, it also deletes the Discord Orchestrator with
+its conversations, as for Slack.
 OpenBot stays a member of the Discord server
 until a Discord admin removes it. When a Discord admin removes OpenBot, Signal unlinks the server, also
 when this computer is off, and the row says that the token is not accepted (for a computer that was
@@ -94,6 +102,11 @@ again.
   Discord's **@ ON** setting of a reply does this, and it is on by default. Without the mention,
   Discord does not give the text to OpenBot.
 - A mention that replies to another person's message starts a new conversation.
+- A new conversation has as context the channel's last 10 messages from the 15 minutes before it, so
+  "@OpenBot make an issue" after a screenshot of another person refers to that screenshot. The
+  agent gets the files of earlier messages with the message, after the message's own files and
+  within the attachment limits. Without the Message Content intent, Discord gives the text and files
+  only of messages that mention OpenBot.
 - A direct message to OpenBot gets one fixed answer: mention OpenBot in a server channel.
 - The rest works as in Slack: the Discord Orchestrator receives each new conversation, 👀 shows that
   the message arrived, "Working on it…" is replaced by the answer, and ✅, ❌ or ⏹️ shows the end.
@@ -155,8 +168,9 @@ Not confirmed: this flow end to end against Telegram. The tests use a fake Signa
 
 ## Test Slack locally
 
-Slack must reach Signal over public HTTPS. `bun run dev:slack` opens a `cloudflared` tunnel to the
-local Signal and gives it the development app's signing secret.
+Slack must reach Signal and the account API over public HTTPS. `bun run dev:slack` opens two
+`cloudflared` tunnels, one to the local Signal and one to the local account API, and gives Signal the
+development app's signing secret.
 
 1. Install `cloudflared` (`brew install cloudflared`).
 2. Write `.env.slack-dev` in the worktree root. Git ignores it.
@@ -169,13 +183,14 @@ local Signal and gives it the development app's signing secret.
    `REMOTE_TICKET_PRIVATE_JWK` in `.openbot/dev-state.json`, and export
    `SLACK_ROUTE_KEY_ID=openbot-remote-1`. Development only: the
    ticket key's public key is already in the JWKS that Signal loads.
-4. Run `bun run dev:slack` (add `--shared` for the shared `OpenBot Dev` profile). Set the printed address
-   as the development app's request URL, for events and interactivity. It changes on each start.
+4. Run `bun run dev:slack` (add `--shared` for the shared `OpenBot Dev` profile). Set the printed addresses
+   as the development app's request URL, for events and interactivity, and its redirect URL. They
+   change on each start.
 
-The install itself needs an account API that Slack can send the browser back to over HTTPS. Use the
-test Worker (`bun run deploy:test`) with the development app's `SLACK_CLIENT_ID` and
-`SLACK_CLIENT_SECRET`. Not confirmed: a local install that returns to a dev app on a computer that
-also has an installed OpenBot. The operating system sends `openbot://` to the installed app.
+The install returns through the account API tunnel. The local account API needs the development
+app's `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and `SLACK_STATE_SECRET` in local development state.
+The dev app gets the grant on a loopback port, not through `openbot://`, so an installed OpenBot on
+the same computer does not get it. Not confirmed: this install end to end.
 
 ## Troubleshooting
 
@@ -210,7 +225,7 @@ whole list, with the ID of each fact. The prompt marks the facts as data, not in
 `openbot.messaging_history` reads the newest messages of the conversation's own channel or thread:
 30 by default, 100 at most. It reads no other place. Slack can limit it to one read a minute; it
 then fails at once, and the agent can try again. Discord gives the text only of messages that
-mention OpenBot, and of bot posts. Telegram gives what this computer saw since it started.
+mention OpenBot, and of bot posts. Discord messages name their files. Telegram gives what this computer saw since it started.
 
 ## Posts that an agent sends
 

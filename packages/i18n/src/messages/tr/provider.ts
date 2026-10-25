@@ -20,6 +20,7 @@ export const messages = {
   "provider.status.updateAvailable": "Güncelleme mevcut",
   "provider.status.settingUp": "Ayarlanıyor",
   "provider.status.updateFailed": "Güncelleme başarısız",
+  "provider.status.updateWaiting": "Bekliyor",
   "provider.status.setupFailed": "Kurulum başarısız",
   "provider.status.connected": "Bağlandı",
   "provider.status.notDownloaded": "İndirilmedi",
@@ -65,9 +66,11 @@ export const messages = {
   "provider.aria.moreActions": "{name} için diğer eylemler",
 
   "provider.aria.use": "OpenBot'ta {name} kullan",
+  "provider.use.inUseOne":
+    "{agent}, {name} kullanıyor. Bu ajanın modelini değiştirin, ardından {name} sağlayıcısını kapatın.",
   "provider.use.inUse": {
-    one: "{agents}, {name} kullanıyor. Bu ajanın modelini değiştirin, ardından {name} sağlayıcısını kapatın.",
-    other: "{agents}, {name} kullanıyor. Bu ajanların modelini değiştirin, ardından {name} sağlayıcısını kapatın.",
+    one: "{count} ajan {name} kullanıyor. Bu ajanın modelini değiştirin, ardından {name} sağlayıcısını kapatın.",
+    other: "{count} ajan {name} kullanıyor. Bu ajanların modelini değiştirin, ardından {name} sağlayıcısını kapatın.",
   },
   "provider.codeLogin.title": "Kodla {name} hesabında oturum açın",
   "provider.codeLogin.description": "Telefonunuzda veya başka bir tarayıcıda tamamlayın. OpenBot burada bekler.",
@@ -105,6 +108,7 @@ export const messages = {
   "provider.picker.providers": "Model sağlayıcıları",
   "provider.picker.downloading": "{percent} indiriliyor",
   "provider.picker.unavailable": "{name} kullanılamıyor.",
+  "provider.picker.updateToUse": "{name} kullanmak için OpenBot'u güncelleyin",
   "provider.picker.models": "{name} modelleri",
   "provider.picker.addProvider": "Sağlayıcı ekle",
   "provider.picker.download": "{name} indirmesi",
@@ -116,6 +120,8 @@ export const messages = {
   "provider.picker.defaultModelLabel": "{name}, varsayılan",
   "provider.picker.effort": "Efor",
   "provider.picker.effortLabel": "Ajan akıl yürütme eforu",
+  "provider.picker.fast": "Hızlı",
+  "provider.picker.fastLabel": "Hızlı mod",
   "provider.picker.selectEffort": "Efor seçin",
   "provider.picker.custom": "Özel",
   "provider.picker.cliReady": "{cli} hazır",
@@ -136,6 +142,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Bu bilgisayara bir Gemini API anahtarı kaydedin. Kayıtlı anahtar, Google hesabınızın yerine kullanılır. Google ile oturum açmak için anahtarı kaldırın ve Gemini satırında Bağlan'ı seçin.",
   "provider.geminiKey.label": "Gemini API anahtarı",
+  "provider.inceptionKey.title": "Inception API anahtarı",
+  "provider.inceptionKey.description":
+    "Mercury modellerini kullanmak için bu bilgisayara bir Inception API anahtarı kaydedin. OpenBot bunları indirdiği Pi CLI'da çalıştırır.",
+  "provider.inceptionKey.label": "Inception API anahtarı",
   "provider.openCodeKey.title": "OpenCode Go'da oturum açın",
   "provider.openCodeKey.description":
     "Ücretsiz modeller hesap gerektirmez. Bir anahtar, ücretli Go modellerinin kilidini açar.",
@@ -159,6 +169,28 @@ export const messages = {
   "provider.account.moreActions": "{name} için diğer eylemler",
   "provider.account.renameLabel": "{name} adı",
   "provider.account.signInAgain": "Tekrar oturum aç",
+  "provider.account.cancelSignIn": "Oturum açmayı iptal et",
+  "provider.account.finishSignIn": "Oturum açma işlemini tarayıcıda tamamlayın.",
   "provider.account.remove": "Hesabı kaldır",
   "provider.account.actionFailed": "{name} hesabı değiştirilemedi.",
+  "provider.account.resetUsage": "Kullanımı sıfırla",
+  "provider.account.resetUsageTitle": "{name} kullanımı sıfırlansın mı?",
+  "provider.account.resetUsageDescription": {
+    one: "Bu, son kullanım sıfırlama kredinizi kullanır. Bu hesabın dolan kullanım sınırları şimdi yeniden başlar. Bu işlemi geri alamazsınız.",
+    other:
+      "Bu, {count} kullanım sıfırlama kredinizden birini kullanır. Bu hesabın dolan kullanım sınırları şimdi yeniden başlar. Bu işlemi geri alamazsınız.",
+  },
+  "provider.account.resetUsagePending": "Sıfırlanıyor…",
+  "provider.account.resetUsageDone": "{name} kullanım sınırları şimdi yeniden başladı.",
+  "provider.account.resetUsageNothing": "{name} hesabında dolan kullanım sınırı yok. Kredi kullanılmadı.",
+  "provider.account.resetUsageNoCredit": "{name} hesabında kullanım sıfırlama kredisi kalmadı.",
+  "provider.account.resetUsageAlreadyRedeemed": "{name} hesabının bu sıfırlama kredisi zaten kullanıldı.",
+  "provider.account.resetUsageFailed": "{name} kullanımı sıfırlanamadı.",
+  "provider.settings.cache": "Önbellek",
+  "provider.settings.promptCache": "İstem önbelleği",
+  "provider.settings.promptCacheDescription":
+    "Claude'un bir ajanın bağlamını turlar arasında önbellekte ne kadar tuttuğu.",
+  "provider.settings.promptCacheHour": "1 saat",
+  "provider.settings.promptCacheMinutes": "5 dakika",
+  "provider.settings.promptCacheLoadFailed": "Bu sunucunun istem önbelleği süresi yüklenemedi.",
 } as const satisfies PartialTranslation<typeof source>;

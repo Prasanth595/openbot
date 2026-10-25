@@ -1,14 +1,18 @@
 import type { Effect } from "effect";
 import type { ChannelService } from "../../backend/channel-service";
 import type { AcpRegistry } from "../acp-registry";
+import type { AgentAccessStore } from "../agent-access-store";
 import type { AgentAdminSettingsService } from "../agent-admin-settings";
 import type { AgentHostSettingsService } from "../agent-host-settings";
 import type { AgentMarketplaceService } from "../agent-marketplace-service";
+import type { AgentMemoryLimitSetting } from "../agent-memory-limit-preference-store";
 import type { AgentTemplateService } from "../agent-template-service";
+import type { BrowserProfileService } from "../browser-profile-service";
 import type { PeerCustomProviderChanges } from "../custom-provider-changes";
 import type { HostEventsApi } from "../host-events-api";
 import type { HostReleaseService } from "../host-release-service";
 import type { HostService } from "../host-service";
+import type { PromptCacheTtlPreferenceStore } from "../prompt-cache-ttl-preference-store";
 import type { ProviderCredentialStore } from "../provider-credential-store";
 import type { ProviderRuntimeManager } from "../provider-runtime-manager";
 import type { RemoteWorkflowError } from "../remote-service-effects";
@@ -28,6 +32,10 @@ import type {
   CentralAuthUser,
   DirectMessageRealtimeEvent,
   DirectTypingRealtimeEvent,
+  RoutineResultConnectionOption,
+  RoutineResultDestination,
+  RoutineResultRoutineInput,
+  SetRoutineResultDestinationInput,
   SidebarLayoutSnapshot,
   TeamPresenceSnapshot,
   UpdateHostIdentityInput,
@@ -42,6 +50,7 @@ import type { SidebarLayoutStore } from "../../backend/sidebar-layout-store";
 import type { StorageUsageService } from "../../backend/storage-usage";
 import type { TeamChatStore } from "../../backend/team-chat-store";
 import type { AgentImportService } from "../agent-import-service";
+import type { BitwardenConnectorService } from "../bitwarden-connector-service";
 import type { BrowserViewGateway } from "../browser-view-gateway";
 import type { GitHubConnectorService } from "../github-connector-service";
 import type { HostedSiteDesktopService } from "../hosted-site-service";
@@ -71,6 +80,7 @@ type TeamApiAgentMethods = Pick<
   | "sidebarChatIds"
   | "listConversationReads"
   | "generateProfile"
+  | "askSideQuestion"
   | "saveProfile"
   | "createAgent"
   | "committedAgentDuplication"
@@ -127,6 +137,7 @@ type TeamApiAgentMethods = Pick<
   | "reorderQueue"
   | "interrupt"
   | "clearAgentContext"
+  | "agentIdForRequest"
   | "respondToPrompt"
   | "respondToApproval"
   | "respondToBrowserSecret"
@@ -173,13 +184,19 @@ export interface TeamApiConnectors {
     | "setEnabled"
     | "addOrchestrator"
     | "addTelegramOrchestrator"
+    | "discordAccess"
+    | "listDiscordRoles"
+    | "setDiscordAccess"
   >;
 }
 
-/** Its presence, beside `mcpServers`, is what `#protocolSupport` advertises `sign-in-relay-v1` on. */
+/**
+ * Its presence, beside `mcpServers`, is what `#protocolSupport` advertises `sign-in-relay-v1` on, and
+ * beside `providerAccounts` too, `provider-account-relay-v1`.
+ */
 export type TeamApiSignInRelay = Pick<
   SignInRelayHost,
-  "startMcp" | "startProvider" | "startLink" | "status" | "complete" | "cancel"
+  "startMcp" | "startProvider" | "startProviderAccount" | "startLink" | "status" | "complete" | "cancel"
 >;
 
 /**
@@ -194,13 +211,31 @@ export type TeamApiProviderAccounts = Pick<
   "list" | "usage" | "startSignIn" | "signInStatus" | "cancelSignIn" | "rename" | "remove" | "setAgentAccount"
 >;
 
-/** Its presence is what `#protocolSupport` advertises `storage-v1` on. */
-export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear">;
+/** Its presence is what `#protocolSupport` advertises `provider-usage-reset-v1` on. The routes are admin-only. */
+export type TeamApiProviderUsageResets = Pick<AgentService, "providerUsageResets" | "resetProviderUsage">;
+
+/** Its presence is what `#protocolSupport` advertises `storage-v1` and `storage-disk-v1` on. */
+export type TeamApiStorage = Pick<StorageUsageService, "usage" | "deleteFile" | "clear" | "disk">;
 /** `hosted-sites-v1`: the openbot.site sites of this server. Members list; only admins delete. */
 export type TeamApiHostedSites = Pick<HostedSiteDesktopService, "listServerSites" | "deleteServerSite">;
 
 /** Its presence is what `#protocolSupport` advertises `agent-hidden-v1` on. Any member can use it. */
 export type TeamApiHiddenAgents = Pick<AgentService, "listHiddenAgents" | "setAgentHidden">;
+
+/**
+ * Its presence is what `#protocolSupport` advertises `agent-tasks-v1` on. A member who can send a
+ * message to the agent can use it. Moving a queued message into a task stays local.
+ */
+export type TeamApiAgentTasks = Pick<
+  AgentService,
+  "listAgents" | "listTasks" | "readTask" | "startTask" | "sendMessage" | "stopTask" | "closeTask" | "reopenTask"
+>;
+
+/**
+ * Its presence is what `#protocolSupport` advertises `browser-profiles-v1` on. Only admins change
+ * profiles; any member reads the profile labels of the tabs they can see.
+ */
+export type TeamApiBrowserProfiles = BrowserProfileService;
 
 /** Its presence is what `#protocolSupport` advertises `agent-import-v1` on. Any member can use it. */
 export type TeamApiAgentImport = Pick<AgentImportService, "stageUpload" | "apply" | "discard">;
@@ -234,7 +269,11 @@ export interface TeamApiAdmin {
   release?: Pick<HostReleaseService, "snapshot" | "check">;
   /** `agent-admin-v1`: access and auto-approve of one agent. */
   agents?: AgentAdminSettingsService;
-  /** `agent-host-settings-v1`: Computer Use, local scripts and the busy-message mode of one agent. */
+  /**
+   * `agent-host-settings-v1`: Computer Use, local scripts and the busy-message mode of one agent.
+   * `agent-backup-models-v1`: its backup models.
+   * `agent-task-limit-v1`: how many of its tasks run at the same time.
+   */
   agentHost?: AgentHostSettingsService;
   sessionSettings?: Pick<
     AgentService,
@@ -259,6 +298,23 @@ export interface TeamApiAdmin {
   update?: Pick<RequestedUpdate, "snapshot" | "check" | "start" | "requestWhenIdle" | "cancel" | "changeSettings">;
   /** `host-timezone-v1`: the server timezone. */
   timezone?: Pick<ServerTimezonePreferenceStore, "get" | "set">;
+  /** `agent-memory-limit-v1`: how many memories each agent of this computer can keep. */
+  memoryLimit?: AgentMemoryLimitSetting;
+  /** `prompt-cache-ttl-v1`: how long the provider keeps the prompt cache of this computer's agents. */
+  promptCacheTtl?: Pick<PromptCacheTtlPreferenceStore, "get" | "set">;
+  /** `routine-results-v1`: the place where an agent routine sends its answers. */
+  routineResults?: TeamApiRoutineResults;
+}
+
+/** A failure keeps its cause; a `RoutineResultError` cause is a refusal that the reader sees. */
+interface TeamApiRoutineResults {
+  options(): Effect.Effect<RoutineResultConnectionOption[]>;
+  destination(
+    input: RoutineResultRoutineInput,
+  ): Effect.Effect<RoutineResultDestination | null, { readonly cause: unknown }>;
+  setDestination(
+    input: SetRoutineResultDestinationInput,
+  ): Effect.Effect<RoutineResultDestination | null, { readonly cause: unknown }>;
 }
 
 interface TeamApiHostIdentity {
@@ -302,6 +358,14 @@ export type TeamApiBrowser = Pick<
   | "getDisplayState"
   | "loadUrl"
   | "isPrivate"
+  // A person's control of a tab, behind `browser-user-control`.
+  | "takeUserControl"
+  | "releaseUserControl"
+  | "releaseUserControlHeldBy"
+  // Behind `browser-page-state`.
+  | "stop"
+  // Behind `browser-sign-in`.
+  | "importSignIn"
   // The live view, behind `browser-view`. `browser-view-gateway.ts` is what reaches these; a route
   // cannot, because frames outlive the request that asked for them.
   | "startView"
@@ -334,17 +398,24 @@ export type TeamApiOnePasswordConnector = Pick<
   "status" | "refreshLogins" | "connectWithToken" | "disconnect"
 >;
 
+/** `bitwarden-connector-v1`: the Bitwarden connection of this host, by an API key and the master password. */
+export type TeamApiBitwardenConnector = Pick<BitwardenConnectorService, "status" | "connectWithApiKey" | "disconnect">;
+
+export type TeamApiAgentAccess = Pick<AgentAccessStore, "copyAgent" | "get" | "levels" | "set" | "subscribe">;
+
 export interface TeamApiOptions {
   /** `events-v1`: admin-only event source and routine management. */
-  events?: HostEventsApi;
-  channels?: ChannelService;
-  mcpServers?: TeamApiMcpServers;
-  mcpSignIns?: TeamApiMcpSignIns;
-  signInRelay?: TeamApiSignInRelay;
-  connectors?: TeamApiConnectors;
-  onePasswordConnector?: TeamApiOnePasswordConnector;
-  providerHostSignIns?: TeamApiProviderHostSignIns;
-  providerAccounts?: TeamApiProviderAccounts;
+  events?: HostEventsApi | undefined;
+  channels?: ChannelService | undefined;
+  mcpServers?: TeamApiMcpServers | undefined;
+  mcpSignIns?: TeamApiMcpSignIns | undefined;
+  signInRelay?: TeamApiSignInRelay | undefined;
+  connectors?: TeamApiConnectors | undefined;
+  onePasswordConnector?: TeamApiOnePasswordConnector | undefined;
+  bitwardenConnector?: TeamApiBitwardenConnector | undefined;
+  providerHostSignIns?: TeamApiProviderHostSignIns | undefined;
+  providerAccounts?: TeamApiProviderAccounts | undefined;
+  providerUsageResets?: TeamApiProviderUsageResets | undefined;
   /** Starts and waits for the managed tool runtimes behind the MCP save, enable, and test routes. */
   mcpToolRuntimePreparation?: McpToolRuntimePreparation;
   storage?: TeamApiStorage;
@@ -353,6 +424,10 @@ export interface TeamApiOptions {
   instanceTransfer?: TeamApiInstanceTransfer;
   routineFlows?: TeamApiRoutineFlows;
   hiddenAgents?: TeamApiHiddenAgents;
+  /** `agent-access-v1`: the roles that limit what a member can do with each agent. */
+  agentAccess?: TeamApiAgentAccess;
+  agentTasks?: TeamApiAgentTasks;
+  browserProfiles?: TeamApiBrowserProfiles;
   admin?: TeamApiAdmin;
   appVersion?: string;
   store: TeamStore;
@@ -361,36 +436,36 @@ export interface TeamApiOptions {
    * Waits for the agent initialization in progress. A host that wakes publishes before its agents
    * load, and an empty roster then would tell a peer that the server has no agents.
    */
-  agentsReady?: () => Effect.Effect<void>;
-  skills?: Pick<SkillMarketplaceService, "listInstalledForChatTags">;
-  sidebarLayout?: TeamApiSidebarLayout;
+  agentsReady?: (() => Effect.Effect<void>) | undefined;
+  skills?: Pick<SkillMarketplaceService, "listInstalledForChatTags"> | undefined;
+  sidebarLayout?: TeamApiSidebarLayout | undefined;
   mailbox: TeamApiMailbox;
   browser: TeamApiBrowser;
-  browserView?: TeamApiBrowserView;
-  remoteScreen?: TeamApiRemoteScreen;
+  browserView?: TeamApiBrowserView | undefined;
+  remoteScreen?: TeamApiRemoteScreen | undefined;
   redeemCentralTicket?: (
     ticket: string,
     serverId: string,
   ) => Effect.Effect<CentralAuthUser | null, RemoteWorkflowError>;
-  onPresence?: (snapshot: TeamPresenceSnapshot) => void;
-  chat?: TeamChatStore;
-  onDirectMessage?: (event: DirectMessageRealtimeEvent) => void;
-  onDirectTyping?: (event: DirectTypingRealtimeEvent) => void;
-  createInvite?: OmitThisParameter<HostService["createInvite"]>;
+  onPresence?: ((snapshot: TeamPresenceSnapshot) => void) | undefined;
+  chat?: TeamChatStore | undefined;
+  onDirectMessage?: ((event: DirectMessageRealtimeEvent) => void) | undefined;
+  onDirectTyping?: ((event: DirectTypingRealtimeEvent) => void) | undefined;
+  createInvite?: OmitThisParameter<HostService["createInvite"]> | undefined;
   /**
    * Changes and removes members as the desktop app does. With an OpenBot account, the account
    * directory holds the membership; a change only in the team file has no effect there.
    */
-  updateMember?: OmitThisParameter<HostService["updateMember"]>;
-  removeMember?: OmitThisParameter<HostService["removeMember"]>;
-  onSessionRevoked?: (sessionId: string) => Effect.Effect<void, RemoteWorkflowError>;
+  updateMember?: OmitThisParameter<HostService["updateMember"]> | undefined;
+  removeMember?: OmitThisParameter<HostService["removeMember"]> | undefined;
+  onSessionRevoked?: ((sessionId: string) => Effect.Effect<void, RemoteWorkflowError>) | undefined;
   /** Sends Live Activity updates to members' phones. Absent when this host has no account credential. */
-  liveActivityPush?: LiveActivityPushService;
+  liveActivityPush?: LiveActivityPushService | undefined;
   /** Sends notifications to members' phones. Absent when this host has no account credential. */
-  pushNotifications?: PushNotificationService;
+  pushNotifications?: PushNotificationService | undefined;
   /** `focus-use-v1`: true on a hosted server, where a focused app keeps the server running. */
-  focusUse?: boolean;
-  rateLimitCapacity?: number;
-  now?: () => number;
-  logger?: Logger;
+  focusUse?: boolean | undefined;
+  rateLimitCapacity?: number | undefined;
+  now?: (() => number) | undefined;
+  logger?: Logger | undefined;
 }

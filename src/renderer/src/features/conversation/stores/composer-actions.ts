@@ -1,3 +1,4 @@
+import { fileQuoteTarget } from "@openbot/contracts/chat-tag-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DraftAttachment, LOCAL_SERVER_ID, type QueueDelivery } from "@openbot/contracts/ipc";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "@openbot/contracts/team-protocol/current";
@@ -5,14 +6,25 @@ import { isQueueEditRejected, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contra
 import { expandComposerMentions } from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
 import { playActionSound } from "../../../action-sounds";
+import { claimDictatedSend } from "../../speech/speech-replies";
+import { rememberAttachmentKinds } from "../attachment-analytics";
 import { copyComposerDraft, EMPTY_DRAFT, QUEUE_EDIT_STORAGE_KEY, type StoredQueueEdit } from "../composer-draft";
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
 import type { ComposerDraft, ConversationProps, ConversationTarget } from "../conversation-types";
-import type { PendingSendStore } from "./pending-send-store";
+import { conversationOwnerId } from "./composer-store";
+import type { PendingSend, PendingSendStore } from "./pending-send-store";
 
 // Each member reads the interface language when it is called.
 const { t, errorMessage } = currentText();
+
+/** A message that a voice conversation sends. */
+export interface VoiceSend {
+  /** What the user said, as a draft of this computer. Only the local server keeps it. */
+  recordingDraftId: string | undefined;
+  /** Called each time the send fails, so the conversation can listen again. */
+  onFailed: () => void;
+}
 
 export interface ComposerActionsDeps {
   props: ConversationProps;
@@ -70,9 +82,19 @@ export interface ComposerActionsDeps {
   setStickToLatest: (value: boolean) => void;
   pendingSends: PendingSendStore;
   attachmentPicker: () => HTMLInputElement | undefined;
+  /** False in a chat window (#2964): the stored queue edit is one slot, and the main window owns it. */
+  persistQueueEdit: boolean;
 }
 
 export function createComposerActions(deps: ComposerActionsDeps) {
+  function storeQueueEdit(edit: StoredQueueEdit): void {
+    if (deps.persistQueueEdit) window.localStorage.setItem(QUEUE_EDIT_STORAGE_KEY, JSON.stringify(edit));
+  }
+
+  function clearStoredQueueEdit(): void {
+    if (deps.persistQueueEdit) window.localStorage.removeItem(QUEUE_EDIT_STORAGE_KEY);
+  }
+
   function updateTeamTyping(text: string): void {
     const agentId = deps.props.agent?.id;
     if (deps.typing.idleTimer) clearTimeout(deps.typing.idleTimer);
@@ -203,22 +225,19 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     deps.setSubmitting(true);
     try {
       if (editId)
-        window.localStorage.setItem(
-          QUEUE_EDIT_STORAGE_KEY,
-          JSON.stringify({
-            agentId,
-            serverId,
-            deliveryId: delivery.id,
-            editId,
-            originalAttachmentIds: delivery.attachments.map((item) => item.id),
-            backup,
-            draft: {
-              text: delivery.text,
-              attachments: delivery.attachments,
-              replyToMessageId: delivery.replyToMessageId,
-            },
-          }),
-        );
+        storeQueueEdit({
+          agentId,
+          serverId,
+          deliveryId: delivery.id,
+          editId,
+          originalAttachmentIds: delivery.attachments.map((item) => item.id),
+          backup,
+          draft: {
+            text: delivery.text,
+            attachments: delivery.attachments,
+            replyToMessageId: delivery.replyToMessageId,
+          },
+        });
       // Record ownership before the request: a lost response must not free this editor slot.
       setEditingDraft(delivery);
       if (editId) {
@@ -312,7 +331,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     deps.setEditingDeliveryId(null);
     deps.setEditingEditId(null);
     deps.setEditingPendingSave(null);
-    window.localStorage.removeItem(QUEUE_EDIT_STORAGE_KEY);
+    clearStoredQueueEdit();
     deps.setEditingDraftBackup(null);
     deps.setEditingOriginalAttachmentIds([]);
     return true;
@@ -411,19 +430,16 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       // Persist the exact request before sending: a lost response must stay retryable.
       deps.setEditingPendingSave(pendingSave);
       try {
-        window.localStorage.setItem(
-          QUEUE_EDIT_STORAGE_KEY,
-          JSON.stringify({
-            agentId,
-            serverId,
-            deliveryId,
-            editId,
-            originalAttachmentIds: target?.originalAttachmentIds ?? deps.editingOriginalAttachmentIds(),
-            backup: deps.editingDraftBackup() ?? EMPTY_DRAFT,
-            draft,
-            pendingSave,
-          }),
-        );
+        storeQueueEdit({
+          agentId,
+          serverId,
+          deliveryId,
+          editId,
+          originalAttachmentIds: target?.originalAttachmentIds ?? deps.editingOriginalAttachmentIds(),
+          backup: deps.editingDraftBackup() ?? EMPTY_DRAFT,
+          draft,
+          pendingSave,
+        });
       } catch (error) {
         deps.setEditingPendingSave(null);
         deps.setSubmitting(false);
@@ -478,7 +494,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       deps.setEditingDeliveryId(null);
       deps.setEditingEditId(null);
       deps.setEditingPendingSave(null);
-      window.localStorage.removeItem(QUEUE_EDIT_STORAGE_KEY);
+      clearStoredQueueEdit();
       deps.setEditingDraftBackup(null);
       deps.setEditingOriginalAttachmentIds([]);
     }
@@ -505,16 +521,18 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     );
   }
 
+  /** `voice` is set when a voice conversation sends the draft. */
   async function submitMessage(
     draftOverride?: ComposerDraft,
     targetOverride?: ConversationTarget,
     submittedSnapshot?: ComposerDraft,
+    voice?: VoiceSend,
   ): Promise<boolean> {
     if (deps.attachmentBusy()) return false;
     if (!draftOverride && deps.currentEditingDeliveryId()) {
       return saveQueuedMessageEdit();
     }
-    const agentId = targetOverride?.agentId ?? deps.props.agent?.id;
+    const agentId = targetOverride?.agentId ?? conversationOwnerId(deps.props);
     const target = targetOverride ?? (agentId ? { agentId, serverId: deps.props.server?.id ?? "local" } : undefined);
     const draft = copyComposerDraft(draftOverride ?? deps.currentDraft());
     const text = expandComposerMentions(draft.text);
@@ -531,7 +549,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     stopTeamTyping();
     deps.setComposerError(null, target);
     deps.clearConversationError(target);
-    queueSend(target, draft, text);
+    queueSend(target, draft, text, voice);
     deps.clearSubmittedDraft(target, submittedSnapshot ?? draft);
     return true;
   }
@@ -540,7 +558,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
    * Shows a message at once and sends it after the earlier sends of its chat, so the host stores the
    * chat's messages in the order the user sent them. `draft` is what Edit puts back in the composer.
    */
-  function queueSend(target: ConversationTarget, draft: ComposerDraft, text: string): void {
+  function queueSend(target: ConversationTarget, draft: ComposerDraft, text: string, voice?: VoiceSend): void {
     const activeTarget = deps.currentTarget();
     if (activeTarget && activeTarget.agentId === target.agentId && activeTarget.serverId === target.serverId) {
       deps.setStickToLatest(true);
@@ -555,15 +573,22 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       (server?.id === target.serverId &&
         (server.kind !== "remote" ||
           Boolean(server.compatibility?.capabilities.includes(TEAM_MESSAGE_CLIENT_ID_CAPABILITY))));
-    deps.pendingSends.add(target, { draft, text, retrySafe }, async (pending) => {
+    const voiceRecordingDraftId = voice?.recordingDraftId ?? null;
+    const dictatedSent = claimDictatedSend(target);
+    deps.pendingSends.add(target, { draft, text, retrySafe, voiceRecordingDraftId }, async (pending) => {
+      rememberAttachmentKinds(pending.draft.attachments);
       const result = await send(
         pending.text,
         pending.draft.attachments.map((item) => item.id),
         pending.draft.replyToMessageId,
         target,
         pending.clientMessageId,
+        pending.voiceRecordingDraftId ?? undefined,
       );
-      if ("error" in result) playActionSound("error");
+      if ("error" in result) {
+        playActionSound("error");
+        voice?.onFailed();
+      } else dictatedSent?.(result.messageId);
       return result;
     });
   }
@@ -581,6 +606,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     if (current.text.trim() || current.attachments.length > 0) return;
     const removed = deps.pendingSends.remove(target, clientMessageId);
     if (!removed) return;
+    discardVoiceRecording(removed);
     deps.setDrafts((drafts) => ({ ...drafts, [composerDraftKey(target)]: removed.draft }));
     deps.setComposerFocusRequest((value) => value + 1);
   }
@@ -592,6 +618,15 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     // A send whose answer was lost may have stored the files already; the host ignores those ids.
     for (const attachment of removed?.draft.attachments ?? [])
       void conversationRuntime(deps.props).agent.discardDraftAttachment(attachment.id, target.serverId);
+    if (removed) discardVoiceRecording(removed);
+  }
+
+  /** A voice recording is always a draft of this computer, whichever server the message was for. */
+  function discardVoiceRecording(send: PendingSend): void {
+    if (send.voiceRecordingDraftId)
+      void conversationRuntime(deps.props)
+        .agent.discardDraftAttachment(send.voiceRecordingDraftId, LOCAL_SERVER_ID)
+        .catch(() => {});
   }
 
   function submitComposer(): void {
@@ -639,7 +674,17 @@ export function createComposerActions(deps: ComposerActionsDeps) {
   async function sendSelectionInstruction(messageId: string, body: string): Promise<boolean> {
     const target = deps.currentTarget();
     if (!target || deps.submitting() || !deps.agentReady()) return false;
-    queueSend(target, { text: body, attachments: [], replyToMessageId: messageId }, body);
+    // A file passage is in the body as a quote tag; only a message passage makes a reply.
+    const replyToMessageId = fileQuoteTarget(messageId) ? null : messageId;
+    queueSend(target, { text: body, attachments: [], replyToMessageId }, body);
+    return true;
+  }
+
+  /** A message that a card in the chat sends for the user, such as Continue after a sign-in. */
+  function sendCardMessage(body: string): boolean {
+    const target = deps.currentTarget();
+    if (!target || deps.submitting() || !deps.agentReady()) return false;
+    queueSend(target, { text: body, attachments: [], replyToMessageId: null }, body);
     return true;
   }
 
@@ -656,6 +701,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     submitMessage,
     submitComposer,
     sendSelectionInstruction,
+    sendCardMessage,
     retryPendingSend,
     editPendingSend,
     dismissPendingSend,

@@ -250,7 +250,7 @@ function LatestRelease(props: { platform: ChangelogPlatform }) {
           <Show
             when={props.platform === "mobile"}
             fallback={
-              <ButtonLink to="/" hash="download" variant="secondary" size="sm" icon="download">
+              <ButtonLink to="/download" variant="secondary" size="sm" icon="download">
                 Download
               </ButtonLink>
             }

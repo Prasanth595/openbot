@@ -33,6 +33,11 @@ export interface AgentProviderStatus {
    */
   id: AgentProviderId;
   /**
+   * The host's name for the provider. Only a Team API v8 host sends it, so a client that does not
+   * know `id` can still show the provider. The local status omits it.
+   */
+  displayName?: string;
+  /**
    * One of `AgentProviderState`, but treated as an open string at the trust boundary: a remote
    * server one release ahead may send a member we do not know yet.
    */
@@ -51,6 +56,12 @@ export interface AgentProviderStatus {
   cliSource?: "system" | "managed";
   /** A restart the user asked for waits for the provider's turns to end. New turns wait for it. */
   restartPending?: boolean;
+  /**
+   * A saved API key serves the provider's turns in place of the plan sign-in, so the plan's usage
+   * does not apply. Gemini only: its saved key comes before the Google account. Local only:
+   * released Team API adapters omit it.
+   */
+  apiKeyInUse?: boolean;
   /**
    * The last failure of the provider, redacted, kept after its toast is gone and cleared by the next
    * good model list. Only the computer that runs the provider sends it; the Team API does not.
@@ -112,6 +123,7 @@ function isAgentProviderStatus(value: unknown): value is AgentProviderStatus {
     isDynamicRecord(value) &&
     isBoundedString(value.id, INPUT_LIMITS.identifier) &&
     isBoundedString(value.state, INPUT_LIMITS.identifier) &&
+    (value.displayName === undefined || isBoundedString(value.displayName, 80)) &&
     isNullableBoundedString(value.version, 160) &&
     isNullableBoundedString(value.message, INPUT_LIMITS.messageText) &&
     (value.email === undefined || isNullableBoundedString(value.email, INPUT_LIMITS.email)) &&
@@ -120,6 +132,7 @@ function isAgentProviderStatus(value: unknown): value is AgentProviderStatus {
     (value.cliSource === undefined || isBoundedString(value.cliSource, INPUT_LIMITS.identifier)) &&
     (value.off === undefined || typeof value.off === "boolean") &&
     (value.restartPending === undefined || typeof value.restartPending === "boolean") &&
+    (value.apiKeyInUse === undefined || typeof value.apiKeyInUse === "boolean") &&
     (value.lastError === undefined || isNullableBoundedString(value.lastError, INPUT_LIMITS.messageText)) &&
     (value.lastErrorAt === undefined || isFiniteNumber(value.lastErrorAt)) &&
     (value.accounts === undefined ||
@@ -142,6 +155,7 @@ export type AgentAuthState =
   | { kind: "cline"; email: string | null }
   | { kind: "pi"; email: string | null }
   | { kind: "muse"; email: string | null }
+  | { kind: "inception"; email: string | null }
   | { kind: "acp"; email: string | null };
 
 export interface AccountUsageWindow {
@@ -198,7 +212,7 @@ export interface AgentStatus {
    * status would stop every update from it.
    */
   auth: AgentAuthState;
-  providers?: AgentProviderStatus[];
+  providers?: AgentProviderStatus[] | undefined;
   capabilities: {
     chat: CapabilityState;
     browser: CapabilityState;
@@ -249,6 +263,30 @@ export interface RemoveProviderAccountInput {
   provider: AgentProviderId;
   accountId: string;
 }
+
+/** Spends one usage reset credit of a provider account, which restores its spent limits now. */
+export interface ResetProviderUsageInput {
+  provider: AgentProviderId;
+  accountId: string;
+}
+
+/**
+ * The usage reset credits that a provider gave one account, as its last usage reading counted them.
+ * Codex gives them; an account of another provider has none.
+ */
+export interface ProviderUsageResets {
+  provider: AgentProviderId;
+  /** `DEFAULT_PROVIDER_ACCOUNT_ID` for the provider's own sign-in. */
+  accountId: string;
+  available: number;
+}
+
+/**
+ * What the provider did with a reset. `nothingToReset` and `alreadyRedeemed` spend no new credit;
+ * `noCredit` means the account had none left.
+ */
+export const PROVIDER_USAGE_RESET_OUTCOMES = ["reset", "nothingToReset", "noCredit", "alreadyRedeemed"] as const;
+export type ProviderUsageResetOutcome = (typeof PROVIDER_USAGE_RESET_OUTCOMES)[number];
 
 /**
  * The accounts of a joined server's host (`provider-accounts-v1`). The host's released status and

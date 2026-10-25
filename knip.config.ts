@@ -28,42 +28,38 @@ const config: KnipConfig = {
     // Rewrite and inspect macOS dylib load paths.
     "otool",
     "install_name_tool",
-    // Fastlane runs on the system Ruby.
-    "ruby",
+    // Finds the Linux libraries that the remote desktop runtime bundles.
+    "ldd",
     // Stops a stuck packaged app during Windows package verification.
     "taskkill.exe",
-    // Makes throwaway certificates for the Sunshine port isolation test.
-    "openssl",
     // Tunnels Slack to the local Signal and account API in `bun run dev:slack`.
     "cloudflared",
+    // Speaks the English samples of the macOS dictation smoke test.
+    "say",
+    // Finds the child processes of the dev app in the channel E2E scripts.
+    "pgrep",
+    // Captures the transparent main window in the appearance E2E script on macOS.
+    "screencapture",
   ],
   workspaces: {
     ".": {
+      // The electron-vite plugin of knip reads the inputs of electron.vite.config.ts and the
+      // <script type="module"> entries of the renderer HTML pages.
       entry: [
-        // electron-vite inputs in electron.vite.config.ts.
-        "src/main/index.ts",
-        "src/backend/agent-data/agent-database-host.ts",
-        "src/main/voice-transcription-host.ts",
-        "src/preload/index.ts",
-        "src/preload/team-webrtc.ts",
-        // Modules that the renderer HTML pages load with <script type="module">.
-        "src/renderer/src/index.tsx",
-        "src/renderer/src/features/browser/browser-pip.tsx",
-        "src/renderer/src/features/browser/browser-pip-controls.tsx",
-        "src/renderer/src/features/team/team-webrtc.ts",
         // Each file in scripts/ is a command that package.json, CI or another script runs.
         "scripts/**/*.ts",
         "tools/**/*.ts",
+        // The prototype skill builds its stories on this helper. No story on main uses it, because
+        // prototype stories are deleted after the decision (.agents/skills/prototype/SKILL.md).
+        "src/renderer/stories/prototype-support.tsx",
       ],
       project: ["src/**/*.{ts,tsx,css}", "scripts/**/*.ts", "tools/**/*.ts"],
       ignoreDependencies: [
         // `packages/ui` declares and imports these. The root copies date from before the UI moved to
         // that package; removing them changes what electron-builder packs, so it needs a package check.
         "@speed-highlight/core",
-        "@tanstack/virtual-core",
         "class-variance-authority",
         "marked",
-        "qrcode",
         "solid-recharts",
         "solid-sonner",
         // `scripts/mobile-ios.ts` resolves the Expo CLI that `apps/mobile` installs.
@@ -77,13 +73,14 @@ const config: KnipConfig = {
       ignoreUnresolved: ["scripts/.+\\.ts"],
     },
     "apps/auth-api": {
-      entry: ["src/worker-entry.ts", "*.ts"],
+      // The wrangler plugin of knip reads `main` (src/worker-entry.ts) from wrangler.jsonc.
+      entry: ["*.ts"],
       project: ["src/**/*.{ts,tsx,css}", "test/**/*.ts", "*.ts"],
       // `cloudflare:workers` is a runtime module of the Workers platform, not an npm package.
       ignoreDependencies: ["cloudflare"],
     },
+    // The wrangler plugin of knip reads `main` from wrangler.jsonc.
     "apps/site-router": {
-      entry: ["src/index.ts"],
       project: ["src/**/*.ts"],
     },
     "apps/mobile": {
@@ -92,6 +89,8 @@ const config: KnipConfig = {
         "plugins/**/*.{js,ts}",
         // metro.config.js maps `solid-js` and `@solidjs/web` to these files by path.
         "src/shims/*.ts",
+        // metro.config.js loads this stylesheet by path (`cssEntryFile`).
+        "global.css",
       ],
       project: ["src/**/*.{ts,tsx}", "plugins/**/*.{js,ts}"],
       ignoreDependencies: [
@@ -102,8 +101,8 @@ const config: KnipConfig = {
         "expo-symbols",
       ],
     },
+    // src/index.ts is a default entry of knip.
     "remote/api": {
-      entry: ["src/index.ts"],
       project: ["src/**/*.ts"],
     },
     "packages/i18n": {

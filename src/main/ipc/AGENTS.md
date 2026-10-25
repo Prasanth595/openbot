@@ -28,7 +28,7 @@ hand-written signature in step 2 compiles, so review must check that it uses `In
 preload call is found by `src/main/ipc-channel-coverage.test.ts`, not by the types.
 
 A group is the unit one registrar covers in full, which is why a wire prefix can span several: the
-`agent:` channels are four groups, one per registrar, because the exhaustiveness a group buys is only
+`agent:` channels are eight groups in seven registrars, because the exhaustiveness a group buys is only
 worth having when a single object literal can satisfy it. A registrar covering more than one group
 returns `Pick<IpcGroupHandlers, "servers" | "host" | "remoteDesktop">`.
 
@@ -49,8 +49,8 @@ today needs the sender check too. `handleTrustedWithEvent` carries the overload,
 constructor when an endpoint actually wants it rather than before.
 
 `authorizedHandler` exists because every window of the app shares one origin, so the trusted-URL gate
-in `../trusted-ipc.ts` cannot tell the Dynamic Island overlay from the main renderer.
-`dynamic-island-handlers.ts` is the only user today, and the ordering is the point: a caller already
+in `../trusted-ipc.ts` cannot tell the Dynamic Island or browser dock overlay from the main renderer.
+`dynamic-island-handlers.ts` and `browser-dock-handlers.ts` use it, and the ordering is the point: a caller already
 known to be rejected must not be handed a payload-validation error to read, and must not be what the
 decoder spends its allocations on.
 

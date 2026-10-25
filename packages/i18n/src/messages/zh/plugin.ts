@@ -17,7 +17,7 @@ export const messages = {
 
   // The uninstall confirmation. {number} is a count that has no plural form here.
   "plugin.uninstallDialog.title": "断开 {name}？",
-  "plugin.uninstallDialog.description": "这会移除 {name} 在这台电脑上安装的内容，此主机和该助手的其他内容不受影响。",
+  "plugin.uninstallDialog.description": "这会移除 {name} 在这台电脑上安装的内容，该主机和该助手的其他内容不受影响。",
   "plugin.uninstallDialog.confirm": "断开连接",
   "plugin.uninstallDialog.appsLabel": "要移除的应用，{number}",
   "plugin.uninstallDialog.appsTitle": "从此主机移除的应用",

@@ -10,6 +10,10 @@ export const messages = {
   "notification.needsApprovalFor": "需要你批准：{action}",
   "notification.finished": "工作已完成。",
   "notification.failed": "因错误而停止。",
+  // The title of a notification about an agent in a channel: the agent and the channel name.
+  "notification.channelTitle": "{channel} 中的 {agent}",
+  // The body of a channel reply notification when the preview of agent words is off.
+  "notification.channelMessage": "发来一条消息。",
   "notification.usageLimit.title": "{provider} 账号已达上限",
   "notification.usageLimit.body": {
     one: "{count} 个助手在等待，OpenBot 稍后会重试。",

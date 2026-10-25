@@ -13,8 +13,12 @@ export interface DiagnosticOrigin {
 
 export interface AgentClient {
   readonly provider: AgentProvider;
-  /** Explicit completion contract; missing capability means unsupported. */
-  readonly contextCompaction?: "events" | "request" | "native" | "unsupported";
+  /**
+   * Explicit completion contract; missing capability means unsupported. `handoff`: the provider
+   * cannot compact on request, so OpenBot replaces the session with one that starts from the history
+   * handoff.
+   */
+  readonly contextCompaction?: "events" | "request" | "native" | "handoff" | "unsupported";
   readonly running: boolean;
   readonly readHistory?: ReadProviderHistory;
   /** False when stopping this client would lose a live provider session with no recovery path. */
@@ -31,6 +35,12 @@ export interface AgentClient {
    */
   releaseThread?(externalThreadId: string): Effect.Effect<void, ProviderClientOperationError>;
   /**
+   * Hides a thread that a replacement session took over from the provider's own thread list, and
+   * keeps its history readable. Optional, because only a provider that shows its threads to the user
+   * in another app has a list to keep clean.
+   */
+  archiveThread?(externalThreadId: string): Effect.Effect<void, ProviderClientOperationError>;
+  /**
    * Closes each thread that has no turn and can open again from its session, to free its processes
    * and MCP servers when the machine is low on memory. Optional, because a client that runs all its
    * threads in one process frees nothing this way.
@@ -45,6 +55,12 @@ export interface AgentClient {
     configId: string,
     value: AgentSessionSettingValue,
   ): Effect.Effect<AgentSessionSettingsSnapshot, ProviderClientOperationError>;
+  /**
+   * Sends `prompt` in a session that no thread owns and returns the answer text, or null when the
+   * agent gives none. Only the custom agents have it: the user saves the prompt, such as `/usage`.
+   * `model` names the agent for the router of the provider `acp`.
+   */
+  readUsageText?(model: string, prompt: string): Effect.Effect<string | null, ProviderClientOperationError>;
   request<T>(
     method: string,
     params: unknown,
@@ -88,6 +104,17 @@ export class RequestTimeoutError extends Error {
 export class ProviderTurnActiveError extends Error {
   constructor(readonly providerName: string) {
     super(`${providerName} is in a turn that it started itself.`);
+  }
+}
+
+/**
+ * Claude cannot resume this session ID, because another provider made it. Nothing ran, so
+ * `isMissingProviderSessionError` reads it as a missing session and the caller opens a new one.
+ */
+export class MissingClaudeSessionError extends Error {
+  constructor(threadId: string) {
+    super(`Claude session not found: ${threadId}`);
+    this.name = "MissingClaudeSessionError";
   }
 }
 

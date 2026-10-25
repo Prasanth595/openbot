@@ -154,6 +154,23 @@ export function mcpConfigChanged(draft: McpServerConfig, baseline: McpServerConf
 }
 
 /**
+ * Whether Save connects before it stores: a new http server, or an edit that changes where or how
+ * it connects. A rename or a stdio server saves at once, as before.
+ */
+export function mcpSaveConnects(draft: McpServerConfig, baseline: McpServerConfig, isNew: boolean): boolean {
+  if (draft.transport !== "http") return false;
+  if (isNew || baseline.transport !== "http") return true;
+  const next = normalizeMcpConfig(draft);
+  const stored = normalizeMcpConfig(baseline);
+  return next.url !== stored.url || JSON.stringify(next.headers) !== JSON.stringify(stored.headers);
+}
+
+/** A value in the stdio command that is a web address: it names an http server, not a program. */
+export function isMcpHttpAddress(value: string): boolean {
+  return /^https?:\/\/\S/i.test(value.trim());
+}
+
+/**
  * The badge on a row. Without a test it says only what the user set, because that is all OpenBot
  * knows: a server is offered to this server's agents, or it is not. A test answers for itself, and
  * that answer is shown even on a server that is turned off, because the user asked for it.

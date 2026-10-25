@@ -19,6 +19,7 @@ export const messages = {
   "update.provider.checking": "正在检查 {name} 更新",
   "update.provider.available": "{name} 有可用更新",
   "update.provider.updating": "正在更新 {name}",
+  "update.provider.waiting": "正在等待更新 {name}",
   "update.provider.failed": "{name} 更新失败",
   "update.provider.settingUp": "配置中",
   "update.provider.failedRetry": "更新失败，请重试。",
@@ -51,7 +52,7 @@ export const messages = {
 
   // The "What's new" dialog after an app update.
   "update.whatsNew.title": "OpenBot 的新功能",
-  "update.whatsNew.description": "此版本的新功能和改动。",
+  "update.whatsNew.description": "该版本的新功能和改动。",
   "update.whatsNew.version": "版本 {version}",
   "update.whatsNew.updatedFrom": "已从 {from} 更新到 {to}",
   "update.whatsNew.group.added": "新增",
@@ -63,8 +64,9 @@ export const messages = {
   "update.whatsNew.loading": "正在加载更新日志…",
   "update.whatsNew.failed.title": "更新日志加载失败",
   "update.whatsNew.failed.body": "请确认网络已连接后重试。完整更新日志也会列出所有改动。",
-  "update.whatsNew.empty.title": "此版本没有新功能",
-  "update.whatsNew.empty.body": "此版本没有可在此展示的更新说明。完整更新日志会列出所有改动。",
+  "update.whatsNew.empty.title": "该版本没有新功能",
+  "update.whatsNew.empty.body": "该版本没有可在此展示的更新说明。完整更新日志会列出所有改动。",
   "update.whatsNew.changelog": "完整更新日志",
+  "update.whatsNew.changelogFailed": "OpenBot 无法打开更新日志。",
   "update.whatsNew.done": "知道了",
 } as const satisfies PartialTranslation<typeof source>;

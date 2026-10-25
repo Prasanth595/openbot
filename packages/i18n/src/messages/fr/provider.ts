@@ -26,6 +26,7 @@ export const messages = {
   "provider.status.updateAvailable": "Mise à jour disponible",
   "provider.status.settingUp": "Configuration",
   "provider.status.updateFailed": "Échec de la mise à jour",
+  "provider.status.updateWaiting": "En attente",
   "provider.status.setupFailed": "Échec de la configuration",
   "provider.status.connected": "Connecté",
   "provider.status.notDownloaded": "Non téléchargé",
@@ -75,9 +76,10 @@ export const messages = {
   "provider.aria.moreActions": "Autres actions pour {name}",
 
   "provider.aria.use": "Utiliser {name} dans OpenBot",
+  "provider.use.inUseOne": "{agent} utilise {name}. Changez le modèle de cet agent, puis désactivez {name}.",
   "provider.use.inUse": {
-    one: "{agents} utilise {name}. Changez le modèle de cet agent, puis désactivez {name}.",
-    other: "{agents} utilisent {name}. Changez le modèle de ces agents, puis désactivez {name}.",
+    one: "{count} agent utilise {name}. Changez le modèle de cet agent, puis désactivez {name}.",
+    other: "{count} agents utilisent {name}. Changez le modèle de ces agents, puis désactivez {name}.",
   },
   "provider.codeLogin.title": "Se connecter à {name} avec un code",
   "provider.codeLogin.description": "Terminez sur votre téléphone ou dans un autre navigateur. OpenBot attend ici.",
@@ -115,6 +117,7 @@ export const messages = {
   "provider.picker.providers": "Fournisseurs de modèles",
   "provider.picker.downloading": "Téléchargement {percent}",
   "provider.picker.unavailable": "{name} n’est pas disponible.",
+  "provider.picker.updateToUse": "Mettez à jour OpenBot pour utiliser {name}",
   "provider.picker.models": "Modèles {name}",
   "provider.picker.addProvider": "Ajouter un fournisseur",
   "provider.picker.download": "Téléchargement de {name}",
@@ -126,6 +129,8 @@ export const messages = {
   "provider.picker.defaultModelLabel": "{name}, par défaut",
   "provider.picker.effort": "Effort",
   "provider.picker.effortLabel": "Effort de raisonnement de l’agent",
+  "provider.picker.fast": "Rapide",
+  "provider.picker.fastLabel": "Mode rapide",
   "provider.picker.selectEffort": "Choisir l’effort",
   "provider.picker.custom": "Personnalisé",
   "provider.picker.cliReady": "{cli} prêt",
@@ -146,6 +151,10 @@ export const messages = {
   "provider.geminiKey.description":
     "Enregistrez une clé d’API Gemini sur cet ordinateur. Une clé enregistrée est utilisée à la place de votre compte Google. Pour vous connecter avec Google, supprimez la clé et sélectionnez « Connecter » sur la ligne Gemini.",
   "provider.geminiKey.label": "Clé d’API Gemini",
+  "provider.inceptionKey.title": "Clé d’API Inception",
+  "provider.inceptionKey.description":
+    "Enregistrez une clé d’API Inception sur cet ordinateur pour utiliser les modèles Mercury. OpenBot les exécute dans la CLI Pi qu’il télécharge.",
+  "provider.inceptionKey.label": "Clé d’API Inception",
   "provider.openCodeKey.title": "Se connecter à OpenCode Go",
   "provider.openCodeKey.description":
     "Les modèles gratuits ne demandent pas de compte. Une clé donne accès aux modèles Go payants.",
@@ -169,6 +178,28 @@ export const messages = {
   "provider.account.moreActions": "Autres actions pour {name}",
   "provider.account.renameLabel": "Nom de {name}",
   "provider.account.signInAgain": "Se reconnecter",
+  "provider.account.cancelSignIn": "Annuler la connexion",
+  "provider.account.finishSignIn": "Terminez la connexion dans le navigateur.",
   "provider.account.remove": "Supprimer le compte",
   "provider.account.actionFailed": "Impossible de modifier le compte {name}.",
+  "provider.account.resetUsage": "Réinitialiser l’usage",
+  "provider.account.resetUsageTitle": "Réinitialiser l’usage de {name} ?",
+  "provider.account.resetUsageDescription": {
+    one: "Cela utilise votre dernier crédit de réinitialisation d’usage. Les limites d’usage épuisées de ce compte repartent maintenant. Vous ne pouvez pas annuler cette action.",
+    other:
+      "Cela utilise 1 de vos {count} crédits de réinitialisation d’usage. Les limites d’usage épuisées de ce compte repartent maintenant. Vous ne pouvez pas annuler cette action.",
+  },
+  "provider.account.resetUsagePending": "Réinitialisation…",
+  "provider.account.resetUsageDone": "Les limites d’usage de {name} repartent maintenant.",
+  "provider.account.resetUsageNothing": "{name} n’a aucune limite d’usage épuisée. Aucun crédit n’a été utilisé.",
+  "provider.account.resetUsageNoCredit": "{name} n’a plus de crédits de réinitialisation d’usage.",
+  "provider.account.resetUsageAlreadyRedeemed": "Ce crédit de réinitialisation de {name} a déjà été utilisé.",
+  "provider.account.resetUsageFailed": "Impossible de réinitialiser l’usage de {name}.",
+  "provider.settings.cache": "Cache",
+  "provider.settings.promptCache": "Cache de prompt",
+  "provider.settings.promptCacheDescription":
+    "Durée pendant laquelle Claude garde le contexte d’un agent en cache entre les tours.",
+  "provider.settings.promptCacheHour": "1 heure",
+  "provider.settings.promptCacheMinutes": "5 minutes",
+  "provider.settings.promptCacheLoadFailed": "Impossible de charger la durée du cache de prompt de ce serveur.",
 } as const satisfies PartialTranslation<typeof source>;

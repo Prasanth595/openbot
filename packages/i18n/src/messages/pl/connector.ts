@@ -81,6 +81,8 @@ export const messages = {
   "connector.github.keepConnected": "Nie odłączaj",
   "connector.github.close": "Zamknij",
   "connector.dangerZone": "Strefa zagrożenia",
+  "connector.statusUnknown": "Nieznany",
+  "connector.readFailed": "Nie udało się odczytać stanu tego połączenia.",
 
   "connector.hub.onThisComputer": "Na tym komputerze",
   "connector.hub.onHost": "Na serwerze {host}",
@@ -116,6 +118,7 @@ export const messages = {
     "OpenBot nie ma tych uprawnień w Slacku: {scopes}. Odłącz obszar roboczy, a potem połącz go ponownie.",
   "connector.slack.retryAt": "Slack poprosił OpenBot o czekanie. Kolejna próba o {time}.",
   "connector.slack.reconnect": "Połącz ponownie",
+  "connector.slack.pause": "Wstrzymaj",
   "connector.slack.resume": "Wznów",
   "connector.slack.rowAction": "{action}: {name}",
   "connector.slack.orchestratorTitle": "Slack Orchestrator",
@@ -158,6 +161,19 @@ export const messages = {
   "connector.slack.removeEffectDeleted": "Slack Orchestrator i jego rozmowy zostaną usunięte z OpenBot.",
   "connector.slack.keep": "Nie odłączaj",
   "connector.slack.close": "Zamknij",
+  "connector.slack.addWorkspace": "Dodaj obszar roboczy",
+  "connector.slack.limitReached": {
+    one: "Możesz połączyć maksymalnie {count} obszar roboczy.",
+    few: "Możesz połączyć maksymalnie {count} obszary robocze.",
+    many: "Możesz połączyć maksymalnie {count} obszarów roboczych.",
+    other: "Możesz połączyć maksymalnie {count} obszaru roboczego.",
+  },
+  "connector.slack.summaryMany": {
+    one: "{count} obszar roboczy · odpowiada Slack Orchestrator",
+    few: "{count} obszary robocze · odpowiada Slack Orchestrator",
+    many: "{count} obszarów roboczych · odpowiada Slack Orchestrator",
+    other: "{count} obszaru roboczego · odpowiada Slack Orchestrator",
+  },
 
   "connector.discord.title": "Discord",
   "connector.discord.description":
@@ -185,6 +201,7 @@ export const messages = {
     "OpenBot nie ma tych uprawnień w Discordzie: {scopes}. Odłącz serwer Discord, a potem połącz go ponownie.",
   "connector.discord.retryAt": "Discord poprosił OpenBot o czekanie. Kolejna próba o {time}.",
   "connector.discord.reconnect": "Połącz ponownie",
+  "connector.discord.pause": "Wstrzymaj",
   "connector.discord.resume": "Wznów",
   "connector.discord.rowAction": "{action}: {name}",
   "connector.discord.orchestratorTitle": "Discord Orchestrator",
@@ -226,6 +243,34 @@ export const messages = {
   "connector.discord.removeEffectDeleted": "Discord Orchestrator i jego rozmowy zostaną usunięte z OpenBot.",
   "connector.discord.keep": "Nie odłączaj",
   "connector.discord.close": "Zamknij",
+  "connector.discord.addWorkspace": "Dodaj serwer Discord",
+  "connector.discord.limitReached": {
+    one: "Możesz połączyć maksymalnie {count} serwer Discord.",
+    few: "Możesz połączyć maksymalnie {count} serwery Discord.",
+    many: "Możesz połączyć maksymalnie {count} serwerów Discord.",
+    other: "Możesz połączyć maksymalnie {count} serwera Discord.",
+  },
+  "connector.discord.summaryMany": {
+    one: "{count} serwer Discord · odpowiada Discord Orchestrator",
+    few: "{count} serwery Discord · odpowiada Discord Orchestrator",
+    many: "{count} serwerów Discord · odpowiada Discord Orchestrator",
+    other: "{count} serwera Discord · odpowiada Discord Orchestrator",
+  },
+  "connector.discord.accessTitle": "Kto może używać OpenBot",
+  "connector.discord.accessDescription": "OpenBot odpowiada tylko tym osobom. Ignoruje oznaczenia od innych.",
+  "connector.discord.accessEveryone": "Wszyscy na serwerze",
+  "connector.discord.accessEveryoneDescription":
+    "Każdy, kto może pisać na kanale widocznym dla OpenBot, może go oznaczyć.",
+  "connector.discord.accessRoles": "Członkowie z rolami: {roles}",
+  "connector.discord.accessChoose": "Wybierz role",
+  "connector.discord.accessDialogTitle": "Kto może używać OpenBot na {workspace}?",
+  "connector.discord.accessDialogDescription": "Bez wybranej roli każdy może oznaczyć OpenBot.",
+  "connector.discord.accessLoading": "Wczytywanie ról…",
+  "connector.discord.accessLoadFailed": "Nie udało się wczytać ról Discord",
+  "connector.discord.accessNoRoles": "Ten serwer nie ma ról do wyboru.",
+  "connector.discord.accessRoleDeleted": "{role} (usunięta)",
+  "connector.discord.accessSave": "Zapisz",
+  "connector.discord.accessHostUpdate": "Zaktualizuj OpenBot na {host}, aby wybrać role.",
 
   "connector.telegram.title": "Telegram",
   "connector.telegram.description":
@@ -333,6 +378,7 @@ export const messages = {
     "W aplikacji 1Password otwórz Settings > Developer i włącz „Integrate with 1Password CLI”.",
   "connector.onePassword.stepAppReady": "Aplikacja 1Password pozwala CLI utworzyć udostępniony sejf.",
   "connector.onePassword.openApp": "Otwórz 1Password",
+  "connector.onePassword.openAppFailed": "Nie udało się otworzyć 1Password.",
   "connector.onePassword.checkAgain": "Sprawdź ponownie",
   "connector.onePassword.stepVaultTitle": "Utwórz udostępniony sejf",
   "connector.onePassword.stepVaultDescription":
@@ -384,4 +430,17 @@ export const messages = {
   "connector.bitwarden.connected": "Połączono",
   "connector.bitwarden.disconnected": "Nie połączono",
   "connector.bitwarden.actionFailed": "OpenBot nie mógł zmienić połączenia z Bitwarden.",
+  "connector.bitwarden.descriptionHost": "Wypełniaj loginy w przeglądarce na {host} z Bitwarden lub Vaultwarden.",
+  "connector.bitwarden.setupHost":
+    "{host} loguje się własnym Bitwarden CLI. W sejfie utwórz folder o nazwie Shared with OpenBot i umieść w nim tylko loginy, których agenci mogą używać. W sejfie internetowym otwórz Ustawienia › Zabezpieczenia › Klucze i wyświetl klucz API. Poniżej wpisz adres serwera, client_id, client_secret i hasło główne.",
+  "connector.bitwarden.scopeHost":
+    "Wszyscy agenci na {host} mogą używać pasujących loginów z Shared with OpenBot. OpenBot używa dokładnych źródeł HTTPS. Nie używa elementów, które wymagają ponownego podania hasła głównego, ani elementów z własną regułą dopasowania URI.",
+  "connector.bitwarden.sessionHost":
+    "{host} przechowuje klucz API i hasło główne w postaci zaszyfrowanej, aby po ponownym uruchomieniu znowu odblokować sejf. Ten komputer ich nie przechowuje. Rozłączenie usuwa je z {host}. {host} musi łączyć się z adresem serwera przez HTTPS.",
+  "connector.bitwarden.serverUrl": "Adres serwera",
+  "connector.bitwarden.clientId": "client_id klucza API",
+  "connector.bitwarden.clientSecret": "client_secret klucza API",
+  "connector.bitwarden.masterPassword": "Hasło główne",
+  "connector.bitwarden.connecting": "Łączenie",
+  "connector.bitwarden.connectedServer": "Połączono z {server}.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -5,10 +5,12 @@
 ```text
 apps/
   auth-api/          Public web and /app browser entry, accounts, memberships, connection tickets, and billing
+  discord-app/       Developer Portal settings of the OpenBot Discord app (no code)
   mobile/            Expo React Native client for remote team hosts
   site-router/       Cloudflare Worker that serves published sites from private R2 storage
   slack-app/         Slack CLI projects with the OpenBot Slack app manifests (production, development)
   status/            Public status page on GitHub Pages, and the check and webhook scripts of its workflow
+  telegram-app/      BotFather settings of the OpenBot Telegram bot (no code)
 packages/
   ui/                Shared SolidJS controls and primitive styles for desktop, web, and Storybook
   brand/             Shared logos, avatars, and design tokens
@@ -19,7 +21,7 @@ packages/
   team-client/       Shared team connection, recovery, WebRTC framing, Dynamic Island state, and routine schedules
   user-errors/       Shared user-facing error messages for desktop and mobile
 remote/
-  api/               Bun Signal service for SDP, ICE, ticket checks, and TURN credentials
+  api/               Bun Signal service for SDP, ICE, ticket checks, TURN credentials, and the Slack, Discord, Telegram and webhook relays
   scripts/           Bun checks and update commands for Signal and coturn
 src/
   backend/           Agent runtime, provider adapters, event storage, queues, and browser host
@@ -27,7 +29,7 @@ src/
   preload/           Narrow typed bridge from Electron main to the renderer
   renderer/          SolidJS user interface
 scripts/             Development, smoke, release, and package verification entry points
-tools/               Biome GritQL rules, the UI foundation check, and the vitest sequencer
+tools/               Biome GritQL rules, the UI foundation check, the vitest sequencer and setup, and the type baseline
 .agents/skills/      Task instructions for coding agents, such as release and smoke checks
 ```
 
@@ -83,7 +85,8 @@ SolidJS, provider, Cloudflare, and application code; and the account server to d
   recovery. They do not create a second copy of messages already saved by the live turn.
 - `ConversationRuntime` keeps active work and a bounded recent cache. Released full-history APIs
   build their responses from SQLite for each request. They do not set the working cache.
-- `~/.codex`, `~/.claude`, `~/.grok`, and `~/.gemini` are provider-owned login and resume state. They are not OpenBot
+- `~/.codex`, `~/.claude`, `~/.grok`, `~/.gemini`, `~/.cursor`, `~/.cline`, `~/.pi`, and the OpenCode
+  and Muse XDG folders are provider-owned login and resume state. They are not OpenBot
   conversation storage.
 - D1 is the source of truth for central accounts, remote membership, invitations, and logical sessions.
 - Stripe is the source of truth for paid plans. D1 `billing_subscriptions` is a copy that the Stripe
@@ -97,11 +100,14 @@ SolidJS, provider, Cloudflare, and application code; and the account server to d
   on answers its own approvals, so they never reach a client, and a client cannot grant one on a
   remote host's behalf. `AttentionRegistry` reads it at each approval, including hosted-site
   publishing, replacement and deletion. Site validation, ownership checks and activity markers
-  still apply. The registry also accepts, once, Codex's consent to run an MCP tool (`_meta.codex_approval_kind`
-  `mcp_tool_call` with `persist` that offers `always`), and saves nothing: "Always allow" stays the user's
-  choice, which Codex keeps per server and tool. A Workspace only agent, a Computer Use tool and a tool set to
-  ask every time keep their card. Other questions, MCP forms and sign-in requests, and browser takeovers
-  remain interactive.
+  still apply. A grant change (`AgentService.notifyAgentsChanged`) or an access change also answers
+  the approvals that already wait for an agent that now has Full access
+  (`AttentionRegistry.answerGrantedRequests`). The registry also accepts, once, Codex's consent to run
+  an MCP tool (`_meta.codex_approval_kind` `mcp_tool_call`, a tool set to ask every time included), and
+  saves nothing: "Always allow" stays the user's choice, which Codex keeps per server and tool. A
+  Workspace only agent and a Computer Use tool keep their card. OpenBot keeps Codex's `approvalPolicy`
+  at `on-request`, because `never` denies MCP tool calls and rejects elicitations. Other questions, MCP
+  forms and sign-in requests, and browser takeovers remain interactive.
 - `browser-tabs.json` is the embedded browser's own durable state, outside `openbot.db` and outside the
   migration runner. It is versioned in the file (`v1` predates the per-tab `BrowserEnvironment`, `v2`
   carries it) and always rewritten as the current version, so a downgrade reads a file it does not know.

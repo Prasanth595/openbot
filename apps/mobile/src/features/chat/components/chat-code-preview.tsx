@@ -10,13 +10,14 @@ import { memo, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import Animated, { cubicBezier } from "react-native-reanimated";
 import { useUniwind } from "uniwind";
-import { storeCodePreview } from "@/features/chat/model/code-preview-store";
+import { type CodePreviewEntry, storeCodePreview } from "@/features/chat/model/code-preview-store";
 import { useMermaidDiagram } from "@/features/chat/model/mermaid-diagrams";
 import { expoGoDomOptions } from "@/shared/lib/expo-go-dom";
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion } from "@/shared/lib/motion";
 import { useText } from "@/shared/lib/text";
 import HtmlPreview from "./html-preview.dom";
+import { useListSettled } from "./use-list-settled";
 
 /** The lines of code that the card shows while the block streams, or when it cannot draw it. */
 const EXCERPT_LINES = 4;
@@ -29,23 +30,28 @@ const DIAGRAM_MIN_HEIGHT = 72;
 const CARD_SIDE_SPACE = 80;
 
 /**
- * A ```html or ```mermaid block in a reply: a card with a header and a small picture of the page
- * or the diagram, so the block does not fill the conversation. A tap opens it on a screen of its
- * own. While the block streams, the card shows its first lines of code instead.
+ * A ```html or ```mermaid block in a reply, or the page of a visual reply: a card with a header and
+ * a small picture of the page or the diagram, so the block does not fill the conversation. A tap
+ * opens it on a screen of its own. While the block streams, the card shows its first lines of code
+ * instead. A visual reply passes its `file`, so the screen can share it.
  */
 export const ChatCodePreview = memo(function ChatCodePreview({
   kind,
   text,
   language,
   streaming = false,
+  file,
 }: {
   kind: ChatPreviewKind;
   text: string;
   language?: string;
   streaming?: boolean;
+  file?: CodePreviewEntry["file"];
 }) {
   const { t } = useText();
   const reducedMotion = useReducedMotion();
+  // A card that mounts during a fast fling of the chat draws its page or diagram when the list slows down.
+  const settled = useListSettled();
   const [muted, foreground] = useThemeColor(["muted", "foreground"]);
   const [pressed, setPressed] = useState(false);
   const [width, setWidth] = useState(0);
@@ -66,7 +72,7 @@ export const ChatCodePreview = memo(function ChatCodePreview({
       onLayout={(event) => setWidth(Math.round(event.nativeEvent.layout.width) - 2)}
       onPress={() => {
         void haptics.impact("soft");
-        const previewId = storeCodePreview({ kind, source: text, language });
+        const previewId = storeCodePreview({ kind, source: text, language, ...(file ? { file } : {}) });
         router.push({ pathname: "/code-preview/[previewId]", params: { previewId } });
       }}
     >
@@ -96,7 +102,9 @@ export const ChatCodePreview = memo(function ChatCodePreview({
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           {streaming ? (
             <CodeExcerpt text={text} />
-          ) : width <= 0 ? null : kind === "html" ? (
+          ) : width <= 0 ? null : !settled ? (
+            <View style={{ height: previewHeight }} />
+          ) : kind === "html" ? (
             <HtmlCardPreview text={text} title={title} height={previewHeight} />
           ) : (
             <DiagramCardPreview text={text} title={title} width={width} height={previewHeight} />

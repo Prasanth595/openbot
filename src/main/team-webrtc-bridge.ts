@@ -40,7 +40,7 @@ interface TeamWebRtcBridgeEvents {
 }
 
 interface TeamWebRtcBridgeOptions {
-  developmentUrl?: string | null;
+  developmentUrl?: string | null | undefined;
   preloadPath?: string;
   iceTransportPolicy?: "all" | "relay";
 }
@@ -50,11 +50,19 @@ interface TeamWebRtcBridgeOptions {
 // discriminated Signal union it carries fragments of has already been decoded on the other side.
 // The schema stays zod and stays strict about it: this is the renderer-to-main trust boundary, and
 // the only thing shared with the wire contract is the shape of what crosses it, tied below.
-const iceServerSchema = z.object({
-  urls: z.union([z.string(), z.array(z.string())]),
-  username: z.string().optional(),
-  credential: z.string().optional(),
-}) satisfies z.ZodType<IceServer>;
+const iceServerSchema = z
+  .object({
+    urls: z.union([z.string(), z.array(z.string())]),
+    username: z.string().optional(),
+    credential: z.string().optional(),
+  })
+  .transform(
+    ({ urls, username, credential }): IceServer => ({
+      urls,
+      ...(username === undefined ? {} : { username }),
+      ...(credential === undefined ? {} : { credential }),
+    }),
+  ) satisfies z.ZodType<IceServer>;
 const bridgeMessageSchema = z
   .object({
     type: z.string().optional(),
@@ -88,8 +96,10 @@ type BridgeCommand =
       token: string;
       peer: "host" | "client";
       iceTransportPolicy: "all" | "relay";
+      privateNetwork?: boolean;
     }
   | { type: "prepare-signal"; peerId: string; signalUrl: string }
+  | { type: "set-private-network"; peerId: string; privateNetwork: boolean }
   | { type: "disconnect" | "disconnect-peer" | "restart-ice" | "close"; peerId: string }
   | { type: "send"; peerId: string; channel: TeamWebRtcChannel; data: string | ArrayBuffer };
 
@@ -127,10 +137,22 @@ export class TeamWebRtcBridge extends EventEmitter<TeamWebRtcBridgeEvents> {
 
   readonly connect = Effect.fn("TeamWebRtcBridge.connect")(function* (
     this: TeamWebRtcBridge,
-    input: { peerId: string; signalUrl: string; token: string; peer: "host" | "client" },
+    input: { peerId: string; signalUrl: string; token: string; peer: "host" | "client"; privateNetwork?: boolean },
   ) {
     yield* this.start();
     yield* this.#command({ type: "connect", ...input, iceTransportPolicy: this.#options.iceTransportPolicy ?? "all" });
+  }).bind(this);
+
+  /**
+   * Turns the private network route on or off for a connected host. When it turns on, the bridge
+   * closes every device connection, and each device connects again over a private network only.
+   */
+  readonly setPrivateNetwork = Effect.fn("TeamWebRtcBridge.setPrivateNetwork")(function* (
+    this: TeamWebRtcBridge,
+    peerId: string,
+    privateNetwork: boolean,
+  ) {
+    if (this.#port) yield* this.#command({ type: "set-private-network", peerId, privateNetwork });
   }).bind(this);
 
   /**

@@ -1,5 +1,12 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
-import type { AgentEvent, AttachmentImportEvent, AttachmentSummary, TeamRealtimeEvent } from "@openbot/contracts/ipc";
+import type {
+  AgentEvent,
+  AskSideQuestionInput,
+  AttachmentImportEvent,
+  AttachmentSummary,
+  TeamRealtimeEvent,
+} from "@openbot/contracts/ipc";
+import { decodeSideQuestionResponse, SIDE_QUESTION_ROUTES } from "@openbot/contracts/team-protocol/side-question-v1";
 import { runTeamEffect } from "@openbot/team-client";
 import {
   deleteSharedTable,
@@ -24,6 +31,7 @@ import type { ConversationRuntime } from "../conversation/conversation-runtime";
 import { webEventRoutinesApi } from "../conversation/routine-webhooks-api";
 import { createWebAttachmentMedia } from "./web-attachment-media";
 import { createWebAttachmentFiles, openWebLink } from "./web-attachments";
+import { webBrowserProfileCalls } from "./web-browser-profiles";
 import { webMessageLinks } from "./web-message-link-relay";
 import type { WebWorkspaceRuntime } from "./web-runtime";
 
@@ -37,11 +45,13 @@ function webHostAdmin(
   eventsEnabled?: () => boolean,
   sessionSettingsEnabled?: () => boolean,
   routineRecoveryEnabled?: () => boolean,
+  webhookTestsEnabled?: () => boolean,
 ): NonNullable<ConversationRuntime["admin"]> {
   // `request()` names the connected host at call time, so a host switch reaches the new host.
   const eventRoutines = webEventRoutinesApi(
     (...args) => request()(...args),
     () => routineRecoveryEnabled?.() === true,
+    () => webhookTestsEnabled?.() === true,
   );
   return {
     get sessionSettings() {
@@ -109,6 +119,9 @@ export function createWebConversationRuntime(
   sessionSettingsEnabled?: () => boolean,
   signInRelayEnabled?: () => boolean,
   routineRecoveryEnabled?: () => boolean,
+  sideQuestionEnabled?: () => boolean,
+  webhookTestsEnabled?: () => boolean,
+  browserProfilesEnabled?: () => boolean,
 ): ConversationRuntime {
   const listeners = new Set<(event: AttachmentImportEvent) => void>();
   const files = createWebAttachmentFiles(remote, hostId);
@@ -135,6 +148,7 @@ export function createWebConversationRuntime(
   });
   // The host's relay routes are admin only, so only an admin relays a sign-in link.
   const messageLinks = adminRequest ? webMessageLinks(adminRequest, () => signInRelayEnabled?.() === true) : {};
+  const browserProfiles = adminRequest ? webBrowserProfileCalls(adminRequest) : undefined;
   return {
     agent: {
       ...messageLinks,
@@ -184,6 +198,9 @@ export function createWebConversationRuntime(
       open: (input) => remote.openBrowserTab(input),
       openPictureInPicture: unavailable,
       reload: (tabId) => remote.reloadBrowserTab(tabId),
+      stop: (tabId) => remote.stopBrowserTab(tabId),
+      takeControl: (tabId) => remote.takeBrowserControl(tabId),
+      releaseControl: (tabId) => remote.releaseBrowserControl(tabId),
       setVisible: async () => {},
     },
     voice: {
@@ -198,6 +215,21 @@ export function createWebConversationRuntime(
       onStreamTranscript: () => () => {},
     },
     openUrl: openWebLink,
+    // Any member can ask, so the request is not limited to an admin.
+    get askSideQuestion() {
+      if (!adminRequest || sideQuestionEnabled?.() !== true) return undefined;
+      // Async, so that a host change rejects the promise and the store shows the error.
+      return async (input: AskSideQuestionInput) =>
+        adminRequest()("POST", SIDE_QUESTION_ROUTES.ask, decodeSideQuestionResponse, {
+          agentId: input.agentId,
+          question: input.question,
+          earlier: input.earlier.map(({ question, answer }) => ({ question, answer })),
+        });
+    },
+    // Any member reads the tab labels; the panels offer the other calls to an owner or admin only.
+    get browserProfiles() {
+      return browserProfilesEnabled?.() === true ? browserProfiles : undefined;
+    },
     previewAttachment: files.preview,
     attachmentMedia,
     visualPage: files.visualPage,
@@ -242,7 +274,14 @@ export function createWebConversationRuntime(
     },
     cancelImportFiles,
     admin: adminRequest
-      ? webHostAdmin(adminRequest, onHostEvent, eventsEnabled, sessionSettingsEnabled, routineRecoveryEnabled)
+      ? webHostAdmin(
+          adminRequest,
+          onHostEvent,
+          eventsEnabled,
+          sessionSettingsEnabled,
+          routineRecoveryEnabled,
+          webhookTestsEnabled,
+        )
       : undefined,
   };
 }

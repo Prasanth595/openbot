@@ -38,6 +38,15 @@ export const messages = {
   "error.import.remoteZipTooLarge": "导入到已加入的服务器时，导出文件必须是小于 100 MB 的 .zip。",
   "error.import.hostBusy": "服务器正在读取其他导出，请几分钟后重试。",
   "error.import.skillKept": "{name}：服务器已有技能“{skill}”，因该助手会使用该技能。请联系管理员更新它。",
+  // Hermes Agent import from a folder on this computer.
+  "error.import.hermesNoProfiles": "该文件夹中没有 Hermes 配置。请选择包含 config.yaml 或 SOUL.md 的 Hermes 文件夹。",
+  "error.import.hermesClosed": "这些 Hermes 配置已不再打开，请重新读取。",
+  "error.import.hermesProfileMissing": "所选内容指向一个未被读取的 Hermes 配置。",
+  "error.import.hermesSoulLong":
+    "{name}：SOUL.md 超过 {limit} 个字符，因此指令只保留开头部分。完整文件在 imported/hermes/SOUL.md。",
+  "error.import.hermesSkillSkipped": "{name}：已跳过技能“{skill}”。{reason}",
+  "error.import.hermesSkillCodeAdded": "它含有读取这些配置时还没有的代码。请重新读取以允许它。",
+  "error.import.hermesLinkNotSaved": "{name}：OpenBot 无法保存哪个助手来自该配置，因此下次导入会把它作为新助手添加。",
   // Instance transfer between two OpenBot computers.
   "error.import.transferRemoteTooLarge":
     "已加入服务器的迁移文件必须小于 100 MB。请关闭工作区文件，或减少导出的助手数量。",

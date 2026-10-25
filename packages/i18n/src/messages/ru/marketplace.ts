@@ -166,6 +166,15 @@ export const messages = {
   "marketplace.plugin.notion.prompt.meetingNotes":
     "Оформите эти пункты как структурированную заметку со встречи в пространстве моей команды.",
   "marketplace.plugin.notion.prompt.updateDoc": "Добавьте в документ по онбордингу новый чек-лист релиза.",
+  "marketplace.plugin.cobrain.tagline": "Общая память для ваших ИИ-агентов",
+  "marketplace.plugin.cobrain.description":
+    "Cobrain — это память в формате Markdown, которую может читать и дополнять любой подключённый ИИ. Перед работой агенты загружают контекст клиента или проекта, ищут прошлые заметки и решения и сохраняют то, что узнали, чтобы следующий диалог начинался там, где закончился предыдущий. Каждый пользователь входит в свой аккаунт Cobrain.",
+  "marketplace.plugin.cobrain.app": "Чтение, поиск и запись заметок в вашем Cobrain через один сервер MCP.",
+  "marketplace.plugin.cobrain.prompt.startSession":
+    "Загрузите мой контекст Cobrain для этого проекта, прежде чем мы начнём.",
+  "marketplace.plugin.cobrain.prompt.searchDecision": "Найдите в моих заметках Cobrain, что мы решили насчёт цен.",
+  "marketplace.plugin.cobrain.prompt.saveNote":
+    "Сохраните в Cobrain заметку о том, что мы сделали сегодня и что осталось.",
   "marketplace.plugin.figma.tagline": "Дизайны и прототипы",
   "marketplace.plugin.figma.description":
     "Figma позволяет агентам читать файлы дизайна, изучать компоненты, стили и переменные и передавать спецификации разработчикам. Она подключается к серверу MCP в настольном приложении Figma на этом компьютере. Сервер пока может только читать дизайны; поддержка записи в разработке.",
@@ -258,7 +267,7 @@ export const messages = {
   "marketplace.plugin.resend.prompt.template": "Составьте письмо для сброса пароля для нового сценария.",
   "marketplace.plugin.composio.tagline": "Множество приложений по вашей ссылке Composio",
   "marketplace.plugin.composio.description":
-    "Composio подключает агентов к Gmail, Slack, GitHub и сотням других приложений через один сервер MCP. Создайте сервер в своём аккаунте Composio, добавьте в него нужные приложения и вставьте сюда его ссылку. Ключ API добавляйте, только если ваш сервер его требует.",
+    "Composio подключает агентов к Gmail, Slack, GitHub и сотням других приложений через один сервер MCP. Подключите нужные приложения в своём аккаунте Composio и вставьте сюда его URL MCP и ключ API.",
   "marketplace.plugin.composio.app":
     "Приложения, которые вы добавили на свой сервер MCP Composio, по ссылке из вашего аккаунта Composio.",
   "marketplace.plugin.composio.prompt.inbox":
@@ -266,6 +275,13 @@ export const messages = {
   "marketplace.plugin.composio.prompt.handoff":
     "Опубликуйте краткое описание этого пул-реквеста в канале нашей команды.",
   "marketplace.plugin.composio.prompt.apps": "Какие приложения и действия доступны вам через Composio?",
+  "marketplace.plugin.composio.hint.url": "URL сервера MCP в вашем аккаунте Composio",
+  "marketplace.plugin.composio.hint.apiKey":
+    "Он находится в аккаунте Composio, в разделе Settings > Sessions & API Key.",
+  "marketplace.auth.apiKey": "API-ключ",
+  "marketplace.auth.personalApiKey": "Личный API-ключ",
+  "marketplace.auth.mcpUrl": "URL MCP",
+  "marketplace.auth.createKey": "Создать ключ",
   "marketplace.skill.installMenu.install": "Установить",
   "marketplace.skill.installMenu.installNamed": "Установить: {name}",
   "marketplace.skill.installMenu.allAgents": "Все агенты",

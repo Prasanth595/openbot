@@ -3,8 +3,10 @@ import type {
   AgentProviderId,
   AgentReasoningEffort,
   BrowserBounds,
+  BrowserTab,
   MarketplaceSkillDetail,
 } from "@openbot/contracts/ipc";
+import { SETTINGS_PANEL_DEFAULT } from "@openbot/ui/components/SettingsPanel";
 import type { AgentActivityLabel } from "@openbot/ui/features/conversation/AgentActivity";
 import { currentText } from "@openbot/ui/text";
 import type { UserErrorDetails } from "@openbot/user-errors";
@@ -25,16 +27,17 @@ import { releaseFilePreviewPage } from "./conversation-port";
 import type {
   ComposerDraft,
   ConversationProps,
+  ConversationTarget,
   RightPanelMode,
   SidebarFilePreview,
   VoiceLiveTranscript,
 } from "./conversation-types";
+import type { TurnRuntime } from "./stores/activity-store";
 import type { SidePanelsState } from "./stores/panels-store";
 import { createPendingSendStore } from "./stores/pending-send-store";
 import type { SideQuestionState } from "./stores/side-question-store";
 import type { VoiceCloudStream } from "./stores/voice-store";
 
-const SETTINGS_PANEL_DEFAULT = 296;
 const BROWSER_PANEL_DEFAULT = 380;
 const BROWSER_PIP_STORAGE_KEY = "openbot:browser-pip-native-bounds";
 
@@ -48,10 +51,11 @@ function readBrowserPipBounds(): BrowserBounds | null {
 
 interface ConversationResources {
   agentActivityLabels: Map<string, { activityId: string; label: AgentActivityLabel }>;
+  turnRuntimes: Map<string, TurnRuntime>;
   browserOpenRequests: Map<
     string,
     {
-      promise: Promise<void>;
+      promise: Promise<BrowserTab | undefined>;
       serverId: string;
       agentId: string | null;
       url: string;
@@ -142,6 +146,10 @@ export function createStableConversationState(
   // A send in flight belongs to the server it was sent to, so it outlives a server switch.
   const pendingSends = createPendingSendStore();
   const [conversationErrors, setConversationErrors] = createSignal<Record<string, string>>({});
+  /** The provider and model of the run behind each conversation error, keyed like `conversationErrors`. */
+  const [conversationErrorRuns, setConversationErrorRuns] = createSignal<
+    Record<string, { message: string; run: string }>
+  >({});
   createEffect(
     () => {
       const agentId = editingAgentId();
@@ -197,7 +205,7 @@ export function createStableConversationState(
       };
     },
   );
-  if (storedDrafts)
+  if (storedDrafts && persistDrafts)
     writeComposerDraftsOnChange({
       drafts,
       channelDrafts,
@@ -216,11 +224,14 @@ export function createStableConversationState(
   const [voiceElapsedSeconds, setVoiceElapsedSeconds] = createSignal(0);
   const [voiceLiveTranscript, setVoiceLiveTranscript] = createSignal<VoiceLiveTranscript | null>(null);
   const [voiceLevels, setVoiceLevels] = createSignal<number[]>([]);
+  /** The conversation whose last recording stopped at the time limit. */
+  const [voiceLimitReached, setVoiceLimitReached] = createSignal<ConversationTarget | null>(null);
   const [browserPipBounds, setBrowserPipBounds] = createSignal<BrowserBounds | null>(readBrowserPipBounds());
   const [settingsPanelWidth, setSettingsPanelWidth] = createSignal(SETTINGS_PANEL_DEFAULT);
   const [browserPanelWidth, setBrowserPanelWidth] = createSignal(BROWSER_PANEL_DEFAULT);
   const resources: ConversationResources = {
     agentActivityLabels: new Map(),
+    turnRuntimes: new Map(),
     browserOpenRequests: new Map(),
     importTargetAgents: new Map<string, { agentId: string; serverId: string }>(),
     seenMessageIds: new Set<string>(),
@@ -278,7 +289,10 @@ export function createStableConversationState(
       setDrafts((current) => ({ ...current, [key]: appendSkillCreationRequest(current[key] ?? EMPTY_DRAFT) }));
       setComposerFocusRequest((value) => value + 1);
     },
-    appendSkillExample(target: { serverId: string; agentId: string }, skill: MarketplaceSkillDetail) {
+    appendSkillExample(
+      target: { serverId: string; agentId: string },
+      skill: Pick<MarketplaceSkillDetail, "id" | "name" | "examplePrompt">,
+    ) {
       const key = composerDraftKey(target);
       setDrafts((current) => ({ ...current, [key]: appendSkillExample(current[key] ?? EMPTY_DRAFT, skill) }));
       setComposerFocusRequest((value) => value + 1);
@@ -307,11 +321,14 @@ export function createStableConversationState(
     setEditingOriginalAttachmentIds,
     editingPendingSave,
     setEditingPendingSave,
+    persistDrafts,
     composerFocusRequest,
     setComposerFocusRequest,
     pendingSends,
     conversationErrors,
     setConversationErrors,
+    conversationErrorRuns,
+    setConversationErrorRuns,
     composerErrors,
     setComposerErrors,
     composerErrorReferences,
@@ -326,6 +343,8 @@ export function createStableConversationState(
     setVoiceLiveTranscript,
     voiceLevels,
     setVoiceLevels,
+    voiceLimitReached,
+    setVoiceLimitReached,
     browserPipBounds,
     setBrowserPipBounds,
     settingsPanelWidth,
@@ -365,12 +384,11 @@ export function createServerConversationState() {
   const [markingRead, setMarkingRead] = createSignal(false);
   const [dropActive, setDropActive] = createSignal(false);
   const [rightPanels, setRightPanels] = createSignal<Record<string, RightPanelMode>>({});
-  const [sidePanels, setSidePanels] = createStore<SidePanelsState>({ side: {}, tasks: {} });
+  const [sidePanels, setSidePanels] = createStore<SidePanelsState>({ side: {}, tasks: {}, subagents: {} });
   const [settingsProvider, setSettingsProvider] = createSignal<AgentProviderId>("codex");
   const [settingsModel, setSettingsModel] = createSignal<AgentModelId>("gpt-6-luna");
   const [settingsReasoning, setSettingsReasoning] = createSignal<AgentReasoningEffort>("medium");
   const [browserAddress, setBrowserAddress] = createSignal("https://www.google.com");
-  const [browserAddressEditing, setBrowserAddressEditing] = createSignal(false);
   const [sidebarFilePreview, writeSidebarFilePreview] = createSignal<SidebarFilePreview | null>(null);
   // The accepted preview outlives its lazy view. Keep its page with the server-owned state,
   // including when it changes twice before Solid settles or the user visits another conversation.
@@ -419,8 +437,6 @@ export function createServerConversationState() {
     setSettingsReasoning,
     browserAddress,
     setBrowserAddress,
-    browserAddressEditing,
-    setBrowserAddressEditing,
     sidebarFilePreview,
     setSidebarFilePreview,
     openReactionMessageId,

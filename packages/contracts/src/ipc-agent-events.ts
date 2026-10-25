@@ -8,7 +8,7 @@ import { type AgentRuntimeSnapshot, isAgentRuntimeSnapshot } from "./ipc-agent-r
 import type { AccountUsage, AgentStatus } from "./ipc-agent-status";
 import { type AgentTasksSnapshot, isAgentTasksSnapshot } from "./ipc-agent-tasks";
 import { type AgentWaitsSnapshot, isAgentWaitsSnapshot } from "./ipc-agent-waits";
-import { type AgentSummary, isAgentSummary } from "./ipc-agents";
+import { type ClientAgentSummary, isClientAgentSummary } from "./ipc-agents";
 import {
   type AgentApproval,
   type BrowserTakeoverRequest,
@@ -39,7 +39,7 @@ export type AgentEvent =
   | { type: "channels-changed"; channelId: string; revision: number }
   | { type: "status"; status: AgentStatus }
   | { type: "usage-changed"; usage: AccountUsage }
-  | { type: "agents-changed"; agents: AgentSummary[] }
+  | { type: "agents-changed"; agents: ClientAgentSummary[] }
   | { type: "memories-changed"; agentId: string }
   | { type: "routines-changed"; agentId: string }
   | { type: "skills-changed"; agentId: string }
@@ -51,6 +51,8 @@ export type AgentEvent =
   | { type: "sidebar-layout-changed"; layout: SidebarLayoutSnapshot }
   /** The whole hidden list, in the `agent-hidden-v1` wire shape, so the Team API sends it as it is. */
   | { type: "hidden-agents-changed"; agents: HiddenAgent[] }
+  /** The roles changed. A client reads `/v1/agent-access` again for its own levels. */
+  | { type: "agent-access-changed"; revision: number }
   | { type: "conversation"; snapshot: ConversationSnapshot }
   | { type: "conversation-invalidated"; agentId: string; revision: number }
   | { type: "conversation-page"; page: ConversationPage }
@@ -68,7 +70,7 @@ export type AgentEvent =
   | { type: "queue-changed"; snapshot: QueueSnapshot }
   /** Local only: the Team API has no wait events, so a remote server never sends one. */
   | { type: "waits-changed"; snapshot: AgentWaitsSnapshot }
-  /** Local only, as the task events below: the Team API has no task events. */
+  /** The Team API sends the three task events below only to a peer with `agent-tasks-v1`, in this shape. */
   | { type: "agent-tasks-changed"; snapshot: AgentTasksSnapshot }
   /** The conversation of one task. Its turns never reach the agent's own chat events. */
   | { type: "agent-task-conversation"; taskId: string; snapshot: ConversationSnapshot }
@@ -119,7 +121,18 @@ export type AgentEvent =
   | { type: "runtime-snapshot"; snapshot: AgentRuntimeSnapshot }
   | { type: "browser-changed"; tabs: BrowserTab[]; activeTabId: string | null }
   | { type: "browser-control-changed"; state: BrowserControlState }
-  | { type: "error"; agentId?: string; code: string; message: string }
+  /** The whole list of tabs that a person controls, in the `browser-user-control` wire shape. */
+  | { type: "browser-user-control-changed"; tabIds: string[] }
+  /** The history state of every tab, in the `browser-page-state` wire shape. */
+  | {
+      type: "browser-page-state-changed";
+      tabs: { tabId: string; canGoBack: boolean; canGoForward: boolean }[];
+    }
+  /**
+   * `provider` and `model` name the run that failed, for the banner. Local only: the Team API event
+   * projection drops them.
+   */
+  | { type: "error"; agentId?: string; code: string; message: string; provider?: AgentProviderId; model?: string }
   /**
    * A provider plan refused a turn, once per limit. The queues of its agents wait for the reset.
    * Local only: the released Team API event adapters do not carry it. `resetsAt` is in epoch seconds.
@@ -148,7 +161,9 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isDynamicRecord(value.usage);
     case "agents-changed":
       return (
-        Array.isArray(value.agents) && value.agents.length <= INPUT_LIMITS.agents && value.agents.every(isAgentSummary)
+        Array.isArray(value.agents) &&
+        value.agents.length <= INPUT_LIMITS.agents &&
+        value.agents.every(isClientAgentSummary)
       );
     case "memories-changed":
       return isString(value.agentId) && value.agentId.length > 0 && value.agentId.length <= INPUT_LIMITS.identifier;
@@ -165,6 +180,8 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return isSidebarLayoutSnapshot(value.layout);
     case "hidden-agents-changed":
       return isHiddenAgentsSnapshot({ agents: value.agents });
+    case "agent-access-changed":
+      return isNumber(value.revision) && Number.isSafeInteger(value.revision) && value.revision >= 0;
     case "conversation":
       return isConversationSnapshot(value.snapshot);
     case "conversation-invalidated":
@@ -268,8 +285,23 @@ export function isAgentEvent(value: unknown): value is AgentEvent {
       return Array.isArray(value.tabs) && (value.activeTabId === null || isString(value.activeTabId));
     case "browser-control-changed":
       return isDynamicRecord(value.state);
+    case "browser-user-control-changed":
+      return Array.isArray(value.tabIds) && value.tabIds.every(isString);
+    case "browser-page-state-changed":
+      return (
+        Array.isArray(value.tabs) &&
+        value.tabs.every(
+          (tab) =>
+            isDynamicRecord(tab) && isString(tab.tabId) && isBoolean(tab.canGoBack) && isBoolean(tab.canGoForward),
+        )
+      );
     case "error":
-      return isString(value.code) && isString(value.message);
+      return (
+        isString(value.code) &&
+        isString(value.message) &&
+        (value.provider === undefined || isAgentProvider(value.provider)) &&
+        (value.model === undefined || isString(value.model))
+      );
     case "usage-limit-reached":
       return (
         isIdentifier(value.agentId) &&

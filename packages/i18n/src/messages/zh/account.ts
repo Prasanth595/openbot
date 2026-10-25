@@ -36,6 +36,8 @@ export const messages = {
   "account.usage.window.fiveHour": "5 小时",
   "account.usage.window.hours": { one: "{count} 小时", other: "{count} 小时" },
   "account.usage.window.minutes": "{minutes} 分钟",
+  "account.usage.window.cursorModels": "Cursor 模型",
+  "account.usage.window.otherModels": "其他模型",
   "account.update.failedRetry": "更新失败，请重试。",
   "account.update.managedByHost": "由主机管理",
   "account.update.restart": "重启",

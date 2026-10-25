@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { playableMediaKind } from "@openbot/contracts/attachment-files";
 import { rewriteAttachmentReferences } from "@openbot/contracts/attachment-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
@@ -47,6 +48,7 @@ import { StoredStateFailure, storedIO, storedSync, toStoredStateFailure } from "
 
 export type { ExportedAttachmentFile, GeneratedAttachmentSource } from "./attachment-files";
 
+import { isEmptyStoredFile, parseStoredJson } from "./atomic-json-file";
 import { mailboxReactionRowKey } from "./database/mailbox-projection";
 import { MailboxDeliveryGate } from "./mailbox-delivery-gate";
 import { OpenBotDatabase } from "./openbot-database";
@@ -63,10 +65,12 @@ export interface MessagingOrigin {
   authorId: string;
   authorName: string;
   platformMessageId: string;
+  /** The person's message that this one replies to, given to the agent as context. */
+  replyTo?: { authorName: string; text: string; sentAt: string };
 }
 
 interface StoredMessage {
-  channelId?: string;
+  channelId?: string | undefined;
   messaging?: MessagingOrigin;
   /**
    * A request an agent sent from an external conversation, such as a Slack thread. The teammate's
@@ -90,6 +94,11 @@ interface StoredMessage {
   senderMember?: ConversationMessageSender;
   text: string;
   attachments: StoredAttachment[];
+  /**
+   * What the user said, when a voice turn sent the text. It sits beside `attachments`, not in them,
+   * and in its own transfer folder, so the agent's prompt and the transfer manifest never name it.
+   */
+  voiceRecording?: StoredAttachment;
   replyToMessageId: string | null;
   /**
    * Written only when the sender asked for no answer. Absent means an answer is expected, which is
@@ -107,8 +116,8 @@ interface StoredFinishedEdit {
 }
 
 interface StoredDelivery {
-  editId?: string;
-  finishedEditOutcomes?: Record<string, StoredFinishedEdit>;
+  editId?: string | undefined;
+  finishedEditOutcomes?: Record<string, StoredFinishedEdit> | undefined;
   id: string;
   messageId: string;
   recipientAgentId: string;
@@ -157,8 +166,10 @@ interface EnqueueInput {
   text: string;
   replyToMessageId?: string | null;
   /** False marks information the recipient must not answer. Defaults to an expected answer. */
-  expectsReply?: boolean;
+  expectsReply?: boolean | undefined;
   draftIds?: string[];
+  /** An audio draft of what the user said. Kept with the message, not sent to the recipient. */
+  voiceRecordingDraftId?: string;
   sourcePaths?: string[];
   idempotencyKey?: string;
 }
@@ -290,6 +301,7 @@ export class MailboxStore {
     this: MailboxStore,
     paths: string[],
     data: AttachmentDataInput[],
+    options: { voiceRecording?: boolean } = {},
   ): Effect.fn.Return<DraftAttachment[], StoredStateFailure> {
     try {
       if (paths.length + data.length === 0) return [];
@@ -300,7 +312,7 @@ export class MailboxStore {
         throw new Error(sourceText("error.backend.draftAttachmentLimit", { limit: INPUT_LIMITS.draftAttachments }));
       }
       const prepared = yield* this.#files
-        .prepareDrafts(paths, data)
+        .prepareDrafts(paths, data, options)
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       this.#state.drafts.push(...prepared);
       for (const draft of prepared) this.#changes.draftIds.add(draft.id);
@@ -420,14 +432,15 @@ export class MailboxStore {
     const messageIds = new Set(
       this.#state.messages.filter((message) => message.messaging?.linkId === linkId).map((message) => message.id),
     );
-    return this.#state.deliveries
-      .filter(
-        (delivery) =>
-          messageIds.has(delivery.messageId) &&
-          (delivery.status === "queued" || delivery.status === "starting" || delivery.status === "running"),
-      )
-      .sort(compareQueueOrder)
-      .map((delivery) => this.#context(delivery));
+    return this.#contexts(
+      this.#state.deliveries
+        .filter(
+          (delivery) =>
+            messageIds.has(delivery.messageId) &&
+            (delivery.status === "queued" || delivery.status === "starting" || delivery.status === "running"),
+        )
+        .sort(compareQueueOrder),
+    );
   }
 
   enqueue = Effect.fn("MailboxStore.enqueue")(function* (
@@ -466,6 +479,20 @@ export class MailboxStore {
       if (drafts.length !== new Set(input.draftIds ?? []).size) {
         throw new Error("Duplicate attachment draft.");
       }
+      const voiceDraft =
+        input.voiceRecordingDraftId === undefined
+          ? undefined
+          : this.#state.drafts.find((candidate) => candidate.id === input.voiceRecordingDraftId);
+      if (input.voiceRecordingDraftId !== undefined) {
+        if (
+          !voiceDraft ||
+          voiceDraft.ownerEditId ||
+          input.sender.kind !== "user" ||
+          drafts.includes(voiceDraft) ||
+          playableMediaKind(voiceDraft.mimeType) !== "audio"
+        )
+          throw new Error("Invalid voice recording draft.");
+      }
       const sourcePaths = [...drafts.map((draft) => draft.path), ...(input.sourcePaths ?? [])];
       if (!text && sourcePaths.length === 0) throw new Error(sourceText("error.backend.messageEmpty"));
       if (sourcePaths.length > MAX_ATTACHMENTS) {
@@ -477,18 +504,34 @@ export class MailboxStore {
       const attachments = yield* this.#files
         .commitMessageTransfer(messageId, input.sender, recipients, messageId, createdAt, sourcePaths)
         .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+      const voiceTransferId = voiceRecordingTransferId(messageId);
+      const removeTransfers = Effect.all(
+        [
+          this.#files.remove(this.#files.transferRoot(messageId)),
+          this.#files.remove(this.#files.transferRoot(voiceTransferId)),
+        ],
+        { discard: true },
+      ).pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+      const voiceRecording = voiceDraft
+        ? yield* this.#files
+            .commitMessageTransfer(voiceTransferId, input.sender, recipients, messageId, createdAt, [voiceDraft.path])
+            .pipe(
+              // The commit types a file by its name, and WebM has no type there; the draft has it.
+              Effect.map(([committed]) => committed && { ...committed, mimeType: voiceDraft.mimeType }),
+              Effect.mapError(({ cause }) => new StoredStateFailure({ cause })),
+              Effect.tapError(() => removeTransfers),
+            )
+        : undefined;
       try {
         validateRecipients();
       } catch (error) {
-        yield* this.#files
-          .remove(this.#files.transferRoot(messageId))
-          .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+        yield* removeTransfers;
         throw error;
       }
       const committedByDraftId = new Map(drafts.map((draft, index) => [draft.id, attachments[index]] as const));
       const messaging = input.messaging ?? this.#answerReturn(input, recipients);
       const message: StoredMessage = {
-        channelId: input.channelId,
+        ...(input.channelId === undefined ? {} : { channelId: input.channelId }),
         ...(messaging ? { messaging } : {}),
         ...(input.messagingReturn ? { messagingReturn: input.messagingReturn } : {}),
         ...(input.taskId ? { taskId: input.taskId } : {}),
@@ -500,6 +543,7 @@ export class MailboxStore {
           return attachment ? { attachmentId: attachment.id, name: attachment.name } : null;
         }),
         attachments,
+        ...(voiceRecording ? { voiceRecording } : {}),
         replyToMessageId: input.replyToMessageId ?? null,
         ...(input.expectsReply === false ? { expectsReply: false as const } : {}),
         createdAt,
@@ -519,10 +563,11 @@ export class MailboxStore {
       recordRestartActivity();
       this.#state.deliveries.push(...deliveries);
       if (input.idempotencyKey) this.#state.idempotency[input.idempotencyKey] = messageId;
-      this.#state.drafts = this.#state.drafts.filter((draft) => !(input.draftIds ?? []).includes(draft.id));
+      const usedDrafts = voiceDraft ? [...drafts, voiceDraft] : drafts;
+      this.#state.drafts = this.#state.drafts.filter((draft) => !usedDrafts.includes(draft));
       this.#changes.messageIds.add(messageId);
       for (const delivery of deliveries) this.#changes.deliveryIds.add(delivery.id);
-      for (const draft of drafts) this.#changes.draftIds.add(draft.id);
+      for (const draft of usedDrafts) this.#changes.draftIds.add(draft.id);
       try {
         this.#persist();
       } catch (error) {
@@ -532,19 +577,17 @@ export class MailboxStore {
         if (input.idempotencyKey && this.#state.idempotency[input.idempotencyKey] === messageId) {
           delete this.#state.idempotency[input.idempotencyKey];
         }
-        for (const draft of drafts) {
+        for (const draft of usedDrafts) {
           if (!this.#state.drafts.some((candidate) => candidate.id === draft.id)) {
             this.#state.drafts.push(draft);
           }
         }
-        yield* this.#files
-          .remove(this.#files.transferRoot(messageId))
-          .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
+        yield* removeTransfers;
         throw error;
       }
       // The message is saved: failing now would hide a delivery that runs from its caller. A draft
       // folder left behind holds copies only, and a restart clears it with the other drafts.
-      yield* this.#files.removeAttachmentDirectories(drafts.map((draft) => draft.path)).pipe(Effect.ignore);
+      yield* this.#files.removeAttachmentDirectories(usedDrafts.map((draft) => draft.path)).pipe(Effect.ignore);
       return this.#receipt(messageId);
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -724,8 +767,24 @@ export class MailboxStore {
     return delivery ? this.#taskIdOf(delivery) : null;
   }
 
-  #taskIdOf(delivery: StoredDelivery): string | null {
-    return this.#state.messages.find((message) => message.id === delivery.messageId)?.taskId ?? null;
+  #taskIdOf(delivery: StoredDelivery, messages?: ReadonlyMap<string, StoredMessage>): string | null {
+    const message = messages
+      ? messages.get(delivery.messageId)
+      : this.#state.messages.find((candidate) => candidate.id === delivery.messageId);
+    return message?.taskId ?? null;
+  }
+
+  /**
+   * Indexes the positions and messages once, so a list of contexts does not sort or scan for each one.
+   * Only a queued delivery has a position, so a list of started deliveries does not sort the queue.
+   */
+  #contexts(deliveries: StoredDelivery[]): DeliveryContext[] {
+    if (deliveries.length === 0) return [];
+    const positions = deliveries.some((delivery) => delivery.status === "queued")
+      ? this.#queuedPositions()
+      : new Map<string, number>();
+    const messages = this.#messagesById();
+    return deliveries.map((delivery) => this.#context(delivery, positions, messages));
   }
 
   /** The tasks of this agent that have a queued message, in queue order of their first one. */
@@ -936,6 +995,9 @@ export class MailboxStore {
           senderAgentId: message.sender.kind === "agent" ? message.sender.agentId : undefined,
           ...(message.senderMember ? { senderMember: { ...message.senderMember } } : {}),
           attachments: message.attachments.map(toAttachmentSummary),
+          ...(message.voiceRecording && !message.voiceRecording.deletedAt
+            ? { voiceRecording: toAttachmentSummary(message.voiceRecording) }
+            : {}),
           replyToMessageId: message.replyToMessageId,
           delivery: {
             id: delivery.id,
@@ -1085,10 +1147,11 @@ export class MailboxStore {
    */
   nextQueued(agentId: string, taskId: string | null = null): DeliveryContext | null {
     if (this.laneActive(agentId, taskId)) return null;
+    const messages = this.#messagesById();
     const delivery = this.#queuedFor(agentId).find(
-      (candidate) => this.#taskIdOf(candidate) === taskId && !this.#isHeldReply(candidate),
+      (candidate) => this.#taskIdOf(candidate, messages) === taskId && !this.#isHeldReply(candidate),
     );
-    return delivery && this.#mayStart(delivery) ? this.#context(delivery) : null;
+    return delivery && this.#mayStart(delivery) ? this.#context(delivery, undefined, messages) : null;
   }
 
   /**
@@ -1104,14 +1167,15 @@ export class MailboxStore {
     if (message.sender.kind !== "user" && !requestId) return [];
     // A teammate's answer runs in the agent's own chat, so a task message starts alone.
     if (message.taskId) return [];
-    return this.#queuedFor(next.recipientAgentId)
-      .filter((candidate) => {
-        if (candidate.id === next.id || !this.#mayStart(candidate) || this.#taskIdOf(candidate)) return false;
+    const messages = this.#messagesById();
+    return this.#contexts(
+      this.#queuedFor(next.recipientAgentId).filter((candidate) => {
+        if (candidate.id === next.id || !this.#mayStart(candidate) || this.#taskIdOf(candidate, messages)) return false;
         if (!requestId) return this.#isHeldReply(candidate);
-        const reply = this.#requireMessage(candidate.messageId);
+        const reply = this.#requireMessage(candidate.messageId, messages);
         return isAnswer(reply) && reply.replyToMessageId === requestId;
-      })
-      .map((delivery) => this.#context(delivery));
+      }),
+    );
   }
 
   /** The agents that were sent a request and whose delivery ended with no answer. */
@@ -1192,14 +1256,14 @@ export class MailboxStore {
   }
 
   findDeliveriesByTurn(agentId: string, turnId: string): DeliveryContext[] {
-    return this.#state.deliveries
-      .filter(
+    return this.#contexts(
+      this.#state.deliveries.filter(
         (delivery) =>
           delivery.recipientAgentId === agentId &&
           delivery.turnId === turnId &&
           (delivery.status === "starting" || delivery.status === "running"),
-      )
-      .map((delivery) => this.#context(delivery));
+      ),
+    );
   }
 
   /** Without `taskId`, any lane of the agent; with it, only that lane (null: the agent's own chat). */
@@ -1213,9 +1277,7 @@ export class MailboxStore {
    * Without `taskId`, any lane of the agent; with it, only that lane (null: the agent's own chat).
    */
   startingDeliveriesForAgent(agentId: string, taskId?: string | null): DeliveryContext[] {
-    return this.#state.deliveries
-      .filter((candidate) => this.#startingIn(candidate, agentId, taskId))
-      .map((delivery) => this.#context(delivery));
+    return this.#contexts(this.#state.deliveries.filter((candidate) => this.#startingIn(candidate, agentId, taskId)));
   }
 
   #startingIn(delivery: StoredDelivery, agentId: string, taskId: string | null | undefined): boolean {
@@ -1256,7 +1318,7 @@ export class MailboxStore {
         const keep = remainingMessageIds.has(message.id) || message.channelId !== undefined;
         if (!keep) removedMessageIds.add(message.id);
         if (!keep) {
-          for (const attachment of message.attachments) {
+          for (const attachment of messageFiles(message)) {
             const transferRoot = this.#files.transferRootForPath(attachment.path);
             if (transferRoot) removedTransferRoots.add(transferRoot);
           }
@@ -1313,7 +1375,7 @@ export class MailboxStore {
       for (const message of this.#state.messages) {
         if (!removedMessageIds.has(message.id)) continue;
         removedTransferRoots.add(this.#files.transferRoot(message.id));
-        for (const attachment of message.attachments) {
+        for (const attachment of messageFiles(message)) {
           const transferRoot = this.#files.transferRootForPath(attachment.path);
           if (transferRoot) removedTransferRoots.add(transferRoot);
         }
@@ -1488,7 +1550,8 @@ export class MailboxStore {
     try {
       this.#persist("delivery.edit-started");
     } catch (error) {
-      delivery.editId = previous;
+      if (previous === undefined) delete delivery.editId;
+      else delivery.editId = previous;
       throw error;
     }
   }
@@ -1516,7 +1579,9 @@ export class MailboxStore {
       this.#persist("delivery.edit-attachments-retained");
     } catch (error) {
       drafts.forEach((draft, index) => {
-        draft.ownerEditId = previous[index];
+        const ownerEditId = previous[index];
+        if (ownerEditId === undefined) delete draft.ownerEditId;
+        else draft.ownerEditId = ownerEditId;
       });
       throw error;
     }
@@ -1578,11 +1643,16 @@ export class MailboxStore {
       this.#persist(cancelDelivery ? "delivery.cancelled" : "delivery.edit-finished");
     } catch (error) {
       delivery.status = previousStatus;
-      delivery.editId = editId;
-      delivery.finishedEditOutcomes = previousOutcomes;
+      if (editId === undefined) delete delivery.editId;
+      else delivery.editId = editId;
+      if (previousOutcomes === undefined) delete delivery.finishedEditOutcomes;
+      else delivery.finishedEditOutcomes = previousOutcomes;
       released.forEach((draft, index) => {
-        draft.ownerEditId = editId;
-        draft.preserveOnRestart = previousRetention[index];
+        // `released` is empty when there is no edit id.
+        if (editId !== undefined) draft.ownerEditId = editId;
+        const preserveOnRestart = previousRetention[index];
+        if (preserveOnRestart === undefined) delete draft.preserveOnRestart;
+        else draft.preserveOnRestart = preserveOnRestart;
       });
       throw error;
     }
@@ -1917,9 +1987,9 @@ export class MailboxStore {
   }
 
   unresolvedDeliveries(): DeliveryContext[] {
-    return this.#state.deliveries
-      .filter((delivery) => delivery.status === "starting" || delivery.status === "running")
-      .map((delivery) => this.#context(delivery));
+    return this.#contexts(
+      this.#state.deliveries.filter((delivery) => delivery.status === "starting" || delivery.status === "running"),
+    );
   }
 
   recoverAsInterrupted = Effect.fn("MailboxStore.recoverAsInterrupted")(function* (
@@ -1948,7 +2018,7 @@ export class MailboxStore {
           .resolveDraft(draft)
           .pipe(Effect.mapError(({ cause }) => new StoredStateFailure({ cause })));
       for (const message of this.#state.messages) {
-        const attachment = message.attachments.find((candidate) => candidate.id === id);
+        const attachment = messageFiles(message).find((candidate) => candidate.id === id);
         if (attachment)
           return attachment.deletedAt
             ? null
@@ -1969,7 +2039,7 @@ export class MailboxStore {
     }
   }, Effect.uninterruptible).bind(this);
 
-  /** Every sent and generated file that the user has not deleted, from the in-memory state. */
+  /** Every sent, spoken and generated file that the user has not deleted, from the in-memory state. */
   listStoredFiles(): MailboxStoredFile[] {
     const firstRecipient = new Map<string, string>();
     for (const delivery of this.#state.deliveries)
@@ -1978,7 +2048,7 @@ export class MailboxStore {
     for (const message of this.#state.messages) {
       const agentId =
         message.sender.kind === "agent" ? message.sender.agentId : (firstRecipient.get(message.id) ?? null);
-      for (const attachment of message.attachments) {
+      for (const attachment of messageFiles(message)) {
         if (attachment.deletedAt) continue;
         files.push({
           attachment: toAttachmentSummary(attachment),
@@ -2028,7 +2098,7 @@ export class MailboxStore {
       const deletedAt = new Date().toISOString();
       for (const target of targets) target.deletedAt = deletedAt;
       for (const message of this.#state.messages) {
-        if (message.attachments.some((attachment) => targets.includes(attachment))) {
+        if (messageFiles(message).some((attachment) => targets.includes(attachment))) {
           this.#changes.messageIds.add(message.id);
         }
       }
@@ -2054,7 +2124,7 @@ export class MailboxStore {
   }, Effect.uninterruptible).bind(this);
 
   #fileRecords(): StoredAttachment[] {
-    return [...this.#state.messages.flatMap((message) => message.attachments), ...this.#state.generatedAttachments];
+    return [...this.#state.messages.flatMap(messageFiles), ...this.#state.generatedAttachments];
   }
 
   #undeletedFileRecords(fileId: string): StoredAttachment[] {
@@ -2217,7 +2287,7 @@ export class MailboxStore {
     try {
       const files: ExportedAttachmentFile[] = [];
       for (const [index, message] of this.#state.messages.entries()) {
-        for (const attachment of message.attachments) {
+        for (const attachment of messageFiles(message)) {
           if (attachment.deletedAt) continue;
           const file = yield* this.#files
             .exportAttachment(attachment, { id: message.id, index })
@@ -2238,10 +2308,14 @@ export class MailboxStore {
     }
   }, Effect.uninterruptible).bind(this);
 
-  #context(delivery: StoredDelivery): DeliveryContext {
-    const message = this.#requireMessage(delivery.messageId);
+  #context(
+    delivery: StoredDelivery,
+    positions?: ReadonlyMap<string, number>,
+    messages?: ReadonlyMap<string, StoredMessage>,
+  ): DeliveryContext {
+    const message = this.#requireMessage(delivery.messageId, messages);
     return {
-      delivery: this.#publicDelivery(delivery),
+      delivery: this.#publicDelivery(delivery, positions, message),
       managedAttachments: message.attachments.map((attachment) => ({
         ...toAttachmentSummary(attachment),
         path: attachment.path,
@@ -2259,7 +2333,7 @@ export class MailboxStore {
 
   #publicDelivery(
     delivery: StoredDelivery,
-    positions = this.#queuedPositions(),
+    positions?: ReadonlyMap<string, number>,
     message = this.#requireMessage(delivery.messageId),
   ): QueueDelivery {
     const {
@@ -2277,7 +2351,12 @@ export class MailboxStore {
       attachments: message.attachments.map(toAttachmentSummary),
       replyToMessageId: message.replyToMessageId,
       ...(message.expectsReply === false ? { expectsReply: false } : {}),
-      position: delivery.status === "queued" ? (positions.get(delivery.id) ?? null) : null,
+      position:
+        delivery.status === "queued"
+          ? positions
+            ? (positions.get(delivery.id) ?? null)
+            : this.#queuedPosition(delivery)
+          : null,
       editing: Boolean(delivery.editId),
     };
   }
@@ -2294,6 +2373,19 @@ export class MailboxStore {
       positions.set(delivery.id, position);
     }
     return positions;
+  }
+
+  /** The queue position of one queued delivery, without sorting the whole mailbox. */
+  #queuedPosition(delivery: StoredDelivery): number {
+    let position = 1;
+    for (const candidate of this.#state.deliveries)
+      if (
+        candidate.status === "queued" &&
+        candidate.recipientAgentId === delivery.recipientAgentId &&
+        compareQueueOrder(candidate, delivery) < 0
+      )
+        position += 1;
+    return position;
   }
 
   #receipt(messageId: string): QueuedMessageReceipt {
@@ -2356,8 +2448,10 @@ export class MailboxStore {
       if (isRecord(error) && error.code === "ENOENT") return structuredClone(EMPTY_STATE);
       return yield* loaded.failure;
     }
+    // A power loss left the file without content: no message in it can be recovered.
+    if (isEmptyStoredFile(loaded.success)) return structuredClone(EMPTY_STATE);
     return yield* storedSync(() => {
-      const value = toCurrentMailboxState(JSON.parse(loaded.success));
+      const value = parseStoredJson(this.#statePath, loaded.success, toCurrentMailboxState);
       if (!value || !isStoredState(value)) throw new Error(sourceText("error.backend.mailboxStateCorrupt"));
       return value;
     });
@@ -2576,8 +2670,23 @@ function isMessagingOrigin(value: unknown): value is MessagingOrigin {
     isString(value.linkId) &&
     isString(value.authorId) &&
     isString(value.authorName) &&
-    isString(value.platformMessageId)
+    isString(value.platformMessageId) &&
+    (value.replyTo === undefined ||
+      (isRecord(value.replyTo) &&
+        isString(value.replyTo.authorName) &&
+        isString(value.replyTo.text) &&
+        isString(value.replyTo.sentAt)))
   );
+}
+
+/** The transfer folder of a message's voice recording, beside the message's own. */
+function voiceRecordingTransferId(messageId: string): string {
+  return `voice-${messageId}`;
+}
+
+/** The files a message keeps: its attachments and its voice recording. */
+function messageFiles(message: StoredMessage): StoredAttachment[] {
+  return message.voiceRecording ? [...message.attachments, message.voiceRecording] : message.attachments;
 }
 
 function isStoredMessage(value: unknown): value is StoredMessage {
@@ -2600,6 +2709,7 @@ function isStoredMessage(value: unknown): value is StoredMessage {
     isString(value.text) &&
     Array.isArray(value.attachments) &&
     value.attachments.every(isStoredAttachment) &&
+    (value.voiceRecording === undefined || isStoredAttachment(value.voiceRecording)) &&
     (isString(value.replyToMessageId) || value.replyToMessageId === null) &&
     (value.expectsReply === undefined || value.expectsReply === false) &&
     isString(value.createdAt)

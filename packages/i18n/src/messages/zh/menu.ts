@@ -7,5 +7,11 @@ export const messages = {
   "menu.stopAllAgents": "停止所有助手",
   "menu.checkForUpdates": "检查更新…",
   "menu.preferences": "设置…",
+  "menu.actualSize": "实际大小",
+  "menu.zoomIn": "放大",
+  "menu.zoomOut": "缩小",
   "menu.copyLink": "复制链接",
+  "menu.trayOpen": "打开 OpenBot",
+  "menu.trayQuit": "退出 OpenBot",
+  "menu.trayTooltip": "OpenBot",
 } as const satisfies PartialTranslation<typeof source>;

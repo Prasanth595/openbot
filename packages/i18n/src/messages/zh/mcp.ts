@@ -60,7 +60,7 @@ export const messages = {
   "mcp.panel.launchTitle": "启动",
   "mcp.panel.command": "启动命令",
   "mcp.panel.commandDescription":
-    "只填程序本身。启动时不会把此字段当作命令行解析，因此像 serve-sqlite 这样的参数要填在下方“参数”中。",
+    "只填程序本身。启动时不会把该字段当作命令行解析，因此像 serve-sqlite 这样的参数要填在下方“参数”中。",
   "mcp.panel.arguments": "参数",
   "mcp.panel.addArgument": "添加参数",
   "mcp.panel.argument": "参数 {position}",
@@ -76,7 +76,7 @@ export const messages = {
   "mcp.panel.removePassthroughVariable": "移除透传变量 {position}",
   "mcp.panel.workingDirectory": "工作目录",
   "mcp.panel.workingDirectoryDescription":
-    "Claude 助手和连接测试会在此目录启动服务器。留空可把该服务器提供给所有服务商：其他服务商无法设置目录，所以会跳过指定了目录的服务器。",
+    "Claude 助手和连接测试会在该目录启动服务器。留空可把该服务器提供给所有服务商：其他服务商无法设置目录，所以会跳过指定了目录的服务器。",
   "mcp.panel.endpointTitle": "端点",
   "mcp.panel.endpointDescription": "所有服务商都可以使用 HTTP MCP 服务器。",
   "mcp.panel.serverUrl": "服务器 URL",
@@ -116,7 +116,7 @@ export const messages = {
   "mcp.panel.appUrlChanged": "请先保存新的服务器 URL，登录应用属于已保存的 URL。",
   "mcp.panel.appLoadFailed": "无法读取登录应用。",
   "mcp.panel.callbackUrl": "回调 URL",
-  "mcp.panel.callbackUrlDescription": "把此 URL 原样加入应用允许的重定向地址。",
+  "mcp.panel.callbackUrlDescription": "把该 URL 原样加入应用允许的重定向地址。",
   "mcp.panel.callbackUrlOnHost":
     "{host} 使用自己的浏览器登录，因此该 URL 属于 {host}。请把该 URL 原样加入应用允许的重定向地址。",
   "mcp.panel.callbackUrlUnavailable": "没有可用的回调 URL。",

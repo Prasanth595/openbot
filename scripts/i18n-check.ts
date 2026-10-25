@@ -29,7 +29,7 @@ const CODE_ROOTS = ["src", "packages", "apps/mobile/src", "apps/auth-api/src", "
 const CODE_EXTENSIONS = /\.(?:ts|tsx)$/;
 const SKIPPED_DIRECTORIES = new Set(["node_modules", "dist", "build", "out", ".expo"]);
 /** Keys that no current code sends, but older hosts still do. Keep them so their text is translated. */
-const RELEASED_SOURCE_KEYS = new Set(["error.agent.noStartingModel"]);
+const RELEASED_SOURCE_KEYS = new Set(["error.agent.noStartingModel", "error.provider.cliBusyUpdate"]);
 
 const logger = createOpenBotLogger("i18n-check");
 const failures: string[] = [];

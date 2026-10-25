@@ -19,6 +19,7 @@ import type {
   UpdateRoutineInput,
 } from "@openbot/contracts/ipc";
 import { routineConversationEventItemType, routineRunConversationEventItemType } from "@openbot/contracts/ipc";
+import type { EventRoutine } from "@openbot/contracts/ipc-events";
 import { type DynamicRecord, isBoolean } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
 import { collapseMissedOccurrences, RoutineInputError } from "@openbot/team-client/routine-schedule";
@@ -46,10 +47,20 @@ import {
   routineToolSchedule,
   routineToolString,
 } from "./routine-tools";
+import {
+  CREATE_WEBHOOK_ROUTINE_ARGUMENTS,
+  CREATE_WEBHOOK_ROUTINE_TOOL,
+  UPDATE_WEBHOOK_ROUTINE_ARGUMENTS,
+  UPDATE_WEBHOOK_ROUTINE_TOOL,
+  type WebhookRoutineWriter,
+  webhookRoutineSummary,
+  webhookRoutineToolResult,
+  webhookToolTrigger,
+} from "./webhook-routine-tool";
 
 export interface RoutineMutationOptions {
   recordConversationEvent?: boolean;
-  turnId?: string;
+  turnId?: string | undefined;
 }
 
 /**
@@ -108,6 +119,8 @@ export interface RoutineSchedulerOptions {
    * sender's message gives a zone. Omitted, the host system zone.
    */
   timezone?: () => string;
+  /** Built after the service, so read when a tool call needs it. Omitted, the tool refuses. */
+  webhookRoutines?: (() => WebhookRoutineWriter) | undefined;
 }
 
 /** The agent preview before a routine run, and the routine task the run showed in its place. */
@@ -144,6 +157,7 @@ export class RoutineScheduler implements RoutineDueSource {
   readonly #deletionAgents = new Set<string>();
   readonly #timer: RoutineTimer;
   readonly #timezone: () => string;
+  readonly #webhookRoutines: (() => WebhookRoutineWriter) | undefined;
   /**
    * The timezone a member's client sent with a message, by delivery. A routine the agent creates in
    * the turn that runs the message runs on that clock, not on the host's, and a later message from
@@ -167,6 +181,7 @@ export class RoutineScheduler implements RoutineDueSource {
     this.#routines = new AgentRoutineStore(options.store.database);
     this.#waits = options.waits;
     this.#timezone = options.timezone ?? localTimezone;
+    this.#webhookRoutines = options.webhookRoutines;
   }
 
   noteDeliveryTimezone(deliveryId: string, timezone: string): void {
@@ -507,7 +522,7 @@ export class RoutineScheduler implements RoutineDueSource {
   }
 
   /**
-   * The six `openbot` routine tools. Returns null when `tool` is not one of them.
+   * The eight `openbot` routine tools. Returns null when `tool` is not one of them.
    *
    * A request the model can correct is a tool failure, not a throw: a throw becomes a provider error
    * toast, although the model's corrected retry then creates the routine. Other errors are faults
@@ -546,7 +561,14 @@ export class RoutineScheduler implements RoutineDueSource {
     if (params.tool === "list_routines") {
       const args = routineToolArguments(params.arguments, ["agentId"]);
       const agentId = this.#toolAgentId(args, senderAgentId);
-      return openBotToolResult({ routines: this.list(agentId) });
+      return openBotToolResult({
+        routines: this.list(agentId),
+        webhookRoutines: this.#routines
+          .listRecords(agentId)
+          .flatMap((routine) =>
+            routine.trigger.kind === "webhook" ? [webhookRoutineSummary({ ...routine, trigger: routine.trigger })] : [],
+          ),
+      });
     }
 
     if (params.tool === "create_routine") {
@@ -590,9 +612,89 @@ export class RoutineScheduler implements RoutineDueSource {
           schedule: routineToolSchedule(args.schedule),
           ...routineToolPolicies(args),
         },
-        { turnId: agentId === senderAgentId ? params.turnId : undefined },
+        agentId === senderAgentId ? { turnId: params.turnId } : {},
       );
       return openBotToolResult(routine);
+    }
+
+    if (params.tool === CREATE_WEBHOOK_ROUTINE_TOOL) {
+      const args = routineToolArguments(params.arguments, CREATE_WEBHOOK_ROUTINE_ARGUMENTS);
+      const agentId = this.#toolAgentId(args, senderAgentId);
+      const webhooks = this.#webhookTool(senderAgentId, params.threadId, params.turnId);
+      const active = args.active === undefined ? true : args.active;
+      if (!isBoolean(active)) throw new RoutineInputError("active must be a boolean.");
+      // The zone has no effect on a webhook trigger. It is the editor's default if the user changes
+      // the trigger to a schedule.
+      const timezone = this.#turnSenderTimezone(senderAgentId, params.turnId) ?? this.#timezone();
+      const name = routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
+      this.#requireFreeRoutineName(agentId, name);
+      const { limitPolicy } = routineToolPolicies(args);
+      const routine = yield* webhooks.save({
+        agentId,
+        name,
+        instruction: routineToolString(
+          args.instruction,
+          "instruction",
+          INPUT_LIMITS.routineInstruction,
+          "A routine instruction is required.",
+        ),
+        active,
+        timezone,
+        ...webhookToolTrigger(args),
+        ...(limitPolicy === undefined ? {} : { limitPolicy }),
+      });
+      // Only the caller's own chat shows the card with the secret: the card needs the turn.
+      const turnId = agentId === senderAgentId ? params.turnId : undefined;
+      const recorded = this.#recordWebhookEvent(agentId, "created", routine, turnId);
+      return openBotToolResult(webhookRoutineToolResult(routine, recorded && turnId !== undefined));
+    }
+
+    if (params.tool === UPDATE_WEBHOOK_ROUTINE_TOOL) {
+      const args = routineToolArguments(params.arguments, UPDATE_WEBHOOK_ROUTINE_ARGUMENTS);
+      const agentId = this.#toolAgentId(args, senderAgentId);
+      const webhooks = this.#webhookTool(senderAgentId, params.threadId, params.turnId);
+      const routineId = routineToolString(
+        args.routineId,
+        "routineId",
+        INPUT_LIMITS.identifier,
+        "routineId is required.",
+      );
+      const current = this.#routines.getRecord(agentId, routineId);
+      if (current?.trigger.kind !== "webhook") {
+        throw new RoutineInputError(
+          `No webhook routine has routineId ${routineId}. The webhookRoutines of list_routines show their ids.`,
+        );
+      }
+      const active = args.active === undefined ? current.active : args.active;
+      if (!isBoolean(active)) throw new RoutineInputError("active must be a boolean.");
+      const name =
+        args.name === undefined
+          ? current.name
+          : routineToolString(args.name, "name", INPUT_LIMITS.routineName, "A routine name is required.");
+      if (name.trim().toLowerCase() !== current.name.trim().toLowerCase()) this.#requireFreeRoutineName(agentId, name);
+      // A policy the call leaves out keeps its stored value.
+      const { limitPolicy } = routineToolPolicies(args);
+      const routine = yield* webhooks.save({
+        routineId,
+        agentId,
+        name,
+        instruction:
+          args.instruction === undefined
+            ? current.instruction
+            : routineToolString(
+                args.instruction,
+                "instruction",
+                INPUT_LIMITS.routineInstruction,
+                "A routine instruction is required.",
+              ),
+        active,
+        timezone: current.timezone,
+        ...webhookToolTrigger(args, current.trigger),
+        ...(limitPolicy === undefined ? {} : { limitPolicy }),
+      });
+      const turnId = agentId === senderAgentId ? params.turnId : undefined;
+      const recorded = this.#recordWebhookEvent(agentId, "updated", routine, turnId);
+      return openBotToolResult(webhookRoutineToolResult(routine, recorded && turnId !== undefined, true));
     }
 
     if (params.tool === "update_routine") {
@@ -636,9 +738,7 @@ export class RoutineScheduler implements RoutineDueSource {
         hasUpdate = true;
       }
       if (!hasUpdate) throw new RoutineInputError("At least one routine update is required.");
-      return openBotToolResult(
-        this.update(input, { turnId: input.agentId === senderAgentId ? params.turnId : undefined }),
-      );
+      return openBotToolResult(this.update(input, input.agentId === senderAgentId ? { turnId: params.turnId } : {}));
     }
 
     if (params.tool === "delete_routine") {
@@ -650,7 +750,7 @@ export class RoutineScheduler implements RoutineDueSource {
         INPUT_LIMITS.identifier,
         "routineId is required.",
       );
-      yield* this.delete({ agentId, routineId }, { turnId: agentId === senderAgentId ? params.turnId : undefined });
+      yield* this.delete({ agentId, routineId }, agentId === senderAgentId ? { turnId: params.turnId } : {});
       return openBotToolResult({ deleted: true, agentId, routineId });
     }
 
@@ -689,7 +789,7 @@ export class RoutineScheduler implements RoutineDueSource {
     if (delivery.sender.kind !== "routine") return false;
     const run = this.#routines.runForDelivery(delivery.id);
     if (!run) return false;
-    const status = routineStatusForDelivery(delivery.status);
+    const status = routineStatusForDelivery(delivery);
     if (run.status === "needs-attention" && ["starting", "running"].includes(delivery.status)) return false;
     if (run.status === status && run.error === delivery.error) return false;
     if (status === "queued") this.#routines.updateRunStatus(run.id, status, delivery.error);
@@ -1022,7 +1122,7 @@ export class RoutineScheduler implements RoutineDueSource {
       activeTurnIds.add(delivery.turnId);
     }
     if (activeTurnIds.size === 0) return cancellableRuns;
-    if (!this.#store.activeProviderSession(agentId)) {
+    if (!this.#store.activeProviderSession(agentId) && !this.#conversation.routineSession(agentId)) {
       return yield* new RoutineOperationFailed({ cause: new Error(sourceText("error.backend.routineRunNoSession")) });
     }
     for (const turnId of activeTurnIds) yield* this.#hooks.interrupt(agentId, turnId);
@@ -1091,6 +1191,65 @@ export class RoutineScheduler implements RoutineDueSource {
     };
     snapshot.messages.push(message);
     return { run: updated, message };
+  }
+
+  /**
+   * The writer of the webhook routine tools. A public route changes only on a person's request: a
+   * routine run or an agent message can carry text from outside, such as a webhook body.
+   */
+  #webhookTool(senderAgentId: string, threadId: string, turnId: string): WebhookRoutineWriter {
+    const webhooks = this.#webhookRoutines?.();
+    if (!webhooks) throw new RoutineInputError("This server cannot create webhook routines.");
+    // Every delivery of the turn: a message steered into a routine run shares the run's turn. Only
+    // the agent's own chat: a channel task and a Slack or Telegram message also arrive as `user`.
+    const deliveries = this.#mailbox.findDeliveriesByTurn(senderAgentId, turnId);
+    const requested =
+      deliveries.length > 0 &&
+      deliveries.every(({ delivery }) => delivery.sender.kind === "user") &&
+      !this.#conversation.isExecutionThread(this.#conversation.publicThreadId(senderAgentId, threadId));
+    if (!requested) {
+      throw new RoutineInputError(
+        "Only a person's message can create or change a webhook routine. Ask the user to request it in the chat.",
+      );
+    }
+    return webhooks;
+  }
+
+  /** Both trigger kinds: `routines` of `list_routines` has schedule routines only. */
+  #requireFreeRoutineName(agentId: string, name: string): void {
+    const key = name.trim().toLowerCase();
+    const existing = this.#routines.listRecords(agentId).find((routine) => routine.name.trim().toLowerCase() === key);
+    if (existing) {
+      throw new RoutineInputError(
+        `Routine "${existing.name}" already exists with routineId ${existing.id}. Choose another name.`,
+      );
+    }
+  }
+
+  /**
+   * The chat record of a webhook routine that an agent made or changed. The main process saved the
+   * routine already, so a failed record is reported and does not fail the tool call. False when it
+   * failed.
+   */
+  #recordWebhookEvent(
+    agentId: string,
+    action: "created" | "updated",
+    routine: EventRoutine,
+    turnId: string | undefined,
+  ): boolean {
+    try {
+      this.#mutateWithConversation(
+        agentId,
+        action,
+        () => routine,
+        (saved) => saved,
+        turnId,
+      );
+      return true;
+    } catch (error) {
+      this.#hooks.emitError("routine_event_record_failed", error, agentId);
+      return false;
+    }
   }
 
   #mutateWithConversation<T>(

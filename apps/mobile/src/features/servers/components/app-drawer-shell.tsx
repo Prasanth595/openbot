@@ -3,7 +3,14 @@ import { type Href, router, usePathname } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";
 import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
-import { Gesture, GestureDetector, type PanGesture } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  GestureStateManager,
+  type PanGesture,
+  type PanGestureConfig,
+  usePanGesture,
+} from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -16,7 +23,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 import { useMobileSession } from "@/features/auth/context/mobile-session-context";
 import { ServerDrawerContent } from "@/features/servers/components/server-drawer-content";
-import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
+import {
+  useMobileWorkspaceActions,
+  useMobileWorkspaceSelector,
+} from "@/features/workspace/context/mobile-workspace-context";
 import { haptics } from "@/shared/lib/haptics";
 import { useText } from "@/shared/lib/text";
 
@@ -49,23 +59,16 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   const insets = useSafeAreaInsets();
   const { session } = useMobileSession();
   const { t } = useText();
-  const {
-    activeServer,
-    setDefaultServer,
-    defaultServerId,
-    leaveServer,
-    removeServer,
-    reorderServers,
-    selectServer,
-    servers,
-  } = useMobileWorkspace();
+  // The shell holds every screen, so it reads only what the drawer shows: a change elsewhere in the
+  // workspace does not render the drawer again.
+  const activeServerId = useMobileWorkspaceSelector((current) => current.activeServer.id);
+  const servers = useMobileWorkspaceSelector((current) => current.servers);
+  const { leaveServer, removeServer, reorderServers, selectServer } = useMobileWorkspaceActions();
   const [muted] = useThemeColor(["muted"]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerProgress = useSharedValue(0);
   const drawerWidth = Math.min(360, Math.max(280, width - 52));
   const drawerSideInset = Math.max(insets.left, 18);
-  const drawerHeaderHeight = Math.max(insets.top, 16) + 56;
-  const drawerListTopInset = drawerHeaderHeight + 8;
   const surfaceCornerRadius = Math.max(DRAWER_SURFACE_MIN_RADIUS, insets.top, insets.right, insets.bottom, insets.left);
 
   const drawerOpenOnUI = useSharedValue(false);
@@ -101,38 +104,44 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
   }, [drawerOpenOnUI, drawerProgress, session]);
 
   // Rows attach their swipe to this gesture, so it must stay the same object. A new gesture on each
-  // navigation or drawer change would rebuild the swipe of every row.
+  // navigation or drawer change would rebuild the swipe of every row. ReanimatedSwipeable relations
+  // accept only hook gestures. The memoized config keeps the gesture object stable, so its callbacks
+  // need the worklet directive.
   const openingEnabled = useSharedValue(false);
   const [openingBlocked, setOpeningBlocked] = useState(false);
   useEffect(() => {
     openingEnabled.set(!openingBlocked && pathname === "/connected");
   }, [openingBlocked, openingEnabled, pathname]);
-  const openingGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .onTouchesDown((_event, manager) => {
-          if (!openingEnabled.get() || drawerOpenOnUI.get()) manager.fail();
-        })
-        .activeOffsetX(12)
-        .failOffsetX(-10)
-        .failOffsetY([-10, 10])
-        .onUpdate((event) => {
-          drawerProgress.set(Math.min(1, Math.max(0, event.translationX / drawerWidth)));
-        })
-        .onEnd((event) => {
-          const projected = drawerProgress.get() + event.velocityX / drawerWidth / 6;
-          const shouldOpen = projected > 0.45;
-          if (shouldOpen) {
-            drawerOpenOnUI.set(true);
-            scheduleOnRN(triggerDrawerHaptic);
-            scheduleOnRN(commitDrawerState, true);
-          }
-          drawerProgress.set(
-            withSpring(shouldOpen ? 1 : 0, { ...DRAWER_SPRING, velocity: event.velocityX / drawerWidth }),
-          );
-        }),
+  const openingConfig = useMemo<PanGestureConfig>(
+    () => ({
+      onTouchesDown: (event) => {
+        "worklet";
+        if (!openingEnabled.get() || drawerOpenOnUI.get()) GestureStateManager.fail(event.handlerTag);
+      },
+      activeOffsetX: 12,
+      failOffsetX: -10,
+      failOffsetY: [-10, 10],
+      onUpdate: (event) => {
+        "worklet";
+        drawerProgress.set(Math.min(1, Math.max(0, event.translationX / drawerWidth)));
+      },
+      onDeactivate: (event) => {
+        "worklet";
+        const projected = drawerProgress.get() + event.velocityX / drawerWidth / 6;
+        const shouldOpen = projected > 0.45;
+        if (shouldOpen) {
+          drawerOpenOnUI.set(true);
+          scheduleOnRN(triggerDrawerHaptic);
+          scheduleOnRN(commitDrawerState, true);
+        }
+        drawerProgress.set(
+          withSpring(shouldOpen ? 1 : 0, { ...DRAWER_SPRING, velocity: event.velocityX / drawerWidth }),
+        );
+      },
+    }),
     [commitDrawerState, drawerOpenOnUI, drawerProgress, drawerWidth, openingEnabled],
   );
+  const openingGesture = usePanGesture(openingConfig);
 
   const closingGesture = useMemo(
     () =>
@@ -225,18 +234,13 @@ export function AppDrawerShell({ children }: PropsWithChildren) {
             importantForAccessibility={drawerOpen ? "auto" : "no-hide-descendants"}
           >
             <ServerDrawerContent
-              activeServerId={activeServer.id}
-              headerHeight={drawerHeaderHeight}
-              listTopInset={drawerListTopInset}
+              activeServerId={activeServerId}
               muted={muted}
               open={drawerOpen}
-              defaultServerId={defaultServerId}
               servers={servers}
               session={session}
-              sideInset={drawerSideInset}
               topInset={insets.top}
               onNavigate={navigateAfterClosing}
-              onSetDefault={setDefaultServer}
               onLeave={leaveServer}
               onRemove={removeServer}
               onReorder={reorderServers}

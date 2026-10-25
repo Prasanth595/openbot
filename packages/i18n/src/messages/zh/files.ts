@@ -72,7 +72,7 @@ export const messages = {
   "files.storage.rowLabel": "{name}，{size}",
   "files.storage.measuringFolder": "正在统计 OpenBot 文件夹…",
   "files.storage.measured": "统计于 {time}",
-  "files.storage.free": "此磁盘剩余 {size}",
+  "files.storage.free": "该磁盘剩余 {size}",
   "files.storage.justNow": "刚刚",
   "files.storage.minutesAgo": "{minutes} 分钟前",
   "files.storage.hoursAgo": "{hours} 小时前",

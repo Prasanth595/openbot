@@ -2,14 +2,15 @@ import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentApproval,
   AgentEvent,
-  AgentModelOption,
   AgentRuntimeApproval,
   AgentStatus,
-  AgentSummary,
   AttachmentSummary,
   BrowserControlState,
   BrowserTab,
   BrowserTakeoverRequest,
+  ClientAgentModelOption,
+  ClientAgentSummary,
+  ConversationMessage,
   ConversationPage,
   HiddenAgent,
   HostedServerIssue,
@@ -36,11 +37,13 @@ import {
   type RemoteRecoveryStatus,
 } from "@openbot/team-client/remote-recovery";
 import { reconcilePendingRequests } from "@openbot/team-client/runtime-attention";
+import { duplicateSection as duplicateSectionWith } from "@openbot/ui/features/sidebar/duplicate-section";
 import { currentText } from "@openbot/ui/text";
 import { errorReference, type UserErrorDetails } from "@openbot/user-errors";
 import { createEffect, createMemo, createSignal, createStore, onSettled } from "solid-js";
 import { toAgentProfile } from "../../app-message-projection";
 import { mergeConversationPage, missingReplyOriginals } from "../conversation/conversation-merge";
+import { appendTurnStepLine, type TurnStepLines } from "../conversation/turn-step-lines";
 import { followsServerUpdate } from "../servers/server-update-flow";
 import { createSidebarPreferences } from "../sidebar/sidebar-preferences";
 import { defaultSidebarLayout } from "../sidebar/sidebar-sections";
@@ -66,11 +69,41 @@ interface WebConversation {
   attachments: AttachmentSummary[];
   loading: boolean;
   error?: string | null;
+  /** The older pages were released; the next latest read takes the host's page and cursor. */
+  trimmed?: boolean;
 }
+
+/** The messages that a conversation keeps when it is not open, as on the desktop. */
+const LATEST_PAGE_SIZE = 50;
+
+/**
+ * Releases the older pages of a conversation that is not open. Only the open conversation gets new
+ * messages, so the next latest read replaces the kept messages with the host page, and the older pages
+ * load again from the host's cursor, with no gap.
+ */
+function trimToLatestPage(conversation: WebConversation): void {
+  const page = conversation.page;
+  if (!page) return;
+  conversation.trimmed = true;
+  if (page.messages.length <= LATEST_PAGE_SIZE) return;
+  const kept = page.messages.slice(-LATEST_PAGE_SIZE);
+  const removedById = new Map(page.messages.slice(0, -LATEST_PAGE_SIZE).map((message) => [message.id, message]));
+  // A kept reply keeps the quote of an original that the trim removes, as a page from the host gives it.
+  const references: Record<string, ConversationMessage> = {};
+  for (const message of kept) {
+    const originalId = message.replyToMessageId;
+    const original = originalId ? (removedById.get(originalId) ?? page.references[originalId]) : undefined;
+    if (originalId && original) references[originalId] = original;
+  }
+  page.messages = kept;
+  page.references = references;
+  page.pageInfo = { ...page.pageInfo, hasOlder: true };
+}
+
 interface WebWorkspaceState {
   hosts: RemoteTeamHost[];
   host: RemoteTeamHost | null;
-  agents: AgentSummary[];
+  agents: ClientAgentSummary[];
   /** The host answered an agent list. Until then, an empty `agents` does not mean the host has none. */
   agentsLoaded: boolean;
   selectedId: string | null;
@@ -99,12 +132,14 @@ interface WebWorkspaceState {
   hostedStart: HostedServerStart | null;
   /** The last connection failure, with its code. Shown while the workspace reconnects. */
   connectionError: UserErrorDetails | null;
+  /** Signal holds the connection because the host is not online. */
+  hostOffline: boolean;
   recovery: RemoteRecoveryStatus | null;
   workspaceLoaded: boolean;
   panelsFailed: boolean;
   panelsLoading: boolean;
   agentStatus: AgentStatus | null;
-  models: AgentModelOption[];
+  models: ClientAgentModelOption[];
   /** The opened host said it restarts into an update (`host-update-v1`). Cleared when it is online again. */
   hostRestart: { state: "waiting" | "restarting"; version: string | null } | null;
   /** The state of each host that this tab has not opened, from its status connection. */
@@ -148,7 +183,7 @@ export function createWebWorkspace(
     onSessionCheck: () => Promise<void>;
     /** Read when the workspace closes: true when its account session has ended. */
     accountSessionEnded?: () => boolean;
-    createRuntime?: WebRuntimeFactory;
+    createRuntime?: WebRuntimeFactory | undefined;
   },
   hooks: {
     /** A new agent status of the connected host, such as the end of a provider sign-in. */
@@ -177,6 +212,7 @@ export function createWebWorkspace(
     hostedIssue: null,
     hostedStart: null,
     connectionError: null,
+    hostOffline: false,
     recovery: null,
     workspaceLoaded: false,
     panelsFailed: false,
@@ -199,6 +235,8 @@ export function createWebWorkspace(
     sidebarLayout: defaultSidebarLayout(),
     userHiddenAgents: [],
   });
+  // Every progress line of the newest turns, by turn, for the steps under the activity line.
+  const [stepLines, setStepLines] = createSignal<TurnStepLines>({});
   let generation = 0;
   let selectedId: string | null = null;
   let hostId: string | null = null;
@@ -292,7 +330,7 @@ export function createWebWorkspace(
       recover();
     },
   });
-  const hostNoticeListeners = new Set<(hostId: string, event: WebHostNotice, agents: AgentSummary[]) => void>();
+  const hostNoticeListeners = new Set<(hostId: string, event: WebHostNotice, agents: ClientAgentSummary[]) => void>();
   const runtime = (props.createRuntime ?? createWebWorkspaceRuntime)(
     props.accountId,
     {
@@ -321,6 +359,9 @@ export function createWebWorkspace(
         setState((draft) => {
           if (update.state !== "online") draft.status = update.state;
           if (update.state !== "online") syncedAt = 0;
+          // A `connecting` update without `hostOffline`, such as a `rate_limited` reply, does not end the hold.
+          if (update.hostOffline) draft.hostOffline = true;
+          else if (update.state !== "connecting") draft.hostOffline = false;
           const text = currentText();
           const reference = update.reference ?? null;
           // An update without a reason keeps the last failure on screen. A working connection clears it.
@@ -444,6 +485,7 @@ export function createWebWorkspace(
           setState((draft) => {
             draft.progress[event.agentId] = { turnId: event.turnId, detail: cleanAgentMessageText(event.detail) };
           });
+          setStepLines((current) => appendTurnStepLine(current, event.turnId, cleanAgentMessageText(event.detail)));
         } else if (event.type === "turn-started") {
           setState((draft) => {
             delete draft.progress[event.agentId];
@@ -474,10 +516,37 @@ export function createWebWorkspace(
           setState((draft) => {
             draft.takeovers = draft.takeovers.filter((item) => String(item.requestId) !== String(event.requestId));
           });
+        // The frozen tab event has no field for a person's control or the history state;
+        // `browser-user-control-changed` and `browser-page-state-changed` send them, and a tab keeps
+        // its values until the next list.
         if (event.type === "browser-changed")
           setState((draft) => {
-            draft.browserTabs = event.tabs;
+            const previous = new Map(draft.browserTabs.map((tab) => [tab.id, tab]));
+            draft.browserTabs = event.tabs.map((tab) => {
+              const kept = previous.get(tab.id);
+              return {
+                ...tab,
+                ...(kept?.userControl ? { userControl: true as const } : {}),
+                ...(kept?.canGoBack === undefined ? {} : { canGoBack: kept.canGoBack }),
+                ...(kept?.canGoForward === undefined ? {} : { canGoForward: kept.canGoForward }),
+              };
+            });
             draft.activeBrowserTabId = event.activeTabId;
+          });
+        if (event.type === "browser-page-state-changed")
+          setState((draft) => {
+            const states = new Map(event.tabs.map(({ tabId, ...state }) => [tabId, state]));
+            draft.browserTabs = draft.browserTabs.map(({ canGoBack: _back, canGoForward: _forward, ...tab }) => ({
+              ...tab,
+              ...states.get(tab.id),
+            }));
+          });
+        if (event.type === "browser-user-control-changed")
+          setState((draft) => {
+            const held = new Set(event.tabIds);
+            draft.browserTabs = draft.browserTabs.map(({ userControl: _, ...tab }) =>
+              held.has(tab.id) ? { ...tab, userControl: true } : tab,
+            );
           });
         if (event.type === "browser-control-changed")
           setState((draft) => {
@@ -522,6 +591,7 @@ export function createWebWorkspace(
     },
   );
   // A hosted server keeps running while this tab is visible and has focus (`focus-use-v1`).
+  const [duplicatingSectionIds, setDuplicatingSectionIds] = createSignal<ReadonlySet<string>>(new Set());
   const [pageFocused, setPageFocused] = createSignal(!document.hidden && document.hasFocus());
   const focusUse = createFocusUsePing(() => void runtime.focusUse().catch(() => undefined));
   createEffect(
@@ -578,7 +648,7 @@ export function createWebWorkspace(
     if (!capabilities.includes(AGENT_HIDDEN_CAPABILITY) || !read) return [];
     return (await read()).agents;
   }
-  function reconcileAgents(agents: AgentSummary[]): void {
+  function reconcileAgents(agents: ClientAgentSummary[]): void {
     const ids = new Set(agents.map((agent) => agent.id));
     const nextSelected = selectedId && ids.has(selectedId) ? selectedId : null;
     selectedId = nextSelected;
@@ -639,6 +709,7 @@ export function createWebWorkspace(
             draft.approvals = [];
             draft.prompts = [];
             draft.progress = {};
+            setStepLines({});
             draft.takeovers = [];
             draft.browserTabs = [];
             draft.activeBrowserTabId = null;
@@ -753,6 +824,7 @@ export function createWebWorkspace(
       draft.approvals = [];
       draft.prompts = [];
       draft.progress = {};
+      setStepLines({});
       draft.takeovers = [];
       draft.browserTabs = [];
       draft.activeBrowserTabId = null;
@@ -839,6 +911,7 @@ export function createWebWorkspace(
       draft.recovery = null;
       // A retry keeps the last failure on screen until it ends.
       if (!sameHost) draft.connectionError = null;
+      if (!sameHost) draft.hostOffline = false;
       if (!sameHost) {
         draft.workspaceLoaded = false;
         draft.agentStatus = null;
@@ -1016,6 +1089,12 @@ export function createWebWorkspace(
   async function load(id: string, older = false) {
     const current = generation;
     const previous = state.conversations[id];
+    // The cursor of a trimmed conversation is after a gap until a latest read gives the host's cursor.
+    // When that read failed, the next older load reads the latest page again.
+    if (older && previous?.trimmed) {
+      if (!conversationReads.has(id)) await load(id);
+      return;
+    }
     const before = older ? (previous?.page?.pageInfo.olderCursor ?? undefined) : undefined;
     if (older && !before) return;
     conversationReads.set(id, (conversationReads.get(id) ?? 0) + 1);
@@ -1028,6 +1107,10 @@ export function createWebWorkspace(
         if (!item) return;
         const old = item.page?.threadId === page.threadId ? item.page : null;
         if (old && page.revision < old.revision) return;
+        // A trim or a latest read during this older read moved the cursor, so this page is not next.
+        if (older && (item.trimmed || old?.pageInfo.olderCursor !== before)) return;
+        // A trimmed conversation can be behind the host by more than one page, so its kept messages go.
+        const merge = older ? "older" : old && !item.trimmed ? "latest" : "replace";
         const resolvedRequests = new Set(
           page.messages.flatMap((message) =>
             message.questionPrompt?.resolution ? [String(message.questionPrompt.requestId)] : [],
@@ -1041,18 +1124,19 @@ export function createWebWorkspace(
         );
         item.page = {
           ...page,
-          messages: mergeConversationPage(
-            old?.messages ?? [],
-            page.messages,
-            older ? "older" : old ? "latest" : "replace",
-          ),
-          references: { ...old?.references, ...page.references },
-          pageInfo: !older && old ? old.pageInfo : page.pageInfo,
+          messages: mergeConversationPage(old?.messages ?? [], page.messages, merge),
+          references: merge === "replace" ? page.references : { ...old?.references, ...page.references },
+          pageInfo: merge === "latest" ? (old?.pageInfo ?? page.pageInfo) : page.pageInfo,
           // An older page has the thread's current revision but not its newest messages. The loaded
           // newest messages keep their revision, so a delta held during this read still applies.
           revision: older && old ? old.revision : page.revision,
         };
-        item.missingReferences = { ...(old ? item.missingReferences : {}), ...missingReplyOriginals(page) };
+        item.missingReferences = {
+          ...(merge === "replace" ? {} : item.missingReferences),
+          ...missingReplyOriginals(page),
+        };
+        // A conversation that closed during this read stays trimmed: it gets no new messages until it opens.
+        if (!older && draft.selectedId === id) item.trimmed = false;
         item.loading = false;
         item.error = null;
       });
@@ -1160,6 +1244,11 @@ export function createWebWorkspace(
     const current = generation;
     selectedId = id;
     setState((draft) => {
+      const previous = draft.selectedId;
+      if (previous && previous !== id) {
+        const closed = draft.conversations[previous];
+        if (closed) trimToLatestPage(closed);
+      }
       draft.selectedId = id;
       draft.conversations[id] ??= {
         page: null,
@@ -1373,6 +1462,7 @@ export function createWebWorkspace(
   });
   return {
     state,
+    stepLines,
     hostViews,
     profiles,
     retryPanels: loadPanels,
@@ -1381,6 +1471,7 @@ export function createWebWorkspace(
     runtime,
     preferences,
     orderedHosts,
+    duplicatingSectionIds,
     reorderHosts(hostIds: string[]) {
       setServerOrder(hostIds);
       writeWebServerOrder(props.accountId, hostIds);
@@ -1393,7 +1484,7 @@ export function createWebWorkspace(
       };
     },
     /** The events of the hosts this tab has not opened that a notification can show. Returns the unsubscribe function. */
-    onHostNotice(listener: (hostId: string, event: WebHostNotice, agents: AgentSummary[]) => void) {
+    onHostNotice(listener: (hostId: string, event: WebHostNotice, agents: ClientAgentSummary[]) => void) {
       hostNoticeListeners.add(listener);
       return () => {
         hostNoticeListeners.delete(listener);
@@ -1479,6 +1570,72 @@ export function createWebWorkspace(
           setState((draft) => {
             draft.duplicatingAgentIds = draft.duplicatingAgentIds.filter((id) => id !== agentId);
           });
+      }
+    },
+    /** Copies a custom section and each of its agents. The selection stays where it is. */
+    async duplicateSection(sectionId: string): Promise<void> {
+      if (
+        state.status !== "online" ||
+        !state.capabilities.includes("agent-duplication") ||
+        !state.capabilities.includes("sidebar-layout")
+      ) {
+        return;
+      }
+      const mutate = runtime.mutateSidebarLayout;
+      if (!mutate || duplicatingSectionIds().has(sectionId)) return;
+      const current = generation;
+      const isCurrent = () => !disposed && current === generation;
+      const acceptLayout = (layout: SidebarLayoutSnapshot) =>
+        setState((draft) => {
+          if (layout.revision >= draft.sidebarLayout.revision) draft.sidebarLayout = layout;
+        });
+      setDuplicatingSectionIds((ids) => new Set(ids).add(sectionId));
+      try {
+        const hidden = new Set(state.userHiddenAgents.map((entry) => entry.agentId));
+        await duplicateSectionWith(
+          {
+            layout: state.sidebarLayout,
+            agentIds: state.agents.filter((agent) => !hidden.has(agent.id)).map((agent) => agent.id),
+            // The agent's own Duplicate item waits too: the host refuses a second copy of one agent.
+            duplicateAgent: async (agentId) => {
+              if (!isCurrent()) return null;
+              setState((draft) => {
+                draft.duplicatingAgentIds = [...draft.duplicatingAgentIds, agentId];
+              });
+              try {
+                const result = await runtime.duplicateAgent(agentId);
+                if (!isCurrent()) return null;
+                setState((draft) => {
+                  draft.agents = [result.agent, ...draft.agents.filter((agent) => agent.id !== result.agent.id)];
+                });
+                acceptLayout(result.layout);
+                return { agentId: result.agent.id, layout: result.layout };
+              } finally {
+                if (isCurrent())
+                  setState((draft) => {
+                    draft.duplicatingAgentIds = draft.duplicatingAgentIds.filter((id) => id !== agentId);
+                  });
+              }
+            },
+            mutateLayout: async (action) => {
+              if (!isCurrent()) return null;
+              const layout = await mutate(action);
+              if (!isCurrent()) return null;
+              acceptLayout(layout);
+              return layout;
+            },
+          },
+          sectionId,
+        );
+      } catch (error) {
+        if (current === generation) report(error);
+        throw error;
+      } finally {
+        setDuplicatingSectionIds((ids) => {
+          const next = new Set(ids);
+          next.delete(sectionId);
+          return next;
+        });
       }
     },
     /**

@@ -71,6 +71,8 @@ export const messages = {
   "connector.github.keepConnected": "接続を維持",
   "connector.github.close": "閉じる",
   "connector.dangerZone": "危険な操作",
+  "connector.statusUnknown": "不明",
+  "connector.readFailed": "OpenBot はこの接続の状態を読み取れませんでした。",
 
   // Server settings > Connectors: the list of integrations. Each row opens its page.
   "connector.hub.onThisComputer": "このコンピューター上",
@@ -105,6 +107,7 @@ export const messages = {
     "OpenBot には Slack で次の権限がありません: {scopes}。ワークスペースを切断してから、もう一度接続してください。",
   "connector.slack.retryAt": "Slack から待機するよう求められました。{time} に再試行します。",
   "connector.slack.reconnect": "再接続",
+  "connector.slack.pause": "一時停止",
   "connector.slack.resume": "再開",
   "connector.slack.rowAction": "{action}: {name}",
   "connector.slack.orchestratorTitle": "Slack Orchestrator",
@@ -149,6 +152,13 @@ export const messages = {
   "connector.slack.removeEffectDeleted": "Slack Orchestrator とその会話は OpenBot から削除されます。",
   "connector.slack.keep": "接続を維持",
   "connector.slack.close": "閉じる",
+  "connector.slack.addWorkspace": "ワークスペースを追加",
+  "connector.slack.limitReached": {
+    other: "接続できるワークスペースは最大 {count} 件です。",
+  },
+  "connector.slack.summaryMany": {
+    other: "ワークスペース {count} 件 · Slack Orchestrator が回答します",
+  },
 
   // Server settings > Connectors > Discord. Always write "Discord server": "server" alone is an
   // OpenBot server.
@@ -175,6 +185,7 @@ export const messages = {
     "OpenBot には Discord で次の権限がありません: {scopes}。Discord サーバーを切断してから、もう一度接続してください。",
   "connector.discord.retryAt": "Discord から待機するよう求められました。{time} に再試行します。",
   "connector.discord.reconnect": "再接続",
+  "connector.discord.pause": "一時停止",
   "connector.discord.resume": "再開",
   "connector.discord.rowAction": "{action}: {name}",
   "connector.discord.orchestratorTitle": "Discord Orchestrator",
@@ -217,6 +228,28 @@ export const messages = {
   "connector.discord.removeEffectDeleted": "Discord Orchestrator とその会話は OpenBot から削除されます。",
   "connector.discord.keep": "接続を維持",
   "connector.discord.close": "閉じる",
+  "connector.discord.addWorkspace": "Discord サーバーを追加",
+  "connector.discord.limitReached": {
+    other: "接続できる Discord サーバーは最大 {count} 件です。",
+  },
+  "connector.discord.summaryMany": {
+    other: "Discord サーバー {count} 件 · Discord Orchestrator が回答します",
+  },
+  "connector.discord.accessTitle": "OpenBot を使える人",
+  "connector.discord.accessDescription": "OpenBot はこれらの人にだけ回答します。ほかの人からのメンションは無視します。",
+  "connector.discord.accessEveryone": "サーバーの全員",
+  "connector.discord.accessEveryoneDescription":
+    "OpenBot が見えるチャンネルに投稿できる人なら、誰でもメンションできます。",
+  "connector.discord.accessRoles": "{roles} を持つメンバー",
+  "connector.discord.accessChoose": "ロールを選択",
+  "connector.discord.accessDialogTitle": "{workspace} で OpenBot を使えるのは誰ですか？",
+  "connector.discord.accessDialogDescription": "ロールを選択しない場合は、全員が OpenBot をメンションできます。",
+  "connector.discord.accessLoading": "ロールを読み込んでいます…",
+  "connector.discord.accessLoadFailed": "Discord のロールを読み込めませんでした",
+  "connector.discord.accessNoRoles": "このサーバーには選択できるロールがありません。",
+  "connector.discord.accessRoleDeleted": "{role}（削除済み）",
+  "connector.discord.accessSave": "保存",
+  "connector.discord.accessHostUpdate": "ロールを選択するには、{host} の OpenBot を更新してください。",
 
   // Server settings > Connectors > Telegram.
   "connector.telegram.title": "Telegram",
@@ -319,6 +352,7 @@ export const messages = {
     "1Password アプリで「設定」>「開発者」を開き、「1Password CLI と連携」をオンにしてください。",
   "connector.onePassword.stepAppReady": "1Password アプリで、CLI が共有保管庫を作成できるようになっています。",
   "connector.onePassword.openApp": "1Password を開く",
+  "connector.onePassword.openAppFailed": "OpenBot は 1Password を開けませんでした。",
   "connector.onePassword.checkAgain": "再確認",
   "connector.onePassword.stepVaultTitle": "共有保管庫を作成",
   "connector.onePassword.stepVaultDescription":
@@ -365,4 +399,18 @@ export const messages = {
   "connector.bitwarden.connected": "接続済み",
   "connector.bitwarden.disconnected": "未接続",
   "connector.bitwarden.actionFailed": "OpenBot は Bitwarden の接続を変更できませんでした。",
+  "connector.bitwarden.descriptionHost":
+    "{host} のブラウザーのログインを Bitwarden または Vaultwarden から入力します。",
+  "connector.bitwarden.setupHost":
+    "{host} は自分の Bitwarden CLI でサインインします。保管庫に Shared with OpenBot という名前のフォルダーを作成し、エージェントが使ってよいログインだけを入れてください。ウェブ保管庫で 設定 › セキュリティ › キー を開き、API キーを表示します。下にサーバーのアドレス、client_id、client_secret、マスターパスワードを入力してください。",
+  "connector.bitwarden.scopeHost":
+    "{host} のすべてのエージェントが Shared with OpenBot の一致するログインを使えます。OpenBot は完全に一致する HTTPS オリジンを使います。マスターパスワードの再入力が必要なアイテムや、カスタムの URI 一致ルールを持つアイテムは使いません。",
+  "connector.bitwarden.sessionHost":
+    "{host} は API キーとマスターパスワードを暗号化して保存し、再起動の後にもう一度ロックを解除できます。このコンピューターには保存しません。切断すると {host} から削除されます。{host} は HTTPS でサーバーのアドレスに接続できる必要があります。",
+  "connector.bitwarden.serverUrl": "サーバーのアドレス",
+  "connector.bitwarden.clientId": "API キーの client_id",
+  "connector.bitwarden.clientSecret": "API キーの client_secret",
+  "connector.bitwarden.masterPassword": "マスターパスワード",
+  "connector.bitwarden.connecting": "接続中",
+  "connector.bitwarden.connectedServer": "{server} に接続済み。",
 } as const satisfies PartialTranslation<typeof source>;

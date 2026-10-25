@@ -27,7 +27,7 @@ export const messages = {
   "mobile.workspace.alert.preferencesTitle": "无法保存聊天偏好",
   "mobile.workspace.alert.preferencesBody": "已保留你之前的偏好，请重试。",
   "mobile.workspace.alert.updateRequiredTitle": "需要更新",
-  "mobile.workspace.alert.updateRequiredUnread": "请更新此桌面服务器以把对话标为未读。",
+  "mobile.workspace.alert.updateRequiredUnread": "请更新该桌面服务器以把对话标为未读。",
   "mobile.workspace.alert.markUnreadTitle": "无法标为未读",
   "mobile.workspace.alert.markUnreadBody": "请重新连接服务器后重试。",
   "mobile.workspace.alert.markAllReadTitle": "无法全部标为已读",
@@ -36,5 +36,5 @@ export const messages = {
   "mobile.workspace.alert.serverOrderBody": "已保留之前的顺序，请重试。",
   "mobile.workspace.error.connectFailed": "服务器连接失败。",
   "mobile.workspace.error.disconnectFailed": "服务器未能干净地断开连接。",
-  "mobile.workspace.error.queueEditRejected": "主机未接受此次编辑。",
+  "mobile.workspace.error.queueEditRejected": "主机未接受这次编辑。",
 } as const satisfies PartialTranslation<typeof source>;

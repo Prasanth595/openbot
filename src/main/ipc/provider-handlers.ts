@@ -6,9 +6,11 @@ import { isManagedRuntimeProvider, type ManagedProviderId } from "@openbot/contr
 import {
   type AgentProviderId,
   type ConnectProviderAccountInput,
+  isProviderAccountId,
   PROVIDER_ACCOUNT_LABEL_MAX_LENGTH,
   type RemoveProviderAccountInput,
   type RenameProviderAccountInput,
+  type ResetProviderUsageInput,
   type SetProviderApiKeyInput,
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
@@ -110,11 +112,20 @@ export function providerIpcHandlers({
           }),
         ),
       ),
+      cancelProviderAccountSignIn: payloadHandler(parseRemoveProviderAccountInput, ({ provider, accountId }) =>
+        runCauseEffect(service.cancelProviderAccountSignIn(provider, accountId)),
+      ),
       renameProviderAccount: payloadHandler(parseRenameProviderAccountInput, ({ provider, accountId, label }) =>
         runCauseEffect(service.renameProviderAccount(provider, accountId, label)),
       ),
       removeProviderAccount: payloadHandler(parseRemoveProviderAccountInput, ({ provider, accountId }) =>
         runCauseEffect(service.removeProviderAccount(provider, accountId)),
+      ),
+      providerUsageResets: payloadHandler(parseProviderId, (provider) =>
+        runCauseEffect(service.providerUsageResets(provider)),
+      ),
+      resetProviderUsage: payloadHandler(parseResetProviderUsageInput, ({ provider, accountId }) =>
+        runCauseEffect(service.resetProviderUsage(provider, accountId)),
       ),
       // A status, never the key: see `setProviderApiKey` in the desktop API contract.
       getProviderApiKeyState: payloadHandler(parseProviderId, async (provider) => ({
@@ -174,6 +185,12 @@ export function parseConnectProviderAccountInput(value: unknown): ConnectProvide
 export function parseRemoveProviderAccountInput(value: unknown): RemoveProviderAccountInput {
   if (!isDynamicRecord(value)) throw new Error("Invalid provider account.");
   return { provider: parseProviderId(value.provider), accountId: requireString(value.accountId, "accountId") };
+}
+
+/** The provider's own sign-in (`default`) or an account after the first. */
+export function parseResetProviderUsageInput(value: unknown): ResetProviderUsageInput {
+  if (!isDynamicRecord(value) || !isProviderAccountId(value.accountId)) throw new Error("Invalid provider account.");
+  return { provider: parseProviderId(value.provider), accountId: value.accountId };
 }
 
 export function parseRenameProviderAccountInput(value: unknown): RenameProviderAccountInput {

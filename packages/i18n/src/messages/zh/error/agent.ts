@@ -2,7 +2,8 @@ import type { PartialTranslation } from "../../../message";
 import type { messages as source } from "../../en/error/agent";
 
 export const messages = {
-  "error.agent.historyUnavailable": "此请求的历史记录不可用，请重新读取最近的历史。",
+  "error.agent.historyUnavailable":
+    "该请求的历史记录不可用，请重新读取最近的历史，或在频道工作中使用 channel_history。",
   "error.agent.toolRequestInvalid": "工具发现参数无效。请使用声明的 schema 和原始的完整工具名。",
   // Agent errors that the main process and the backend send.
   "error.agent.approvalWhileDeleting": "助手正在删除中，无法授予批准。",
@@ -38,6 +39,8 @@ export const messages = {
   "error.agent.waitBeforeProviderChange": "请等当前轮次和队列结束后再更改服务商。",
   "error.agent.waitForTasksBeforeProviderChange": "该助手的任务正在运行，请等它们结束或先停止它们，再更改服务商。",
   "error.agent.waitBeforeClearContext": "请等当前轮次和队列结束后再开始新对话。",
+  "error.agent.waitBeforeCompactContext": "请等当前轮次和队列结束后再压缩上下文。",
+  "error.agent.compactContextUnavailable": "该助手现在无法压缩上下文。",
   "error.agent.unknown": "未知助手：{id}",
   "error.agent.onlyUserWidensSettings": "只有用户可以给助手完全访问权限或开启 Computer Use，请让用户在助手设置中修改。",
   "error.agent.queuedMessageCreateFailed": "无法创建排队消息。",
@@ -50,6 +53,7 @@ export const messages = {
   "error.agent.duplicateIds": "助手状态中存在重复的助手 ID，拒绝覆盖它。",
   "error.agent.copyNameFailed": "OpenBot 无法生成唯一的助手副本名称。",
   "error.agent.endpointRemoved": "该助手使用的端点已被移除，请为它选择其他模型。",
+  "error.agent.turnStalled": "{provider} 已停止响应，因此 OpenBot 结束了该轮次。请重新发送消息，或选择其他模型。",
   "error.agent.selectedGone": "所选的助手已不存在。",
   "error.agent.profileEndpointsChanged": "生成期间自定义端点发生了变更，请重试。",
   "error.agent.profileInvalid": "服务商返回了无效的资料，请试着修改提示词。",
@@ -74,7 +78,8 @@ export const messages = {
   "error.agent.queueEditRejected": "队列编辑被拒绝：{reason}",
   "error.agent.computerUseLocalOnly": "Computer Use 只能在运行该助手的电脑上更改。",
   "error.agent.automationLocalOnly": "本地脚本只能在运行该助手的电脑上允许。",
-  "error.agent.sideQuestionLocalOnly": "旁问只能在运行该助手的电脑上使用。",
+  "error.agent.newChatLocalOnly": "只有运行该助手的电脑才能让它开始新对话。",
+  "error.agent.quickAcknowledgementLocalOnly": "只有运行该助手的电脑才能更改该设置。",
   "error.agent.sideQuestionBusy": "同时进行的旁问过多，请稍后重试。",
   "error.agent.sideQuestionFailed": "助手无法回答旁问，请重试。",
   "error.agent.busyMessageModeLocalOnly": "忙碌时消息的处理方式只能在运行该助手的电脑上设置。",
@@ -94,9 +99,13 @@ export const messages = {
     "“仅工作区”需要 {tool}，但 OpenBot 没有找到它。请安装它，或在助手设置中选择完全访问。",
   "error.agent.screenCaptureOff": "该助手的截屏功能已关闭，用户可以在助手设置中开启 Computer Use。",
   "error.agent.screenCaptureUnavailable": "这台电脑不支持截屏。",
-  "error.agent.screenCaptureShared":
-    "在频道或 Slack、Discord、Telegram 对话中无法使用截屏，因为其他人也会收到这些文件。",
+  "error.agent.screenCaptureShared": "在 Slack、Discord、Telegram 对话中无法使用截屏，因为其他人也会收到这些文件。",
   "error.agent.screenCaptureDeclined": "用户未允许本次截屏，没有截取任何内容。",
+  "error.agent.mcpServerDeclined": "用户未允许这次 MCP 服务器更改，未做任何更改。",
+  "error.agent.mcpServerNotSaved": "该 MCP 服务器没有响应，因此未保存。{error}",
+  "error.agent.mcpServerKeysMove":
+    "MCP 服务器 {name} 保存着当前服务器的密钥。请让用户在“服务器设置 → MCP”中更改它的地址、命令、参数或传输方式。",
+  "error.agent.mcpServerUnknown": "没有名为 {name} 的 MCP 服务器。请调用 list_mcp_servers 查看名称。",
   "error.agent.screenCaptureWindowMissing": "该窗口当前未打开，请调用 list_capture_sources 获取当前窗口 ID。",
   "error.agent.screenCaptureDisplayMissing": "该显示器当前未连接，请调用 list_capture_sources 获取当前显示器 ID。",
   "error.agent.screenCaptureRegionOutside":

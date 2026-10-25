@@ -32,6 +32,7 @@ import { createSignal, For, Show } from "solid-js";
 import { useText } from "../../text";
 import { ANDROID_PLAY_STORE_URL } from "../mobile-app/android-play-store";
 import { IOS_TESTFLIGHT_URL } from "../mobile-app/ios-testflight";
+import { RemoteNetworkRouteChoice } from "./RemoteNetworkRouteChoice";
 import type { SettingsMobileConnectStore } from "./stores/mobile-connect-store";
 
 interface SettingsMobileConnectTabProps {
@@ -40,6 +41,7 @@ interface SettingsMobileConnectTabProps {
   canCancelTicket: boolean;
   canManageLink: boolean;
   canRevokeDevice: boolean;
+  canSetRoute: boolean;
 }
 
 const IOS_PLATFORM_LABEL = "iOS";
@@ -109,7 +111,10 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
             if (value === "ios" || value === "android") setPlatform(value);
           }}
         >
-          <Item class="settings-modal-row settings-mobile-connect-action-row">
+          <Item
+            data-settings-row="settings.mobileConnect.install.title"
+            class="settings-modal-row settings-mobile-connect-action-row"
+          >
             <ItemMedia class="settings-mobile-connect-step" aria-hidden="true">
               1
             </ItemMedia>
@@ -169,7 +174,10 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
       </ItemGroup>
 
       <ItemGroup class="settings-modal-card settings-mobile-connect-card">
-        <Item class="settings-modal-row settings-mobile-connect-action-row">
+        <Item
+          data-settings-row="settings.mobileConnect.signIn.title"
+          class="settings-modal-row settings-mobile-connect-action-row"
+        >
           <ItemMedia class="settings-mobile-connect-step" aria-hidden="true">
             {props.canManageLink ? "2.1" : "2"}
           </ItemMedia>
@@ -263,7 +271,10 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
 
       <Show when={props.canManageLink}>
         <ItemGroup class="settings-modal-card settings-mobile-connect-card">
-          <Item class="settings-modal-row settings-mobile-connect-action-row">
+          <Item
+            data-settings-row="settings.mobileConnect.link.title"
+            class="settings-modal-row settings-mobile-connect-action-row"
+          >
             <ItemMedia class="settings-mobile-connect-step" aria-hidden="true">
               2.2
             </ItemMedia>
@@ -370,7 +381,11 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
         />
       </Show>
 
-      <section class="settings-mobile-devices" aria-labelledby="settings-mobile-devices-title">
+      <section
+        data-settings-row="settings.mobileConnect.devices.title"
+        class="settings-mobile-devices"
+        aria-labelledby="settings-mobile-devices-title"
+      >
         <div class="settings-mobile-devices-heading">
           <h3 id="settings-mobile-devices-title">{t("settings.mobileConnect.devices.title")}</h3>
           <Show when={props.store.state.devices.loading}>
@@ -487,6 +502,38 @@ export function SettingsMobileConnectTab(props: SettingsMobileConnectTabProps) {
           )}
         </Show>
       </section>
+
+      <Show when={props.store.state.route.current || props.store.state.route.error}>
+        <section
+          data-settings-row="settings.mobileConnect.route.title"
+          class="settings-mobile-route"
+          aria-labelledby="settings-mobile-route-title"
+        >
+          <div class="settings-mobile-route-heading">
+            <h3 id="settings-mobile-route-title">{t("settings.mobileConnect.route.title")}</h3>
+            <Text variant="caption" tone="muted">
+              {t("settings.mobileConnect.route.description")}
+            </Text>
+          </div>
+          <Show when={props.store.state.route.current}>
+            {(current) => (
+              <RemoteNetworkRouteChoice
+                value={current().route}
+                tailscaleConnected={current().tailscaleConnected}
+                disabled={!props.canSetRoute || props.store.state.route.busy}
+                onChange={(route) => void props.store.setRoute(route)}
+              />
+            )}
+          </Show>
+          <Show when={props.store.state.route.error}>
+            {(error) => (
+              <Text class="settings-modal-error" variant="caption" role="alert">
+                {error()}
+              </Text>
+            )}
+          </Show>
+        </section>
+      </Show>
     </SettingsSection>
   );
 }

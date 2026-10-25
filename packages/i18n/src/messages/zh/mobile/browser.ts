@@ -5,6 +5,7 @@ export const messages = {
   "mobile.browser.open": "打开浏览器",
   "mobile.browser.liveView": "{title} 的实时视图",
   "mobile.browser.help": "浏览器使用说明",
+  "mobile.browser.switchAgent": "{name}。切换到其他助手的浏览器",
   "mobile.browser.options": "浏览器选项",
   "mobile.browser.trackpadMode": "触控板模式",
   "mobile.browser.recenterPointer": "指针回到中心",
@@ -34,7 +35,7 @@ export const messages = {
   "mobile.browser.status.offline": "服务器未连接。",
   "mobile.browser.status.noTab": "{name} 没有打开浏览器标签页。",
   "mobile.browser.status.unsupported": "该服务器无法在手机上显示其浏览器。请更新该服务器上的 OpenBot。",
-  "mobile.browser.status.off": "此版本应用不提供浏览器功能。",
+  "mobile.browser.status.off": "该版本应用不提供浏览器功能。",
   "mobile.browser.notice.copied": "已复制到手机。",
   "mobile.browser.notice.nothingSelected": "页面上没有选中任何内容。",
   "mobile.browser.notice.copyFailed": "无法从页面复制。",
@@ -71,5 +72,5 @@ export const messages = {
     "浏览器打开时默认开启。手指移动指针，轻点即在该处点击，双击并按住则为拖拽。指针偏移时可让它回到中心。在 ··· 菜单中关闭后，即为点哪里就在哪里点击。",
   "mobile.browser.help.handingBack": "交还控制",
   "mobile.browser.help.handBack.title": "交还",
-  "mobile.browser.help.handBack.body": "当助手请你接管时，在 ··· 菜单中选择“我已完成”，助手会在此标签页中继续。",
+  "mobile.browser.help.handBack.body": "当助手请你接管时，在 ··· 菜单中选择“我已完成”，助手会在该标签页中继续。",
 } as const satisfies PartialTranslation<typeof source>;

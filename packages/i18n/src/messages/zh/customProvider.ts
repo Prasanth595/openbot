@@ -3,14 +3,19 @@ import type { messages as source } from "../en/customProvider";
 
 export const messages = {
   "customProvider.registry.title": "ACP 注册表",
-  "customProvider.registry.description": "在这台主机上安装助手。移除运行时不会删除助手设置、凭据和对话。",
+  "customProvider.registry.description": "在这台服务器上安装助手。移除运行时不会删除助手设置、凭据和对话。",
   "customProvider.registry.search": "搜索注册表",
   "customProvider.registry.empty": "没有匹配的助手。",
   "customProvider.registry.agentId": "自定义助手 ID",
   "customProvider.registry.install": "安装",
   "customProvider.registry.update": "更新",
   "customProvider.registry.remove": "移除运行时",
-  "customProvider.registry.failed": "注册表操作失败。",
+  "customProvider.registry.searchFailed": "无法搜索注册表，请重试。",
+  "customProvider.registry.statusFailed": "无法检查安装进度，OpenBot 会重试。",
+  "customProvider.registry.installFailed": "无法安装该助手，请重试。",
+  "customProvider.registry.updateFailed": "无法更新该助手，请重试。",
+  "customProvider.registry.removeFailed": "无法移除运行时，请重试。",
+  "customProvider.registry.cancelFailed": "无法取消安装，请重试。",
   // Form validation. Each message names one field of the custom provider form.
   "customProvider.error.providerIdRequired": "请输入服务商 ID。",
   "customProvider.error.providerIdPattern": "只能使用小写字母、数字、连字符或下划线，且以字母或数字开头。",
@@ -50,6 +55,7 @@ export const messages = {
 
   // The add dialog.
   "customProvider.form.title": "添加自定义服务商",
+  "customProvider.form.editTitle": "编辑自定义服务商",
   "customProvider.form.description": "描述一个兼容 OpenAI 的端点以及它提供的模型。",
   "customProvider.form.heading": "自定义服务商",
   "customProvider.form.subtitle": "任何兼容 OpenAI 的端点。",
@@ -154,6 +160,9 @@ export const messages = {
   "customProvider.acp.commandHint": "要启动的程序，OpenBot 会在你的 PATH 中查找。",
   "customProvider.acp.args": "参数",
   "customProvider.acp.argsHint": "参数之间用空格分隔；含空格的参数请加引号。",
+  "customProvider.acp.usagePrompt": "用量命令",
+  "customProvider.acp.usagePromptHint":
+    "OpenBot 最多每 5 分钟发送一次，并显示最近一次的回答。请使用助手自己能回答的命令，例如 /usage。",
   "customProvider.acp.env": "环境变量",
   "customProvider.acp.env.name": "变量 {number} 的名称",
   "customProvider.acp.env.value": "变量 {number} 的值",
@@ -166,6 +175,9 @@ export const messages = {
   "customProvider.acp.checkOk": "{name} 已响应",
   "customProvider.acp.checkOkVersion": "{name} {version} 已响应",
   "customProvider.acp.checkProtocol": "ACP 版本 {version}",
+  "customProvider.acp.checkModels": {
+    other: "{count} 个模型：{models}",
+  },
   "customProvider.acp.checkFailed": "助手没有响应",
   "customProvider.acp.trustTitle": "该命令会在这台电脑上运行",
   "customProvider.acp.trustDescription":
@@ -181,6 +193,7 @@ export const messages = {
   "customProvider.acp.error.envDuplicate": "该助手已设置 {name}。",
   "customProvider.acp.error.envValueRequired": "请输入该变量的值。",
   "customProvider.acp.error.envValueLength": "值不能超过 {max} 个字符。",
+  "customProvider.acp.error.usagePromptInvalid": "请填写一行，最多 {max} 个字符。",
   "customProvider.acp.error.agentIdPattern": "只能使用小写字母、数字或连字符，且以字母或数字开头，最多 40 个字符。",
 
   // The user's own ACP agents in Settings. Each is a command that OpenBot starts on this computer.
@@ -211,6 +224,7 @@ export const messages = {
   "customProvider.list.empty": "还没有自定义端点。",
   "customProvider.list.label": "自定义端点",
   "customProvider.list.apiKeySaved": "API 密钥已保存",
+  "customProvider.list.editLabel": "编辑 {name}",
   "customProvider.list.deleteLabel": "删除 {name}",
   "customProvider.list.confirmTitle": "移除 {name}？",
   "customProvider.list.confirmDescription":

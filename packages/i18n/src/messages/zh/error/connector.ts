@@ -3,7 +3,7 @@ import type { messages as source } from "../../en/error/connector";
 
 export const messages = {
   // The built-in GitHub connection: the device flow, the token refresh and the stored file.
-  "error.connector.githubUnavailable": "此版本的 OpenBot 不包含 GitHub App。",
+  "error.connector.githubUnavailable": "该版本的 OpenBot 不包含 GitHub App。",
   "error.connector.githubDenied": "GitHub 登录被拒绝。",
   "error.connector.githubCodeExpired": "GitHub 验证码已过期，请重新连接 GitHub。",
   "error.connector.githubDeviceFlowDisabled": "该 GitHub App 不允许使用设备码登录。",
@@ -26,4 +26,9 @@ export const messages = {
   "error.connector.onePasswordFileTooLarge": "1Password 连接文件过大。",
   "error.connector.bitwardenFailed":
     "无法读取 Bitwarden。请安装 bw CLI、登录并解锁，然后创建一个名为 Shared with OpenBot 的文件夹，用新的会话密钥连接。",
+  "error.connector.bitwardenHostInput": "请填写 HTTPS 服务器地址、API 密钥的 client_id 和 client_secret，以及主密码。",
+  "error.connector.bitwardenHostFailed":
+    "无法在该服务器上打开 Bitwarden。请检查服务器地址、API 密钥和主密码，并确认有一个文件夹名为 Shared with OpenBot，然后重新连接。",
+  "error.connector.bitwardenCliInstallFailed": "无法在该服务器上安装 Bitwarden CLI。请检查它的网络连接，然后重新连接。",
+  "error.connector.bitwardenFileUnreadable": "Bitwarden 连接文件无法读取。",
 } as const satisfies PartialTranslation<typeof source>;

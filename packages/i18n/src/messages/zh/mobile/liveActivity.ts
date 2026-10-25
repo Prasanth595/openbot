@@ -22,7 +22,7 @@ export const messages = {
   "mobile.liveActivity.button.openDetails": "查看详情",
   "mobile.liveActivity.stale.label": "已过期",
   "mobile.liveActivity.stale.detail": "请打开 OpenBot 查看当前状态。",
-  "mobile.liveActivity.confirm.title": "批准此命令？",
+  "mobile.liveActivity.confirm.title": "批准该命令？",
   "mobile.liveActivity.confirm.cancel": "取消",
   "mobile.liveActivity.confirm.approve": "批准",
   "mobile.liveActivity.requestChanged": "请求已变更，请打开该对话查看。",

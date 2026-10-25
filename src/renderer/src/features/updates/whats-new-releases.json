@@ -1,5 +1,346 @@
 [
   {
+    "version": "0.49.0",
+    "date": "2026-10-24",
+    "notices": ["On macOS, sign in to Gemini again after you upgrade."],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Choose System, Light or Dark in Settings → General → Theme. Dark stays the default.",
+          "On macOS, turn on \"Transparent window\" in Settings → General to see the desktop behind the window.",
+          "Give an agent a named browser profile in its settings → Advanced. Agents in one profile share its sign-ins, so different agents can use different accounts on the same site.",
+          "Open the steps of an agent's turn from its activity line, or from the \"steps\" row above its answer.",
+          "When a task needs an API key or a token, the agent shows a secure form. The key does not go into the chat.",
+          "Go back and forward between the chats that you opened with the arrows in the sidebar top bar.",
+          "Show a visual reply full screen. A button in the page can put an answer in the message box.",
+          "Change the server key in Server settings → General → Server key if the key file was copied or exposed.",
+          "Choose \"Private network\" in Mobile Connect settings to connect remote devices only over Tailscale or the same Wi-Fi.",
+          "On a joined server, an owner or admin can connect Bitwarden, manage browser profiles and set \"Tasks at once\" for each agent.",
+          "On macOS and Windows, turn on \"Keep this computer awake\" in Settings → General so routines run on time while the computer is connected to power."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Browser profiles replace the \"Own browser session\" switch. An agent that used its own session keeps it as \"Only this agent\".",
+          "A message that you send shows a status only when the send fails.",
+          "Empty pages, such as Tasks, routines, memories and invitations, show how they work."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "A long chat keeps the older messages that you scrolled back to when a new message arrives.",
+          "An hourly routine can run between two times that cross midnight.",
+          "A failed Codex tool call no longer shows a ChatGPT error notice in each chat.",
+          "After an update installs, OpenBot deletes the downloaded update file.",
+          "A long preview in a confirm card has a \"Show all\" button.",
+          "In a channel, Open on a browser step card opens the page in the chat of the agent that asked."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.48.2",
+    "date": "2026-10-23",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Sign in to a site for a server's browser on this computer: select \"Sign in on this computer\" in the browser's page menu.",
+          "Turn on \"Own browser session\" in an agent's settings to keep its sign-ins apart from other agents.",
+          "Right-click a message to reply, copy, react or read it aloud.",
+          "Duplicate a whole sidebar section from its menu.",
+          "Reset the usage limits of a Codex account from Settings → Providers when Codex gave it a reset credit.",
+          "Voice prompts and read-aloud replies work on Linux."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "When a provider error stops an agent, it moves to its next backup model when backup models are set to Automatic.",
+          "A webhook routine shows its setup as three steps, and \"Send test event\" checks it."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "OpenBot no longer quits on macOS when an agent opens a page that redirects while it loads.",
+          "An OpenCode turn that stops sending anything ends after 5 minutes with an error.",
+          "MCP servers with a space in their name work with Gemini and other ACP agents."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.48.1",
+    "date": "2026-10-22",
+    "notices": [],
+    "groups": [
+      {
+        "type": "fixed",
+        "items": [
+          "Channels route messages again when the lead agent uses a free OpenCode model. Agent profiles that a free OpenCode model writes work again too."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.48.0",
+    "date": "2026-10-22",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Channels are back. Create one from the + menu in the sidebar. Restore a deleted or archived channel from its row menu in Deleted channels.",
+          "Settings → General → Appearance has an Interface size control. Zoom In, Zoom Out and Actual Size in the View menu also change it.",
+          "In a voice conversation, speak while the agent thinks or reads its reply to interrupt it.",
+          "Owners and admins of a joined server can set an agent's backup models.",
+          "Settings → Voice has a Remove button for each downloaded voice model.",
+          "Edit a saved custom endpoint in Server settings → Providers → Custom."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "Tasks opens in the main pane, as Routines does.",
+          "The Usage tab shows tokens without cache reads in its total.",
+          "A routine run in an agent's own chat starts its own provider session, so it uses fewer tokens."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "An agent question that lets you pick more than one option shows check boxes and a Submit answer button.",
+          "Agent chats stay at the latest message while a turn runs.",
+          "Claude usage counts each turn once after OpenBot resumes a session."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.47.1",
+    "date": "2026-10-21",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Ask an agent to add an MCP server. The agent connects to it and shows its tools. You approve each change.",
+          "Roles in Server settings let an owner or admin choose the agents that members can use.",
+          "Import your Hermes Agent profiles in Server settings → Import.",
+          "Select text in a file in the side panel, then quote it or ask the agent to change it.",
+          "Settings → Voice has a new English dictation model: Underdog Bark 3.0 Plus."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": ["Settings → Providers is a short list with search. Each provider has its own page."]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Agents keep their provider sessions when OpenBot stops through a signal, for example from systemd or Docker.",
+          "In Discord, the agent gets the images and files of earlier messages.",
+          "The Tasks page keeps the agent that you chose last."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.47.0",
+    "date": "2026-10-21",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Attach ZIP archives in chat. An agent can also send a ZIP archive back for you to download.",
+          "Add Inception as a provider, with the Mercury models. Connect it with an Inception API key.",
+          "Turn on Fast in the model picker to use the fast tier of a Codex model.",
+          "Read the SKILL.md of a skill on a joined server."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "You can change the model of an agent while it works. The new model starts with the next turn.",
+          "OpenBot now installs OpenCode 2 as its own OpenCode CLI. Your threads keep their sessions.",
+          "Publish this server is now in Server settings → Members."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "On Linux desktops such as Hyprland, Sway, i3 and LXQt, OpenBot keeps your sign-in and API keys when a Secret Service runs.",
+          "A reply quote shows the Markdown of the original message.",
+          "A remote session stays connected when Signal restarts."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.46.0",
+    "date": "2026-10-20",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "OpenBot can read replies aloud. Turn on Read replies aloud in Settings → Voice → Spoken replies, and choose one of ten voices.",
+          "Each agent message has a Read aloud button.",
+          "Talk to an agent in the Voice pane of the side panel. Speak, and the agent reads its reply aloud. It also works with an agent on a remote server.",
+          "A message that you speak in the Voice pane has a voice player. The recording stays on this computer.",
+          "Join the OpenBot community from a card at the bottom of the sidebar."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": ["Set \"Memories per agent\" in Server settings → General → Agents. App Settings no longer shows it."]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "On Windows and Linux, \"Keep OpenBot running in the background\" works, with an icon in the system tray.",
+          "\"Launch OpenBot at login\" opens OpenBot when you sign in to your computer.",
+          "OpenBot keeps your account sign-in when it cannot read it at one start.",
+          "A question from a ChatGPT agent stays open until you answer it.",
+          "An OpenCode agent continues in a new session when OpenCode cannot read its old session."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.45.0",
+    "date": "2026-10-20",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Settings → Billing has a License for work at a company: 5 to 25 users, in EUR, USD or PLN. See who uses it and change the number of users.",
+          "The chat shows the subagents that a Claude or Codex agent starts. Click a subagent to see its task and its steps.",
+          "An agent can show its plan before a long task. Turn on \"Show the plan before long tasks\" in the agent's settings.",
+          "The context meter in the composer has a New chat button.",
+          "Ask side questions in the web client and on joined servers.",
+          "One OpenBot server can connect more than one Slack workspace or Discord server, and you can choose which Discord roles can use OpenBot."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "A chat with unread messages opens at the \"NEW\" divider.",
+          "A Claude agent makes a routine in OpenBot when you ask for one, not a claude.ai cloud routine.",
+          "The Cline model picker shows Cline's free models, and a Cline agent runs on the model that you select.",
+          "An OpenCode agent uses the key that you paste into OpenBot, and an expired key shows an Update key button.",
+          "On Windows, OpenBot finds an OpenCode that you installed yourself, and a failed provider download shows why.",
+          "Renew in Settings → Billing works again for a cancelled server plan."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.44.3",
+    "date": "2026-10-19",
+    "notices": [],
+    "groups": [
+      {
+        "type": "changed",
+        "items": [
+          "The rail on the right side of a long chat shows your messages, not the days. Select a message to go to it and to the replies under it.",
+          "The rail of a long chat stays in view. When you point at it, the chat behind the titles is blurred, so the titles are easier to read."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "The rail of a long chat stays smooth while you scroll.",
+          "Side question in the composer + menu opens the side question pane.",
+          "An agent template that contains OpenBot's own skills installs again."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.44.2",
+    "date": "2026-10-19",
+    "notices": [],
+    "groups": [
+      {
+        "type": "fixed",
+        "items": [
+          "You can scroll up in a chat while the agent writes a reply. Before, the chat moved back to the newest text each time the reply grew.",
+          "A right-click on a browser tab shows the whole tab menu.",
+          "Shared agent pages and the dialogs that add or publish an agent show headings, lists and links in the instructions.",
+          "An agent can open pull requests and post comments with gh when GitHub is not connected."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.44.1",
+    "date": "2026-10-19",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Owners and admins can set Memories per agent for a joined server in Server settings > General > Agents."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "Settings opens again. In 0.44.0, Settings showed an empty page and the app stopped responding.",
+          "A provider CLI update waits for the current turn to end, then starts by itself.",
+          "A Claude agent answers again after you switch it to OpenCode and back.",
+          "A provider account that is signing in has Cancel sign-in in its menu.",
+          "A role change of a member no longer disconnects the server and every connected member.",
+          "A message that runs again after a refused turn now runs to its end, and Claude agents accept new messages.",
+          "Claude agents can run tools from your shell PATH, such as Homebrew, when you open OpenBot from Finder or the Dock.",
+          "OpenBot starts when a power loss left a settings file empty, and a local file link over 100 MB opens the file panel."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.44.0",
+    "date": "2026-10-18",
+    "notices": [],
+    "groups": [
+      {
+        "type": "added",
+        "items": [
+          "Agents can ask with interactive blocks: buttons, reply chips, a list to choose from, or a short form. Answer them in the chat, or skip them as you skip a question.",
+          "A Tasks page in the page rail shows the tasks of all agents by what they need. Write a task, choose the agent, and send it.",
+          "Settings > Profile shows the activity of this computer in the past year. Share makes an image of your last six months.",
+          "Take over a browser tab from its agent at any time, and give it back with \"I'm done\".",
+          "Right-click a browser tab for more tab actions, and reopen a closed tab at its old place."
+        ]
+      },
+      {
+        "type": "changed",
+        "items": [
+          "The full browser view shows every tab in its top row. The composer floats over the page, so you can talk to the agent of the tab.",
+          "Agents no longer get the OAuth token of an MCP server. OpenBot adds the token to each call.",
+          "Save on a new HTTP MCP server tests it first, and signs in when the server asks for it.",
+          "Agents with a long message history start queued work faster."
+        ]
+      },
+      {
+        "type": "fixed",
+        "items": [
+          "A message no longer stays \"running\" after its turn ended with an error, so the next messages start.",
+          "Opening a server invitation link again no longer disconnects every member of the server.",
+          "Settings, connectors and routines now tell you when something did not load or save, and have a Retry button."
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.43.0",
     "date": "2026-10-17",
     "notices": [

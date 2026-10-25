@@ -14,7 +14,6 @@ export const messages = {
   "skill.emptyEnabled": "该助手没有已启用的技能。",
   "skill.emptyAssigned": "该助手还没有分配技能。",
   "skill.folderSkill": "该技能不是由 OpenBot 安装的，请在 {location} 中编辑或移除。",
-  "skill.localOnHost": "该本地技能保存在主机上，请在那台电脑上查看详情。",
   "skill.moreFor": "{name} 的更多",
   "skill.update": "更新",
   "skill.updateName": "更新 {name}",

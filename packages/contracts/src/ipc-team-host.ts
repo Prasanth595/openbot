@@ -226,7 +226,7 @@ export interface DirectConversationSnapshot {
   otherMemberId: string;
   messages: DirectMessage[];
   revision: number;
-  readState?: DirectConversationReadState;
+  readState?: DirectConversationReadState | undefined;
 }
 
 export type DirectConversationPageAnchor =
@@ -248,11 +248,11 @@ export interface DirectConversationPage {
   pageInfo: {
     hasOlder: boolean;
     olderCursor: string | null;
-    /** As in `ConversationPageInfo`: the unloaded length, for the day rail. Absent from a remote host. */
+    /** As in `ConversationPageInfo`: the unloaded length, for the scroll rail. Absent from a remote host. */
     olderCount?: number;
     oldestAt?: string;
   };
-  readState?: DirectConversationReadState;
+  readState?: DirectConversationReadState | undefined;
 }
 
 export interface DirectConversationReadState {

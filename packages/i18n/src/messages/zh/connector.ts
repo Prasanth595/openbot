@@ -77,6 +77,8 @@ export const messages = {
   // The last section of an integration page, with the action that removes it.
   "connector.dangerZone": "危险操作",
 
+  "connector.statusUnknown": "未知",
+  "connector.readFailed": "OpenBot 无法读取该连接的状态。",
   // Server settings > Connectors: the list of integrations. Each row opens its page.
   "connector.hub.onThisComputer": "在这台电脑上",
   "connector.hub.onHost": "在 {host} 上",
@@ -113,6 +115,7 @@ export const messages = {
   "connector.slack.missingScopes": "OpenBot 在 Slack 中缺少这些权限：{scopes}。请断开该工作区后重新连接。",
   "connector.slack.retryAt": "Slack 要求 OpenBot 等待，将于 {time} 重试。",
   "connector.slack.reconnect": "重新连接",
+  "connector.slack.pause": "暂停",
   "connector.slack.resume": "恢复",
   // {action} is a button, such as Pause; {name} is the workspace name.
   "connector.slack.rowAction": "{action}：{name}",
@@ -154,6 +157,11 @@ export const messages = {
   "connector.slack.keep": "保持连接",
   "connector.slack.close": "关闭",
 
+  "connector.slack.addWorkspace": "添加工作区",
+  // Shown when the page has the maximum number of workspaces.
+  "connector.slack.limitReached": { other: "最多可连接 {count} 个工作区。" },
+  // {count} is the number of Slack workspaces: two or more.
+  "connector.slack.summaryMany": { other: "{count} 个工作区 · 由 Slack 调度助手回答" },
   // Server settings > Connectors > Discord: a Discord server (a guild) adds the one OpenBot bot, and
   // the Discord Orchestrator agent receives each request, asks the team and answers. Always write
   // "Discord server": "server" alone is an OpenBot server.
@@ -180,6 +188,7 @@ export const messages = {
   "connector.discord.missingScopes": "OpenBot 在 Discord 中缺少这些权限：{scopes}。请断开该 Discord 服务器后重新连接。",
   "connector.discord.retryAt": "Discord 要求 OpenBot 等待，将于 {time} 重试。",
   "connector.discord.reconnect": "重新连接",
+  "connector.discord.pause": "暂停",
   "connector.discord.resume": "恢复",
   // {action} is a button, such as Pause; {name} is the Discord server name.
   "connector.discord.rowAction": "{action}：{name}",
@@ -220,6 +229,29 @@ export const messages = {
   "connector.discord.keep": "保持连接",
   "connector.discord.close": "关闭",
 
+  "connector.discord.addWorkspace": "添加 Discord 服务器",
+  "connector.discord.limitReached": { other: "最多可连接 {count} 个 Discord 服务器。" },
+  // {count} is the number of Discord servers: two or more.
+  "connector.discord.summaryMany": { other: "{count} 个 Discord 服务器 · 由 Discord 调度助手回答" },
+  // Who can use OpenBot in one Discord server: the members with one of the chosen Discord roles.
+  "connector.discord.accessTitle": "谁可以使用 OpenBot",
+  "connector.discord.accessDescription": "OpenBot 只回答这些人。其他人的提及会被忽略。",
+  "connector.discord.accessEveryone": "服务器中的所有人",
+  "connector.discord.accessEveryoneDescription": "凡是能在 OpenBot 可见的频道中发消息的人，都可以提及它。",
+  // {roles} is a list of Discord role names, such as "Admin and Moderator".
+  "connector.discord.accessRoles": "拥有 {roles} 的成员",
+  "connector.discord.accessChoose": "选择角色",
+  // {workspace} is the Discord server name.
+  "connector.discord.accessDialogTitle": "谁可以在 {workspace} 中使用 OpenBot？",
+  "connector.discord.accessDialogDescription": "不选择任何角色时，所有人都可以提及 OpenBot。",
+  "connector.discord.accessLoading": "正在加载角色…",
+  "connector.discord.accessLoadFailed": "Discord 角色未能加载",
+  "connector.discord.accessNoRoles": "该服务器没有可选的角色。",
+  // {role} is the name of a Discord role that the server no longer has.
+  "connector.discord.accessRoleDeleted": "{role}（已删除）",
+  "connector.discord.accessSave": "保存",
+  // {host} is the joined server's name.
+  "connector.discord.accessHostUpdate": "请更新 {host} 上的 OpenBot，以选择角色。",
   // Server settings > Connectors > Telegram: each chat adds the one OpenBot bot, and the Telegram
   // Orchestrator agent receives the messages of all chats, asks the team and answers.
   "connector.telegram.title": "Telegram",
@@ -322,6 +354,7 @@ export const messages = {
   "connector.onePassword.stepAppDescription": "在 1Password 应用中打开“设置 > 开发者”，开启“与 1Password CLI 集成”。",
   "connector.onePassword.stepAppReady": "1Password 应用已允许 CLI 创建共享保险库。",
   "connector.onePassword.openApp": "打开 1Password",
+  "connector.onePassword.openAppFailed": "OpenBot 无法打开 1Password。",
   "connector.onePassword.checkAgain": "重新检查",
   "connector.onePassword.stepVaultTitle": "创建共享保险库",
   "connector.onePassword.stepVaultDescription":
@@ -336,7 +369,7 @@ export const messages = {
   "connector.onePassword.chooseAccountDescription": "OpenBot 会在你选择的账号中创建共享保险库。",
   "connector.onePassword.useAccount": "使用该账号",
   "connector.onePassword.vaultTitle": "共享保险库",
-  "connector.onePassword.vaultDescription": "在 1Password 中把登录信息移入此保险库，助手即可用它登录。移出后即停止。",
+  "connector.onePassword.vaultDescription": "在 1Password 中把登录信息移入该保险库，助手即可用它登录。移出后即停止。",
   "connector.onePassword.loginsLoading": "正在从 1Password 读取登录信息",
   // {count} is a number, such as 3.
   "connector.onePassword.loginCount": { one: "{count} 条登录信息", other: "{count} 条登录信息" },
@@ -369,4 +402,17 @@ export const messages = {
   "connector.bitwarden.connected": "已连接",
   "connector.bitwarden.disconnected": "未连接",
   "connector.bitwarden.actionFailed": "OpenBot 无法更改 Bitwarden 连接。",
+  "connector.bitwarden.descriptionHost": "在 {host} 上用 Bitwarden 或 Vaultwarden 填充浏览器登录信息。",
+  "connector.bitwarden.setupHost":
+    "{host} 使用自己的 Bitwarden CLI 登录。请在你的保险库中创建一个名为 Shared with OpenBot 的文件夹，只把允许助手使用的登录信息放进去。在网页版保险库中打开“设置 › 安全 › 密钥”，查看你的 API 密钥。然后在下方填写服务器地址、client_id、client_secret 和你的主密码。",
+  "connector.bitwarden.scopeHost":
+    "{host} 上的所有助手都可以使用 Shared with OpenBot 中匹配的登录信息。OpenBot 只按精确的 HTTPS 来源匹配，不会使用需要主密码提示或自定义 URI 匹配规则的条目。",
+  "connector.bitwarden.sessionHost":
+    "{host} 会加密保存 API 密钥和主密码，因此重启后可以再次解锁。这台电脑不保存它们。断开连接会把它们从 {host} 上移除。{host} 必须能通过 HTTPS 访问该服务器地址。",
+  "connector.bitwarden.serverUrl": "服务器地址",
+  "connector.bitwarden.clientId": "API 密钥 client_id",
+  "connector.bitwarden.clientSecret": "API 密钥 client_secret",
+  "connector.bitwarden.masterPassword": "主密码",
+  "connector.bitwarden.connecting": "正在连接",
+  "connector.bitwarden.connectedServer": "已连接到 {server}。",
 } as const satisfies PartialTranslation<typeof source>;

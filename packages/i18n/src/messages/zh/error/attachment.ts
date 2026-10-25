@@ -10,5 +10,6 @@ export const messages = {
   "error.attachment.tooMany": "最多只能选择 {limit} 个文件。",
   "error.attachment.mediaUnsupported": "该服务器不支持 MP3 或 MOV 附件。请更新主机上的 OpenBot 后重试。",
   "error.attachment.emlUnsupported": "该服务器不支持 EML 附件。请更新主机上的 OpenBot 后重试。",
+  "error.attachment.zipUnsupported": "该服务器不支持 ZIP 附件。请更新主机上的 OpenBot 后重试。",
   "error.attachment.previewTooLarge": "该文件超过了 100 MB 上限。",
 } as const satisfies PartialTranslation<typeof source>;

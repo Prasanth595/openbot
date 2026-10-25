@@ -2,6 +2,10 @@ import type { PartialTranslation } from "../../message";
 import type { messages as source } from "../en/onboarding";
 
 export const messages = {
+  // The saved setup could not be read. Retry, or set up again with no saved state.
+  "onboarding.readFailed.title": "OpenBot 无法读取你的设置。",
+  "onboarding.readFailed.description": "你的本地数据没有变化。请重试；如果问题仍然存在，请重新设置 OpenBot。",
+  "onboarding.readFailed.setUpAgain": "重新设置",
   "onboarding.setup.saveFailed": "OpenBot 无法保存你的本地设置。",
   "onboarding.setup.verifyFailed": "OpenBot 无法验证该邀请。",
   "onboarding.setup.connectFailed": "OpenBot 无法连接到该主机。",
@@ -36,6 +40,7 @@ export const messages = {
   "onboarding.provider.googlePlan": "Google AI Pro 或 Ultra 套餐",
   "onboarding.provider.cursorPlan": "Cursor 套餐或 API 密钥",
   "onboarding.provider.clineAccount": "使用 Cline 账号的免费模型",
+  "onboarding.provider.inceptionKey": "使用 Inception API 密钥的 Mercury 模型",
   "onboarding.provider.tryFree": "免费试用",
   "onboarding.provider.noSignIn": "无需登录",
   "onboarding.provider.more": "更多服务商",

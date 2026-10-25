@@ -37,7 +37,7 @@ has its own Stripe plan. Its machine comes from the plan
 
 | Part | Where | Job |
 | --- | --- | --- |
-| Account Worker | `apps/auth-api/src/server/hosted-server-service.ts`, `boat-client.ts` | Creates, restarts and deletes sandboxes. Stores state in D1 (`0023_hosted_servers.sql`). |
+| Account Worker | `apps/auth-api/src/server/hosted-server-service.ts`, `boat-client.ts` | Creates, restarts and deletes sandboxes. Stores state in D1 (`0023_hosted_servers.sql`, `0028_hosted_server_lifecycle.sql`). |
 | Server template | `scripts/hosting/` | Builds the boat named snapshot that each server starts from. |
 | Server bootstrap | `src/main/hosted-server-bootstrap.ts` | On the first start, redeems the claim, signs in, and publishes the host. |
 | Start retry | `src/main/hosted-server-start-retry.ts` | Publishes the host again after a failed start. |
@@ -75,8 +75,8 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    applies. When that create call returns later, the Worker deletes the sandbox that no row owns.
 
    The Worker then names the sandbox `openbot-<plan>-<owner email>-<first 8 characters of the host
-   ID>` (`PATCH /sandboxes/:id`), so an operator can find it in the boat dashboard. Each character of
-   the email that is not a letter or a digit becomes `-`. The name is only a label; a plan change
+   ID>` (`PATCH /sandboxes/:id`), so an operator can find it in the boat dashboard. The email is in
+   lowercase, and each group of characters that are not letters or digits becomes one `-`. The name is only a label; a plan change
    renames the sandbox.
 3. **Env handoff.** boat puts the sandbox env in the setup script, not in systemd. The Worker sends
    `setupScript: exec /opt/OpenBot/hosted/openbot-hosted-env`. That helper writes the two values to
@@ -130,6 +130,20 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    that run. After the start, OpenBot runs each routine that is due, and each run that it missed
    becomes one run.
 
+   **Keep-alive start.** boat deletes the disk of a stopped sandbox 14 days after the stop (it
+   sends an email on day 11), and a resume then fails with `snapshot_data_expired`. Each stop saves
+   a new disk. The cron starts an idle server whose last use (`last_active_at`) is 10 to 14 days
+   ago and keeps its `next_run_at`. The start counts as use, so with no client the idle stop comes
+   15 to 25 minutes later and saves the disk again. It sends one such start in each 10 minutes of
+   cron time (a tick whose UTC minute is a multiple of 10, so at most 144 each day for each Worker
+   with a cron each 5 minutes or each minute), the oldest change first: the test and production
+   Workers share the boat limits of 200 starts each day and 100 active sandboxes. After a
+   boat fault (5xx or no answer) the server sleeps again with its last use, and a later tick tries
+   again. `last_wake_reason` is `schedule` (its D1 check has no other value); the `woken` analytics
+   event has the reason `retention`. A server whose plan ended (`stopped`), whose deletion is due,
+   or whose disk is older than 14 days does not start: boat answers the resume of a deleted disk
+   with a 409, which the Worker reads as a start in progress.
+
    **Lease.** boat has no idle timer, and a boat trial refuses a sandbox with no auto-stop. Each
    create and resume sends `ttlSeconds: 7200`, so boat stops a sandbox that the Worker loses. An
    activity report extends the time (`PATCH /sandboxes/:id`) when less than 1 hour is left
@@ -146,9 +160,12 @@ when a server is idle or boat stops a sandbox; and `error` and `deleted`. The Wo
    gets `SIGTERM`, stops its services and closes `openbot.db` last. After 40 seconds the hook kills
    the unit, which leaves a database that SQLite recovers. The file makes the unit condition
    `ConditionPathExists=!/run/openbot-pre-stop` fail, so `Restart=` and the end of an update request
-   do not start OpenBot during the save. `/run` is empty at each boot. If boat does not complete the
-   stop after the hook, OpenBot stays stopped until the next stop and resume. A hook that OpenBot did
-   not write stays, and a self-hosted server gets no hook.
+   do not start OpenBot during the save. `/run` is empty at each boot. boat can also keep a stopped
+   machine in memory and continue it at a resume with no boot: the resume answers `"status":
+   "running"`, and the file stays. Then the Worker runs a command on the machine that removes the
+   file and starts `openbot.service` (`HELD_RESUME_START_COMMAND`). With no file the command does
+   nothing. If boat does not complete the stop after the hook, OpenBot stays stopped until the next
+   stop and resume. A hook that OpenBot did not write stays, and a self-hosted server gets no hook.
 
    **Check at a start.** `PRAGMA quick_check` reads every page of `openbot.db`: on a 15.7 GB file
    it stopped the main thread for 77 seconds to about 4 minutes. A clean close removes
@@ -270,8 +287,26 @@ The plan sets the number of active members, owner included: Starter 3, Standard 
 with `getServerEntitlement` when a member joins or is reactivated, and refuses a member over the limit
 (`409 member_limit_reached`). This also applies to a self-hosted host that has a plan.
 
-- A lower limit after a plan change or a plan end removes no one. Active members keep their seats.
-  A new join or a reactivation waits for a free seat.
+- A row in the D1 table `server_member_limits` replaces the plan's limit for one server, such as an
+  enterprise customer's, from 1 to 100. The row names the account that owns the server and applies
+  only while that account owns it, as a plan does. The key is the server ID, so the row stays when
+  the owner deletes the host and registers it again; it stops when the account is deleted. No route
+  writes it; add, change or delete it by hand (`openbot-auth-test` for the test Worker):
+
+  ```sh
+  bunx wrangler d1 execute openbot-auth --cwd apps/auth-api --remote --command \
+    "INSERT INTO server_member_limits(server_id, owner_user_id, member_limit, created_at, updated_at)
+     SELECT host_id, owner_user_id, 50, unixepoch() * 1000, unixepoch() * 1000
+       FROM remote_hosts WHERE host_id = '<server id>'
+     ON CONFLICT(server_id) DO UPDATE SET owner_user_id = excluded.owner_user_id,
+       member_limit = excluded.member_limit, updated_at = excluded.updated_at"
+  ```
+
+  For a hosted server that has not published its host, read the owner from `hosted_servers`. Delete
+  the row to go back to the plan's limit. Clients see the new limit when they read the host list
+  again.
+- A lower limit after a plan change, a plan end or a custom limit removes no one. Active members
+  keep their seats. A new join or a reactivation waits for a free seat.
 - The host list (`GET /v2/remote/hosts/`) gives `memberLimit` for each host. The desktop, web and
   mobile member screens show it. They use 3 when an older Worker sends no limit.
 - After each subscription sync, the Worker sends `account-servers-changed` to each active member,
@@ -284,7 +319,7 @@ with `getServerEntitlement` when a member joins or is reactivated, and refuses a
 `bun run api:deploy:test` loads `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `BOAT_API_KEY` and
 `BOAT_WEBHOOK_SECRET` from the encrypted `apps/auth-api/.env.dev` on each deploy, so a
 value that you set by hand for these four is replaced. Set `DOTENV_PRIVATE_KEY_DEV` in the shell.
-`bun run hosting:setup --target=test` makes the two webhooks and writes their secrets to that file. It also sets the allow list from
+`bun run hosting:setup --target=test` makes the two webhooks and writes their secrets to that file. `api:deploy:test` also sets the allow list from
 `HOSTED_SERVERS_TEST_ALLOW_LIST` in that file. Set the template with
 `wrangler secret put HOSTED_SERVER_TEMPLATE --env test` from `apps/auth-api`:
 
@@ -608,7 +643,7 @@ do not all pass the check before their processes grow. A start that fails counts
 When the level is `ok` again, each held message starts. If a file cannot be read, the level stays
 `ok` and main logs one warning.
 
-Only a fixed number of turns run at the same time, from the memory of the server: 4 up to 5 GiB,
+Only a fixed number of turns run at the same time, from the memory of the server: 2 up to 5 GiB,
 8 up to 10 GiB, and 16 above. A turn that starts, runs, or compacts the context uses a slot. When
 the slots are full, the messages wait in the queue: a message from a person starts first, then
 routine runs and teammate messages, and the oldest first in each group. No turn waits for a slot

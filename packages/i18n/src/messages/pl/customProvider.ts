@@ -4,14 +4,19 @@ import type { messages as source } from "../en/customProvider";
 export const messages = {
   "customProvider.registry.title": "Rejestr ACP",
   "customProvider.registry.description":
-    "Instaluj agentów na tym hoście. „Usuń środowisko” zachowuje ustawienia agenta, poświadczenia i rozmowy.",
+    "Instaluj agentów na tym serwerze. „Usuń środowisko” zachowuje ustawienia agenta, poświadczenia i rozmowy.",
   "customProvider.registry.search": "Szukaj w rejestrze",
   "customProvider.registry.empty": "Żaden agent nie pasuje do wyszukiwania.",
   "customProvider.registry.agentId": "ID własnego agenta",
   "customProvider.registry.install": "Zainstaluj",
   "customProvider.registry.update": "Zaktualizuj",
   "customProvider.registry.remove": "Usuń środowisko",
-  "customProvider.registry.failed": "Operacja na rejestrze nie powiodła się.",
+  "customProvider.registry.searchFailed": "Nie udało się przeszukać rejestru. Spróbuj ponownie.",
+  "customProvider.registry.statusFailed": "Nie udało się sprawdzić postępu instalacji. OpenBot spróbuje ponownie.",
+  "customProvider.registry.installFailed": "Nie udało się zainstalować agenta. Spróbuj ponownie.",
+  "customProvider.registry.updateFailed": "Nie udało się zaktualizować agenta. Spróbuj ponownie.",
+  "customProvider.registry.removeFailed": "Nie udało się usunąć środowiska. Spróbuj ponownie.",
+  "customProvider.registry.cancelFailed": "Nie udało się anulować instalacji. Spróbuj ponownie.",
   "customProvider.error.providerIdRequired": "Wpisz ID dostawcy.",
   "customProvider.error.providerIdPattern":
     "Użyj małych liter, cyfr, łączników lub podkreśleń; zacznij od litery lub cyfry.",
@@ -51,6 +56,7 @@ export const messages = {
   "customProvider.saveUnavailable": "Ta kompilacja nie może zapisać endpointu.",
   "customProvider.removeUnavailable": "Ta kompilacja nie może usunąć endpointu.",
   "customProvider.form.title": "Dodaj własnego dostawcę",
+  "customProvider.form.editTitle": "Edytuj własnego dostawcę",
   "customProvider.form.description": "Opisz endpoint zgodny z OpenAI i modele, które udostępnia.",
   "customProvider.form.heading": "Własny dostawca",
   "customProvider.form.subtitle": "Dowolny endpoint zgodny z OpenAI.",
@@ -154,6 +160,9 @@ export const messages = {
   "customProvider.acp.commandHint": "Program do uruchomienia. OpenBot szuka go w twojej zmiennej PATH.",
   "customProvider.acp.args": "Argumenty",
   "customProvider.acp.argsHint": "Oddziel argumenty spacjami. Argument ze spacjami ujmij w cudzysłów.",
+  "customProvider.acp.usagePrompt": "Polecenie użycia",
+  "customProvider.acp.usagePromptHint":
+    "OpenBot wysyła je najwyżej co 5 minut i pokazuje ostatnią odpowiedź. Użyj polecenia, na które agent odpowiada sam, np. /usage.",
   "customProvider.acp.env": "Zmienne środowiskowe",
   "customProvider.acp.env.name": "Nazwa zmiennej {number}",
   "customProvider.acp.env.value": "Wartość zmiennej {number}",
@@ -166,6 +175,12 @@ export const messages = {
   "customProvider.acp.checkOk": "{name} odpowiedział",
   "customProvider.acp.checkOkVersion": "{name} {version} odpowiedział",
   "customProvider.acp.checkProtocol": "Wersja ACP {version}",
+  "customProvider.acp.checkModels": {
+    one: "{count} model: {models}",
+    few: "{count} modele: {models}",
+    many: "{count} modeli: {models}",
+    other: "{count} modelu: {models}",
+  },
   "customProvider.acp.checkFailed": "Agent nie odpowiedział",
   "customProvider.acp.trustTitle": "To polecenie działa na twoim komputerze",
   "customProvider.acp.trustDescription":
@@ -181,6 +196,7 @@ export const messages = {
   "customProvider.acp.error.envDuplicate": "Ten agent już ustawia {name}.",
   "customProvider.acp.error.envValueRequired": "Wpisz wartość tej zmiennej.",
   "customProvider.acp.error.envValueLength": "Liczba znaków w wartości musi być mniejsza niż {max}.",
+  "customProvider.acp.error.usagePromptInvalid": "Użyj jednego wiersza o długości maksymalnie {max} znaków.",
   "customProvider.acp.error.agentIdPattern":
     "Użyj małych liter, cyfr lub łączników; zacznij od litery lub cyfry. Maksymalnie 40 znaków.",
   "customProvider.agents.title": "Własni agenci",
@@ -216,6 +232,7 @@ export const messages = {
   "customProvider.list.empty": "Brak własnych endpointów.",
   "customProvider.list.label": "Własne endpointy",
   "customProvider.list.apiKeySaved": "Klucz API zapisany",
+  "customProvider.list.editLabel": "Edytuj: {name}",
   "customProvider.list.deleteLabel": "Usuń: {name}",
   "customProvider.list.confirmTitle": "Usunąć {name}?",
   "customProvider.list.confirmDescription":

@@ -8,7 +8,7 @@ import { redactText } from "@openbot/logging";
 import { Effect, Exit, Schema, Scope, Semaphore } from "effect";
 import { secretElicitationField } from "./agent/prompts";
 import type { AgentClient, DiagnosticOrigin } from "./agent-client";
-import { type AgentCliInfo, cliSpawnTarget } from "./cli";
+import { type AgentCliInfo, cliPathEnvironment, cliSpawnTarget } from "./cli";
 import { runCauseEffect } from "./effect-boundary";
 import { type DynamicToolNamespace, LocalMcpBridge, type LocalMcpSession } from "./local-mcp-bridge";
 import {
@@ -23,6 +23,7 @@ import {
 } from "./mcp-provider-shapes";
 import { mcpSecretValues, redactMcpValues } from "./mcp-redaction";
 import { PendingServerRequests } from "./pending-server-requests";
+import { createPiInceptionExtension } from "./pi-inception";
 import { createPiMcpExtension, type PiMcpExtension } from "./pi-mcp";
 import { piMessageItems, piPrompt, piText } from "./pi-messages";
 import { PiRpc } from "./pi-rpc";
@@ -69,6 +70,11 @@ export interface PiProviderOptions {
   discoveryCwd?: () => string;
   confine?: (target: SpawnTarget) => SpawnTarget;
   extraEnv?: () => Record<string, string>;
+  /**
+   * The saved Inception key. With it the client is the Inception provider: Pi lists only the Mercury
+   * models that the key adds, and the model ids have no `inception/` prefix.
+   */
+  inceptionApiKey?: () => string | null;
   providerStateDirectory?: string;
   profileGeneration?: boolean;
   mcpServers?: McpServerSource;
@@ -98,6 +104,7 @@ interface PiThread {
   rpc: PiRpc;
   mcp: LocalMcpSession;
   extension: PiMcpExtension;
+  inception: PiMcpExtension | null;
   turn: PiTurn | null;
   closed: boolean;
   gate: Semaphore.Semaphore;
@@ -112,7 +119,7 @@ interface ClientEvents {
 /** Owns Pi's native sessions. The database owns OpenBot history and agent identity. */
 export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentClient {
   readonly contextCompaction = "request";
-  readonly provider = "pi";
+  readonly provider: "pi" | "inception";
   readonly #bridge = new LocalMcpBridge();
   readonly #requests = new PendingServerRequests((request) => this.emit("request", request));
   readonly #threads = new Map<string, PiThread>();
@@ -128,6 +135,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     private readonly options: PiProviderOptions,
   ) {
     super();
+    this.provider = options.inceptionApiKey ? "inception" : "pi";
   }
   get running(): boolean {
     return this.#running;
@@ -172,9 +180,12 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
 
   readonly #close = Effect.fn("PiAgentClient.closeThread")(function* (this: PiAgentClient, thread: PiThread) {
     thread.closed = true;
-    yield* thread.rpc.stop();
-    thread.mcp.close();
-    yield* thread.extension.close();
+    // The Inception folder is removed also when a step before it fails.
+    yield* Effect.gen(function* () {
+      yield* thread.rpc.stop();
+      thread.mcp.close();
+      yield* thread.extension.close();
+    }).pipe(Effect.ensuring(thread.inception ? thread.inception.close().pipe(Effect.orDie) : Effect.void));
   });
 
   readonly releaseThread = Effect.fn("PiAgentClient.releaseThread")(function* (this: PiAgentClient, id: string) {
@@ -219,7 +230,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
         break;
       case "account/read": {
         const models = yield* this.#models(timeoutMs);
-        response = { account: models.length ? { type: "pi", email: null } : null, requiresOpenaiAuth: false };
+        response = { account: models.length ? { type: this.provider, email: null } : null, requiresOpenaiAuth: false };
         break;
       }
       case "model/list":
@@ -289,7 +300,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
   });
 
   readonly #models = Effect.fn("PiAgentClient.models")(function* (this: PiAgentClient, timeoutMs?: number) {
-    const rpc = new PiRpc(this.#redact);
+    // With no key Inception has no models, and Pi need not start.
+    if (this.provider === "inception" && !this.options.inceptionApiKey?.()) return [];
+    const rpc = new PiRpc(this.#redact, this.provider);
     rpc.on("diagnostic", (text) => this.emit("diagnostic", text));
     rpc.on("record", (record) => {
       if (
@@ -300,19 +313,28 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
         rpc.send({ type: "extension_ui_response", id: record.id, cancelled: true });
     });
     return yield* Effect.acquireUseRelease(
-      providerSync(() => {
-        this.#spawn(rpc, this.options.discoveryCwd?.() ?? process.cwd(), ["--no-session", "--no-tools"], {});
-        return rpc;
+      Effect.gen({ self: this }, function* () {
+        const inception = yield* this.#inception();
+        yield* providerSync(() =>
+          this.#spawn(
+            rpc,
+            this.options.discoveryCwd?.() ?? process.cwd(),
+            ["--no-session", "--no-tools", ...(inception ? ["--extension", inception.path] : [])],
+            inception?.environment ?? {},
+          ),
+        ).pipe(Effect.onError(() => (inception ? inception.close().pipe(Effect.orDie) : Effect.void)));
+        return { connection: rpc, inception };
       }),
-      (connection) =>
-        Effect.gen(function* () {
+      ({ connection }) =>
+        Effect.gen({ self: this }, function* () {
           const state = yield* connection.request({ type: "get_state" }, timeoutMs);
           const listed = yield* connection.request({ type: "get_available_models" }, timeoutMs);
           const models = [];
           for (const model of getArray(listed, "models")) {
             const provider = getString(model, "provider");
             const id = getString(model, "id");
-            if (!provider || !id) continue;
+            // The Pi client does not load the Inception extension, so an `inception` model there is the user's own.
+            if (!provider || !id || (this.provider === "inception" && provider !== "inception")) continue;
             const reasoning = isRecord(model) && model.reasoning === true;
             let levels: string[] = [];
             if (reasoning) {
@@ -324,7 +346,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
             }
             const preferred = getString(state, "thinkingLevel");
             models.push({
-              model: `${provider}/${id}`,
+              model: this.provider === "inception" ? id : `${provider}/${id}`,
               displayName: getString(model, "name") ?? id,
               defaultReasoningEffort: preferred && levels.includes(preferred) ? preferred : (levels[0] ?? "none"),
               supportedReasoningEfforts: levels.map((reasoningEffort) => ({ reasoningEffort })),
@@ -333,15 +355,31 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
           }
           return models;
         }),
-      (connection) => connection.stop().pipe(Effect.orDie),
+      ({ connection, inception }) =>
+        connection
+          .stop()
+          .pipe(Effect.ensuring(inception ? inception.close().pipe(Effect.orDie) : Effect.void), Effect.orDie),
     );
+  });
+
+  readonly #inception = Effect.fn("PiAgentClient.inception")(function* (this: PiAgentClient) {
+    const key = this.options.inceptionApiKey?.();
+    if (!key) return null;
+    const extension = yield* createPiInceptionExtension(key, this.options.providerStateDirectory);
+    for (const secret of extension.secrets) this.#secrets.add(secret);
+    return extension;
   });
 
   #spawn(rpc: PiRpc, cwd: string, args: string[], environment: Record<string, string>): void {
     const extra = this.options.extraEnv?.() ?? {};
     for (const value of Object.values(extra)) this.#secrets.add(value);
     const target = cliSpawnTarget(this.cli.executable, ["--mode", "rpc", ...args]);
-    rpc.start(this.options.confine?.(target) ?? target, cwd, { ...process.env, ...extra, ...environment });
+    rpc.start(this.options.confine?.(target) ?? target, cwd, {
+      ...process.env,
+      ...cliPathEnvironment(this.cli),
+      ...extra,
+      ...environment,
+    });
   }
 
   readonly #open = Effect.fn("PiAgentClient.openThread")(function* (
@@ -362,7 +400,8 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     const cwd = yield* providerSync(() => requiredString(params, "cwd"));
     let thread: PiThread | null = null;
     let extension: PiMcpExtension | null = null;
-    const rpc = new PiRpc(this.#redact);
+    let inception: PiMcpExtension | null = null;
+    const rpc = new PiRpc(this.#redact, this.provider);
     let retained = false;
     const mcp = yield* this.#bridge
       .createSession(
@@ -381,9 +420,10 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
           this.options.mcpEndpoint,
         ).pipe(toProviderClientOperationError),
       );
-      this.options.reportMcpDrops?.("pi", handoff.dropped);
+      this.options.reportMcpDrops?.(this.provider, handoff.dropped);
       extension = yield* createPiMcpExtension(handoff.servers, mcp, this.options.providerStateDirectory);
       for (const secret of extension.secrets) this.#secrets.add(secret);
+      inception = yield* this.#inception();
       rpc.on("diagnostic", (text) => this.emit("diagnostic", text, { duringStop: thread?.closed ?? false }));
       rpc.on("record", (record) => {
         if (thread && !thread.closed) this.#record(thread, record);
@@ -399,13 +439,19 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
         if (thread?.turn) this.#background(this.#finish(thread, "failed", error.message));
         this.emit("exit", error);
       });
-      const args = this.options.profileGeneration
-        ? ["--no-tools", "--no-extensions", "--no-mcp"]
-        : ["--extension", extension.path];
+      // The Inception extension loads first, so that it removes the key from the environment
+      // before the other extensions run.
+      const args = inception ? ["--extension", inception.path] : [];
+      args.push(
+        ...(this.options.profileGeneration
+          ? ["--no-tools", "--no-extensions", "--no-mcp"]
+          : ["--extension", extension.path]),
+      );
       const instructions = getString(params, "developerInstructions");
       if (instructions) args.push("--append-system-prompt", instructions);
       if (!this.#running) return yield* providerFailure(new Error(sourceText("error.provider.piStopped")));
-      yield* providerSync(() => this.#spawn(rpc, cwd, args, extension?.environment ?? {}));
+      const environment = { ...extension?.environment, ...inception?.environment };
+      yield* providerSync(() => this.#spawn(rpc, cwd, args, environment));
       if (resume && requestedId) {
         const loaded = yield* rpc.request({ type: "switch_session", sessionPath: requestedId });
         if (loaded.cancelled === true)
@@ -435,7 +481,18 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
         }
       }
       mcp.setThreadId(id);
-      thread = { id, cwd, params, rpc, mcp, extension, turn: null, closed: false, gate: Semaphore.makeUnsafe(1) };
+      thread = {
+        id,
+        cwd,
+        params,
+        rpc,
+        mcp,
+        extension,
+        inception,
+        turn: null,
+        closed: false,
+        gate: Semaphore.makeUnsafe(1),
+      };
       yield* this.#configure(thread, params);
       this.#threads.set(id, thread);
       this.#released.delete(id);
@@ -449,6 +506,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
           yield* rpc.stop().pipe(Effect.orDie);
           mcp.close();
           if (extension) yield* extension.close().pipe(Effect.orDie);
+          if (inception) yield* inception.close().pipe(Effect.orDie);
         }),
       ),
     );
@@ -473,7 +531,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     params: unknown,
   ) {
     const model = getString(params, "model");
-    if (model) {
+    if (model && this.provider === "inception") {
+      yield* thread.rpc.request({ type: "set_model", provider: "inception", modelId: model });
+    } else if (model) {
       const separator = model.indexOf("/");
       if (separator < 1) return yield* providerFailure(new Error(sourceText("error.provider.piModelInvalid")));
       yield* thread.rpc.request({
@@ -662,8 +722,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
       );
       if (Exit.isFailure(saved)) status = "failed";
     }
-    this.#notify("turn/completed", thread, { turn: { id: turn.id, status } });
+    // Before the notice, so a session that closes when its turn ends is not busy.
     if (thread.turn === turn) thread.turn = null;
+    this.#notify("turn/completed", thread, { turn: { id: turn.id, status } });
   });
 
   readonly #ui = Effect.fn("PiAgentClient.userInput")(function* (

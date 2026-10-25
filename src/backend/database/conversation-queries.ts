@@ -157,6 +157,7 @@ export class ConversationQueries {
                      AND COALESCE(json_extract(message.message_json, '$.itemType'), '') != 'agent_attachment'
                      AND COALESCE(json_extract(message.message_json, '$.itemType'), '') NOT LIKE '${CHAT_VISUAL_ITEM_TYPE_PREFIX}%'
                      AND COALESCE(json_extract(message.message_json, '$.itemType'), '') != 'plan'
+                     AND COALESCE(json_extract(message.message_json, '$.itemType'), '') != 'subagents'
                      AND COALESCE(json_extract(message.message_json, '$.itemType'), '') != '${ROUTINE_QUIET_ANSWER_ITEM_TYPE}'
                      AND json_extract(message.message_json, '$.senderAgentId') IS NULL
                    ORDER BY message.created_at DESC, message.ordinal DESC, message.message_id DESC
@@ -211,6 +212,11 @@ export class ConversationQueries {
                (? IS NOT NULL AND turn_id = ? AND status = 'streaming')
                OR json_type(message_json, '$.questionPrompt.resolution') = 'null'
                   AND json_type(message_json, '$.questionPrompt') = 'object'
+               OR json_extract(message_json, '$.itemType') = 'subagents'
+                  AND EXISTS (
+                    SELECT 1 FROM json_each(message_json, '$.subagents')
+                    WHERE json_extract(value, '$.status') = 'running'
+                  )
              )
            ORDER BY created_at, ordinal, message_id`,
         )

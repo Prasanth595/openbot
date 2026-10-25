@@ -10,6 +10,8 @@ export const messages = {
   "notification.needsApprovalFor": "Nécessite votre approbation : {action}",
   "notification.finished": "Travail terminé.",
   "notification.failed": "Arrêté à cause d’une erreur.",
+  "notification.channelTitle": "{agent} dans {channel}",
+  "notification.channelMessage": "A envoyé un message.",
   "notification.usageLimit.title": "Le compte {provider} a atteint sa limite",
   "notification.usageLimit.body": {
     one: "{count} agent attend. OpenBot réessaiera plus tard.",

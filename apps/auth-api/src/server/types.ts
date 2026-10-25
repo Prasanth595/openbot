@@ -272,7 +272,7 @@ export interface AuthRepository {
     expiresAt: number;
   }): Effect.Effect<void, AuthStoreError>;
   replaceMobileAuthTicket(input: {
-    host?: import("@openbot/contracts/mobile-connect").MobileConnectHostBinding;
+    host?: import("@openbot/contracts/mobile-connect").MobileConnectHostBinding | undefined;
     ticketHash: string;
     userId: string;
     serverId: string;

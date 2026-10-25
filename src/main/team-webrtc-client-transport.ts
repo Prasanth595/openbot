@@ -21,10 +21,10 @@ import {
 } from "@openbot/contracts/team-protocol/v2";
 import { decodeTeamProtocolSupportV7Base } from "@openbot/contracts/team-protocol/v7-base";
 import {
-  decodeTeamProtocolV7CurrentEvent,
-  decodeTeamProtocolV7WebRtcHttpResponse,
-  encodeTeamProtocolV7WebRtcHttpRequest,
-} from "@openbot/contracts/team-protocol/v7-webrtc-adapter";
+  decodeTeamProtocolV8CurrentEvent,
+  decodeTeamProtocolV8WebRtcHttpResponse,
+  encodeTeamProtocolV8WebRtcHttpRequest,
+} from "@openbot/contracts/team-protocol/v8-webrtc-adapter";
 import { sourceText } from "@openbot/i18n/source";
 import { remoteWorkspaceReadTimeout } from "@openbot/team-client/remote-recovery";
 import { Context, Deferred, Effect, Fiber, Layer, Result, Schema } from "effect";
@@ -408,11 +408,11 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     hostId: string,
     path: string,
     init: {
-      method?: string;
+      method?: string | undefined;
       body?: unknown;
-      preserveSemanticTags?: boolean;
-      agentCreateModel?: boolean;
-      timeoutMs?: number;
+      preserveSemanticTags?: boolean | undefined;
+      agentCreateModel?: boolean | undefined;
+      timeoutMs?: number | undefined;
     } = {},
   ): Effect.fn.Return<TeamProtocolV2Json | undefined, RemoteWorkflowError> {
     return yield* this.#owned(
@@ -427,12 +427,12 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
     hostId: string,
     path: string,
     init: {
-      method?: string;
+      method?: string | undefined;
       body?: unknown;
-      contentType?: string;
-      preserveSemanticTags?: boolean;
-      agentCreateModel?: boolean;
-      timeoutMs?: number;
+      contentType?: string | undefined;
+      preserveSemanticTags?: boolean | undefined;
+      agentCreateModel?: boolean | undefined;
+      timeoutMs?: number | undefined;
     } = {},
   ): Effect.fn.Return<
     {
@@ -482,9 +482,11 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
                 ? null
                 : sideRoute
                   ? sideRoute.request(path, init.body)
-                  : encodeTeamProtocolV7WebRtcHttpRequest(method, path, init.body, {
-                      preserveSemanticTags: init.preserveSemanticTags,
-                      agentCreateModel: init.agentCreateModel,
+                  : encodeTeamProtocolV8WebRtcHttpRequest(method, path, init.body, {
+                      ...(init.preserveSemanticTags === undefined
+                        ? {}
+                        : { preserveSemanticTags: init.preserveSemanticTags }),
+                      ...(init.agentCreateModel === undefined ? {} : { agentCreateModel: init.agentCreateModel }),
                     }),
               capabilities: [
                 ...teamCapabilitiesForProtocol(
@@ -530,8 +532,8 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
           ? null
           : yield* remoteDecode(() =>
               sideRoute
-                ? sideRoute.response(path, status, envelope.body, { historyExtent: true })
-                : decodeTeamProtocolV7WebRtcHttpResponse(method, path, status, envelope.body),
+                ? sideRoute.response(path, status, envelope.body, { historyExtent: true, channelAttention: true })
+                : decodeTeamProtocolV8WebRtcHttpResponse(method, path, status, envelope.body),
             ).pipe(
               Effect.mapError(
                 () =>
@@ -1362,7 +1364,7 @@ export class TeamWebRtcClientTransport extends EventEmitter<TeamWebRtcClientTran
       const optional = frame.type === "event" ? optionalTeamEvent(frame.payload) : null;
       const decoded = optional
         ? { status: "known" as const, event: optionalTeamEventToCurrent(optional) }
-        : decodeTeamProtocolV7CurrentEvent(frame);
+        : decodeTeamProtocolV8CurrentEvent(frame);
       if (decoded.status === "invalid") {
         this.#failProtocol(hostId, sourceText("error.remote.malformedKnownEvent"));
         return;

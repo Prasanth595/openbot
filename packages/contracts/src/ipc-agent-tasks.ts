@@ -59,7 +59,8 @@ export interface AgentTaskQueuedMessage {
 
 /**
  * A second conversation of one agent. The agent keeps its identity, workspace and memories; the task
- * has its own thread, provider session, progress and stop. Local only: the Team API has no task route.
+ * has its own thread, provider session, progress and stop. A joined server sends its tasks through the
+ * optional `agent-tasks-v1` capability, in the frozen bounds of `team-protocol/agent-tasks-v1.ts`.
  */
 export interface AgentTask {
   id: string;

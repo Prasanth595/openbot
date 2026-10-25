@@ -84,6 +84,27 @@ export interface AgentMemoryLimitPreference {
   limit: AgentMemoryLimit;
 }
 
+/**
+ * The limit of one server's agents (`agent-memory-limit-v1`) and the values that host permits. A
+ * newer host can permit other values, so they are numbers here, not `AgentMemoryLimit`.
+ */
+export interface HostAgentMemoryLimit {
+  limit: number;
+  choices: number[];
+}
+
+export function hostAgentMemoryLimit({ limit }: AgentMemoryLimitPreference): HostAgentMemoryLimit {
+  return { limit, choices: [...AGENT_MEMORY_LIMITS] };
+}
+
+/** On the wire the route codec has already checked the fields; this fails closed on anything else. */
+export function decodeHostAgentMemoryLimit(value: unknown): HostAgentMemoryLimit {
+  const count = (item: unknown): item is number => typeof item === "number" && Number.isSafeInteger(item) && item > 0;
+  if (!isDynamicRecord(value) || !count(value.limit) || !Array.isArray(value.choices) || !value.choices.every(count))
+    throw new Error("Invalid agent memory limit.");
+  return { limit: value.limit, choices: [...value.choices] };
+}
+
 /** Selection metadata stays separate from the released memory shape. */
 export interface AgentMemorySelection {
   memoryId: string;

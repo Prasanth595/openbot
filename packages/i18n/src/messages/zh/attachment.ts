@@ -14,6 +14,6 @@ export const messages = {
   "attachment.error.open": "无法打开或保存该附件，请重试。",
   "attachment.error.openFile": "无法打开该文件，请重试。",
   "attachment.error.fileFallback": "文件",
-  "attachment.error.fileNotFound": "在此路径下找不到“{name}”，它可能已被移动或删除。",
+  "attachment.error.fileNotFound": "在该路径下找不到“{name}”，它可能已被移动或删除。",
   "attachment.error.previewFile": "无法预览“{name}”，请重试。",
 } as const satisfies PartialTranslation<typeof source>;

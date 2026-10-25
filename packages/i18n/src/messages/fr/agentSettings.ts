@@ -24,7 +24,7 @@ export const messages = {
   "agentSettings.backupModels.intro":
     "Quand {model} atteint sa limite d’utilisation avant que {name} commence à écrire, {name} vous demande quel modèle utiliser.",
   "agentSettings.backupModels.introAutomatic":
-    "Quand {model} atteint sa limite d’utilisation avant que {name} commence à écrire, {name} passe au premier modèle disponible dans l’ordre.",
+    "Quand {model} atteint sa limite d’utilisation ou échoue sur une erreur du fournisseur avant que {name} commence à écrire, {name} passe au premier modèle disponible dans l’ordre.",
   "agentSettings.backupModels.ask": "Demander avant de changer",
   "agentSettings.backupModels.order": "Ordre",
   "agentSettings.backupModels.listLabel": "Modèles de secours, dans l’ordre",
@@ -37,7 +37,7 @@ export const messages = {
   "agentSettings.backupModels.unavailable": "Indisponible pour le moment · ignoré",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
   "agentSettings.backupModels.note":
-    "{name} ne change jamais de modèle après avoir commencé à écrire. Il revient à {model} quand la limite prend fin.",
+    "{name} ne change jamais de modèle après avoir commencé à écrire. Il revient à {model} quand la limite prend fin, ou 10 minutes après une erreur du fournisseur.",
   "agentSettings.groups.brain": "Cerveau",
   "agentSettings.groups.knows": "Connaissances",
   "agentSettings.groups.does": "Actions",
@@ -59,7 +59,7 @@ export const messages = {
   "agentSettings.avatar.image": "Image",
   "agentSettings.avatar.replaceImage": "Remplacer l’image",
   "agentSettings.avatar.uploadImage": "Importer une image",
-  "agentSettings.avatar.imageHint": "PNG, JPEG ou WebP · recadrage carré",
+  "agentSettings.avatar.imageHint": "PNG, JPEG, GIF ou WebP · recadrage carré",
   "agentSettings.avatar.generatedFace": "Visage généré",
   "agentSettings.avatar.resetToId": "Réinitialiser selon l’ID",
   "agentSettings.avatar.newSet": "Nouvelle série",
@@ -75,7 +75,8 @@ export const messages = {
   "agentSettings.avatar.processFailed": "Impossible de traiter l’avatar de l’agent.",
 
   "agentSettings.runtime.model": "Modèle de l’agent",
-  "agentSettings.runtime.modelBusy": "Attendez la fin du travail en cours avant de changer de modèle.",
+  "agentSettings.runtime.providerBusy":
+    "Attendez la fin du travail en cours avant de changer de fournisseur ou de compte.",
   "agentSettings.runtime.modelUnavailable": "Les modèles sont disponibles après la connexion d’une CLI d’agent.",
   "agentSettings.runtime.reasoning": "Raisonnement",
   "agentSettings.runtime.reasoningLabel": "Niveau de raisonnement de l’agent",
@@ -150,6 +151,21 @@ export const messages = {
   "agentSettings.automation.title": "Scripts locaux",
   "agentSettings.automation.description":
     "Autoriser les scripts de l’hôte à envoyer des messages, exécuter des routines, répondre aux questions et accepter ou refuser les approbations",
+  "agentSettings.agentNewChat.title": "L’agent démarre de nouvelles discussions",
+  "agentSettings.agentNewChat.description":
+    "L’agent peut démarrer une nouvelle discussion quand la sienne devient longue. Il enregistre d’abord des notes.",
+  "agentSettings.quickAcknowledgement.title": "Montrer le plan avant les longues tâches",
+  "agentSettings.quickAcknowledgement.description":
+    "Avant une longue tâche, l’agent montre son plan. Il commence après 10 s ou quand vous appuyez sur Démarrer.",
+  "agentSettings.browserProfile.label": "Profil de navigateur",
+  "agentSettings.browserProfile.shared": "Partagé",
+  "agentSettings.browserProfile.agent": "Cet agent uniquement",
+  "agentSettings.browserProfile.missing": "Profil supprimé",
+  "agentSettings.browserProfile.new": "Nouveau profil",
+  "agentSettings.browserProfile.manageTitle": "Profils de navigateur",
+  "agentSettings.browserProfile.manageDescription":
+    "Chaque profil garde ses propres connexions et cookies. Un changement ferme les onglets ouverts de l’agent.",
+  "agentSettings.browserProfile.manage": "Gérer",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "Tout le processus {provider} s’exécute dans un bac à sable : une écriture à l’extérieur échoue donc. Disponible sur macOS uniquement.",
 } as const satisfies PartialTranslation<typeof source>;

@@ -22,7 +22,7 @@ export const messages = {
   "agentSettings.backupModels.valueCount": { one: "{mode} · {count}", other: "{mode} · {count}" },
   "agentSettings.backupModels.intro": "如果 {model} 在 {name} 开始输出之前就用完了额度，{name} 会询问你要用哪个模型。",
   "agentSettings.backupModels.introAutomatic":
-    "如果 {model} 在 {name} 开始输出之前就用完了额度，{name} 会按顺序切换到第一个可用模型。",
+    "如果 {model} 在 {name} 开始输出之前就用完了额度或出现服务商错误，{name} 会按顺序切换到第一个可用模型。",
   "agentSettings.backupModels.ask": "切换前询问",
   "agentSettings.backupModels.order": "顺序",
   "agentSettings.backupModels.listLabel": "备用模型（按顺序）",
@@ -34,7 +34,8 @@ export const messages = {
   "agentSettings.backupModels.limited": "额度已用完 · 已跳过",
   "agentSettings.backupModels.unavailable": "当前不可用 · 已跳过",
   "agentSettings.backupModels.withAccount": "{model} · {account}",
-  "agentSettings.backupModels.note": "{name} 在开始输出后不会切换。额度重置后会回到 {model}。",
+  "agentSettings.backupModels.note":
+    "{name} 在开始输出后不会切换。额度重置后会回到 {model}；出现服务商错误时，则在 10 分钟后回到 {model}。",
   "agentSettings.groups.brain": "核心",
   "agentSettings.groups.knows": "已知",
   "agentSettings.groups.does": "行为",
@@ -56,7 +57,7 @@ export const messages = {
   "agentSettings.avatar.image": "图片",
   "agentSettings.avatar.replaceImage": "替换图片",
   "agentSettings.avatar.uploadImage": "上传图片",
-  "agentSettings.avatar.imageHint": "PNG、JPEG 或 WebP · 方形裁切",
+  "agentSettings.avatar.imageHint": "PNG、JPEG、GIF 或 WebP · 方形裁切",
   "agentSettings.avatar.generatedFace": "生成的人脸",
   "agentSettings.avatar.resetToId": "恢复为标识头像",
   "agentSettings.avatar.newSet": "换一组",
@@ -72,7 +73,7 @@ export const messages = {
   "agentSettings.avatar.processFailed": "无法处理助手头像。",
 
   "agentSettings.runtime.model": "助手模型",
-  "agentSettings.runtime.modelBusy": "请等当前工作结束后再切换模型。",
+  "agentSettings.runtime.providerBusy": "请等当前工作结束后，再更改服务商或账号。",
   "agentSettings.runtime.modelUnavailable": "助手 CLI 连接后即可选择模型。",
   "agentSettings.runtime.reasoning": "推理",
   "agentSettings.runtime.reasoningLabel": "助手推理强度",
@@ -135,11 +136,25 @@ export const messages = {
   "agentSettings.runtime.workspaceEnforcedCommand": "需要在外部写入的命令会先询问你。",
   "agentSettings.runtime.workspaceEnforcedClaude": "在工作区外编辑文件会先询问你；命令无法在外部写入。",
   "agentSettings.runtime.workspaceUnlimited":
-    "Computer Use 和 OpenBot 浏览器不受此限制；你可以在下方关闭 Computer Use。",
+    "Computer Use 和 OpenBot 浏览器不受该限制；你可以在下方关闭 Computer Use。",
   "agentSettings.computerUse.title": "Computer Use",
   "agentSettings.computerUse.description": "允许该助手控制这台电脑上的应用",
   "agentSettings.automation.title": "本地脚本",
   "agentSettings.automation.description": "允许主机上的脚本发送消息、运行自动化任务、回答问题，以及接受或拒绝批准",
+  "agentSettings.agentNewChat.title": "助手自行开始新对话",
+  "agentSettings.agentNewChat.description": "对话变长时，让助手自行开始新对话。它会先保存笔记。",
+  "agentSettings.quickAcknowledgement.title": "长任务开始前显示计划",
+  "agentSettings.quickAcknowledgement.description":
+    "长任务开始前，助手会先显示计划。10 秒后或你点按“开始”时，任务开始。",
+  "agentSettings.browserProfile.label": "浏览器配置文件",
+  "agentSettings.browserProfile.shared": "共享",
+  "agentSettings.browserProfile.agent": "仅该助手",
+  "agentSettings.browserProfile.missing": "已删除的配置",
+  "agentSettings.browserProfile.new": "新建配置",
+  "agentSettings.browserProfile.manageTitle": "浏览器配置文件",
+  "agentSettings.browserProfile.manageDescription":
+    "每个配置都有各自的登录状态和 Cookie。更改后，助手已打开的标签页会关闭。",
+  "agentSettings.browserProfile.manage": "管理",
   "agentSettings.runtime.workspaceEnforcedProcess":
     "整个 {provider} 进程运行在沙盒中，因此工作区外的写入会失败。仅在 macOS 上可用。",
 } as const satisfies PartialTranslation<typeof source>;

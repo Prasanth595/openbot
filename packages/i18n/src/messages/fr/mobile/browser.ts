@@ -5,6 +5,7 @@ export const messages = {
   "mobile.browser.open": "Ouvrir le navigateur",
   "mobile.browser.liveView": "Vue en direct de {title}",
   "mobile.browser.help": "Comment utiliser le navigateur",
+  "mobile.browser.switchAgent": "{name}. Passer au navigateur d’un autre agent",
   "mobile.browser.options": "Options du navigateur",
   "mobile.browser.trackpadMode": "Mode trackpad",
   "mobile.browser.recenterPointer": "Recentrer le pointeur",

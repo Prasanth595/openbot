@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,11 +8,13 @@ import type { ClaudeMcpServer } from "./mcp-provider-shapes";
 import { providerCall } from "./provider-client-effects";
 
 // Pi owns MCP framing, reconnection, cancellation and tool registration. This extension only
-// adds the servers for this process. Credentials are not written to the extension file.
+// adds the servers for this process. Credentials are not written to the extension file. Pi runs
+// the extension again when it switches sessions, so the list stays in a process slot for those runs.
 const EXTENSION = `export default function (pi) {
-  const servers = JSON.parse(process.env.OPENBOT_PI_MCP_SERVERS || "[]");
+  const slot = Symbol.for("openbot.pi.mcpServers");
+  globalThis[slot] ??= JSON.parse(process.env.OPENBOT_PI_MCP_SERVERS || "[]");
   delete process.env.OPENBOT_PI_MCP_SERVERS;
-  for (const server of servers) pi.registerMcpServer(server.name, server.config);
+  for (const server of globalThis[slot]) pi.registerMcpServer(server.name, server.config);
 }
 `;
 
@@ -35,7 +37,9 @@ export const createPiMcpExtension = Effect.fn("PiMcp.createExtension")(function*
   const path = join(folder, "mcp.mjs");
   const environment: Record<string, string> = {};
   const secrets: string[] = [];
-  const prefix = `openbot_${randomUUID().replaceAll("-", "")}`;
+  // Pi replaces a tool name longer than 64 characters with a hash, and the model then cannot find
+  // tools such as tool_search by name. Eight hex characters keep the names short.
+  const prefix = `openbot_${randomBytes(4).toString("hex")}`;
   const values = (pairs: Record<string, string>) =>
     Object.fromEntries(
       Object.entries(pairs).map(([key, value]) => {

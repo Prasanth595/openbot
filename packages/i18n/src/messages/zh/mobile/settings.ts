@@ -61,23 +61,23 @@ export const messages = {
   "mobile.settings.appearance.theme": "主题",
   "mobile.settings.appearance.agentColorMessages": "我的消息使用助手颜色",
   "mobile.settings.appearance.agentColorMessagesFooter":
-    "助手对话中你的消息会使用该助手的颜色。若文字难以辨认可关闭此选项。",
+    "助手对话中你的消息会使用该助手的颜色。若文字难以辨认可关闭该选项。",
   "mobile.settings.animations.title": "动画",
   "mobile.settings.animations.footer":
     "关闭“动画”可减少整个应用的动态效果。当手机设置中开启“减弱动态效果”时，应用也会减少动效，下面的动画选项将保持关闭。",
   "mobile.settings.animations.all": "动画",
   "mobile.settings.animations.chatZoom": "对话缩放",
-  "mobile.settings.animations.chatZoomFooter": "对话从列表中的头像展开打开，关闭时收回。关闭此选项后，对话从侧边滑入。",
+  "mobile.settings.animations.chatZoomFooter": "对话从列表中的头像展开打开，关闭时收回。关闭该选项后，对话从侧边滑入。",
   "mobile.settings.animations.agentFaces": "助手表情动画",
-  "mobile.settings.animations.agentFacesFooter": "助手工作时和休息时，头像上的表情会动。关闭此选项后表情保持静止。",
+  "mobile.settings.animations.agentFacesFooter": "助手工作时和休息时，头像上的表情会动。关闭该选项后表情保持静止。",
   "mobile.settings.animations.composerResize": "紧凑输入框",
   "mobile.settings.animations.composerResizeFooter":
-    "键盘收起时输入框变成一条小工具栏。关闭此选项后输入框保持完整高度。",
+    "键盘收起时输入框变成一条小工具栏。关闭该选项后输入框保持完整高度。",
   "mobile.settings.animations.textReveal": "回复打字动画",
-  "mobile.settings.animations.textRevealFooter": "回复会逐词显示，气泡平滑变大。关闭此选项后文字随到随显。",
+  "mobile.settings.animations.textRevealFooter": "回复会逐词显示，气泡平滑变大。关闭该选项后文字随到随显。",
   "mobile.settings.animations.searchTransitions": "搜索结果动画",
   "mobile.settings.animations.searchTransitionsFooter":
-    "搜索结果和搜索消息变化时会带短促的模糊淡入淡出。开启减弱动效时只做淡入淡出。关闭此选项后立即切换。",
+    "搜索结果和搜索消息变化时会带短促的模糊淡入淡出。开启减弱动效时只做淡入淡出。关闭该选项后立即切换。",
   "mobile.settings.feedback.footer": "这台设备上应用操作的触感反馈。",
   "mobile.settings.feedback.haptics": "触感反馈",
   "mobile.settings.feedback.retry": "重试保存触感反馈设置",
@@ -110,9 +110,9 @@ export const messages = {
   "mobile.settings.notifications.sound.default": "iOS 默认",
   "mobile.settings.notifications.sound.defaultAndroid": "Android 默认",
   "mobile.settings.notifications.soundFooter":
-    "通知和实时活动会播放此提示音，实时活动还会点亮屏幕。OpenBot 提示音是桌面应用在任务完成时播放的声音，其后的四种音效来自桌面端的音效主题。",
+    "通知和实时活动会播放该提示音，实时活动还会点亮屏幕。OpenBot 提示音是桌面应用在任务完成时播放的声音，其后的四种音效来自桌面端的音效主题。",
   "mobile.settings.notifications.soundFooterAndroid":
-    "通知会播放此提示音。OpenBot 提示音是桌面应用在任务完成时播放的声音，其后的四种音效来自桌面端的音效主题。",
+    "通知会播放该提示音。OpenBot 提示音是桌面应用在任务完成时播放的声音，其后的四种音效来自桌面端的音效主题。",
   "mobile.settings.notifications.notifyAbout": "通知我",
   "mobile.settings.notifications.level.all": "全部活动",
   "mobile.settings.notifications.level.needsMe": "仅在需要我时",
