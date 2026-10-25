@@ -51,9 +51,11 @@ export function createComposerStore(deps: ComposerStoreDeps) {
     return target ? (deps.composerErrors()[composerDraftKey(target)] ?? null) : null;
   });
   const currentChatError = createMemo(() => currentComposerError() ?? currentConversationError());
-  const unreferencedDraftAttachments = createMemo(() => {
+  const visibleDraftAttachments = createMemo(() => {
     const referencedIds = attachmentReferenceIds(currentDraft().text);
-    return currentDraft().attachments.filter((attachment) => !referencedIds.has(attachment.id));
+    return currentDraft().attachments.filter(
+      (attachment) => attachment.kind === "image" || !referencedIds.has(attachment.id),
+    );
   });
   const composerHasContent = createMemo(
     () => Boolean(currentDraft().text.trim()) || currentDraft().attachments.length > 0,
@@ -163,7 +165,7 @@ export function createComposerStore(deps: ComposerStoreDeps) {
     currentConversationError,
     currentComposerError,
     currentChatError,
-    unreferencedDraftAttachments,
+    visibleDraftAttachments,
     composerHasContent,
     replyTarget,
     markMessageSeen,

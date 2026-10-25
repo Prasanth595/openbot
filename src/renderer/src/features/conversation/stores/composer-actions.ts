@@ -1,13 +1,19 @@
+import { rewriteAttachmentReferences, serializeAttachmentReference } from "@openbot/contracts/attachment-references";
 import { fileQuoteTarget } from "@openbot/contracts/chat-tag-references";
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import { type DraftAttachment, LOCAL_SERVER_ID, type QueueDelivery } from "@openbot/contracts/ipc";
 import { TEAM_MESSAGE_CLIENT_ID_CAPABILITY } from "@openbot/contracts/team-protocol/current";
 import { isQueueEditRejected, TEAM_QUEUE_EDIT_CAPABILITY } from "@openbot/contracts/team-protocol/queue-edit-v1";
-import { expandComposerMentions } from "@openbot/ui/features/conversation/ComposerEditor";
+import {
+  type ComposerPasteResult,
+  type ComposerSelection,
+  expandComposerMentions,
+} from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
 import { playActionSound } from "../../../action-sounds";
 import { claimDictatedSend } from "../../speech/speech-replies";
 import { rememberAttachmentKinds } from "../attachment-analytics";
+import { type PastedComposerCopy, rememberComposerFile } from "../composer-clipboard";
 import { copyComposerDraft, EMPTY_DRAFT, QUEUE_EDIT_STORAGE_KEY, type StoredQueueEdit } from "../composer-draft";
 import { composerDraftKey } from "../conversation-keys";
 import { conversationRuntime } from "../conversation-runtime";
@@ -30,6 +36,8 @@ export interface ComposerActionsDeps {
   props: ConversationProps;
   agentReady: () => boolean;
   attachmentBusy: () => boolean;
+  setAttachmentBusy: (busy: boolean) => void;
+  attachmentImports: Map<string, ConversationTarget>;
   drafts: () => Record<string, ComposerDraft>;
   setDrafts: (update: (current: Record<string, ComposerDraft>) => Record<string, ComposerDraft>) => void;
   editingAgentId: () => string | null;
@@ -113,7 +121,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
   }
 
   async function addAttachments(selected: DraftAttachment[], target = deps.currentTarget()) {
-    if (!target) return;
+    if (!target) return [];
     const pendingSave = deps.editingPendingSave();
     if (
       pendingSave &&
@@ -125,7 +133,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
       for (const attachment of selected)
         void conversationRuntime(deps.props).agent.discardDraftAttachment(attachment.id, target.serverId);
       deps.setComposerError(t("composer.error.saveUnconfirmed"), target);
-      return;
+      return [];
     }
     deps.clearConversationError(target);
     const key = composerDraftKey(target);
@@ -160,7 +168,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
         for (const item of accepted)
           void conversationRuntime(deps.props).agent.discardDraftAttachment(item.id, target.serverId);
         deps.setConversationError(target, errorMessage(error, t("composer.error.keepAttachments")));
-        return;
+        return [];
       }
     }
     const currentDraft = deps.drafts()[key] ?? EMPTY_DRAFT;
@@ -177,6 +185,64 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     if (selected.length > accepted.length)
       deps.setComposerError(t("composer.error.attachmentLimit", { limit: INPUT_LIMITS.attachments }), target);
     deps.setShowComposerActions(false);
+    return accepted;
+  }
+
+  async function pasteFiles(
+    files: ReadonlyArray<File | Promise<File>>,
+    selection: ComposerSelection,
+    copy?: Pick<PastedComposerCopy, "text" | "sourceIds">,
+  ): Promise<ComposerPasteResult | undefined> {
+    const target = deps.currentTarget();
+    if (!target || deps.submitting()) return;
+    const before = deps.currentDraft().text;
+    const requestId = crypto.randomUUID();
+    const runtime = conversationRuntime(deps.props);
+    deps.attachmentImports.set(requestId, target);
+    deps.setAttachmentBusy(true);
+    deps.clearConversationError(target);
+    try {
+      const originals = await Promise.all(files);
+      const draft = deps.drafts()[composerDraftKey(target)] ?? EMPTY_DRAFT;
+      if (originals.length + draft.attachments.length > INPUT_LIMITS.attachments)
+        throw new Error(t("composer.error.attachmentLimit", { limit: INPUT_LIMITS.attachments }));
+      const data = await Promise.all(
+        originals.map(async (file) => ({
+          name: file.name,
+          mimeType: file.type,
+          bytes: new Uint8Array(await file.arrayBuffer()),
+        })),
+      );
+      const imported = await runtime.agent.importAttachmentData(data, target.serverId);
+      imported.forEach((attachment, index) => {
+        const file = originals[index];
+        if (file) rememberComposerFile(attachment, file);
+      });
+      const accepted = await addAttachments(imported, target);
+      if (!accepted.length) return;
+      const replacements = new Map((copy?.sourceIds ?? []).map((id, index) => [id, accepted[index]]));
+      const text =
+        copy === undefined
+          ? accepted.map((attachment) => serializeAttachmentReference(attachment.name, attachment.id)).join(" ")
+          : rewriteAttachmentReferences(copy.text, (reference) => {
+              const attachment = replacements.get(reference.attachmentId);
+              return attachment ? { attachmentId: attachment.id, name: attachment.name } : null;
+            });
+      const key = composerDraftKey(target);
+      const current = deps.drafts()[key] ?? EMPTY_DRAFT;
+      // A view can unmount during import. Keep any newer edits instead of replacing them.
+      const next =
+        current.text === before
+          ? `${before.slice(0, selection.start)}${text}${before.slice(selection.end)}`
+          : [current.text, text].filter(Boolean).join(" ");
+      deps.setDrafts((drafts) => ({ ...drafts, [key]: { ...(drafts[key] ?? EMPTY_DRAFT), text: next } }));
+      return { value: next, caret: current.text === before ? selection.start + text.length : next.length };
+    } catch (error) {
+      deps.setConversationError(target, errorMessage(error, t("composer.error.keepAttachments")));
+    } finally {
+      deps.attachmentImports.delete(requestId);
+      deps.setAttachmentBusy(deps.attachmentImports.size > 0);
+    }
   }
 
   function openAttachmentPicker() {
@@ -692,6 +758,7 @@ export function createComposerActions(deps: ComposerActionsDeps) {
     updateTeamTyping,
     stopTeamTyping,
     addAttachments,
+    pasteFiles,
     openAttachmentPicker,
     openAttachmentPickerFromKey,
     editQueuedMessage,

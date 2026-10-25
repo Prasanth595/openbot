@@ -25,6 +25,8 @@ import { AnchoredTooltip } from "./AnchoredTooltip";
 import { AttachmentReferenceVisual } from "./AttachmentReference";
 import {
   automaticMentionSpaceAtCaretBoundary,
+  type ComposerPasteResult,
+  type ComposerSelection,
   editorText,
   editorTextOffset,
   insertLineBreak,
@@ -32,9 +34,11 @@ import {
   mentionTokenAtCaretBoundary,
   placeCaretAtChildOffset,
   placeCaretAtEnd,
+  placeSerializedCaret,
   rangeFromTextOffsets,
   readEditorSelection,
   restoreEditorSelection,
+  serializedEditorSelection,
   serializeEditor,
 } from "./composer-dom";
 import { shouldRestoreComposerFocus } from "./composer-focus";
@@ -96,7 +100,13 @@ interface ComposerEditorProps {
   sendShortcut?: SendShortcut | undefined;
   onOpenAttachment?: (attachment: DraftAttachment) => void;
   /** Receives pasted files. Without it, a file paste does nothing here; the desktop preload imports it. */
-  onPasteFiles?: (files: File[]) => void;
+  onPasteFiles?: (files: File[], selection: ComposerSelection) => undefined | Promise<ComposerPasteResult | undefined>;
+  onPasteAttachments?: (
+    clipboard: DataTransfer,
+    selection: ComposerSelection,
+  ) => Promise<ComposerPasteResult | undefined> | undefined;
+  /** Writes a copy or cut that includes attachments. Other selections use the native copy. */
+  onCopyAttachments?: (clipboard: DataTransfer, text: string, attachments: DraftAttachment[]) => void;
   /** Told when the mention picker opens or closes, so the queue panel can give up the same space. */
   onPickerOpenChange?: (open: boolean) => void;
   /**
@@ -105,6 +115,8 @@ interface ComposerEditorProps {
    */
   dictation?: { text: string; final: boolean };
 }
+
+export type { ComposerPasteResult, ComposerSelection } from "./composer-dom";
 
 export interface QuoteRequest {
   id: number;
@@ -781,6 +793,13 @@ export function ComposerEditor(props: ComposerEditorProps) {
 
     const clipboard = event.clipboardData;
     if (!clipboard) return;
+    const selection = serializedEditorSelection(editor);
+    const pasted = props.onPasteAttachments?.(clipboard, selection);
+    if (pasted) {
+      event.stopPropagation();
+      finishPaste(pasted);
+      return;
+    }
     const files =
       clipboard.files.length > 0
         ? Array.from(clipboard.files)
@@ -789,7 +808,10 @@ export function ComposerEditor(props: ComposerEditorProps) {
             return file ? [file] : [];
           });
     if (files.length > 0) {
-      props.onPasteFiles?.(files);
+      if (props.onPasteFiles) {
+        event.stopPropagation();
+        finishPaste(props.onPasteFiles(files, selection));
+      }
       return;
     }
 
@@ -799,6 +821,42 @@ export function ComposerEditor(props: ComposerEditorProps) {
     insertPlainText(editor, text);
     emitValue();
     updateMention();
+  }
+
+  function finishPaste(pasted: undefined | Promise<ComposerPasteResult | undefined>) {
+    if (!pasted) return;
+    const agentId = props.agentId;
+    const surface = editor;
+    void pasted.then((result) => {
+      if (!result) return;
+      onSettled(() => {
+        if (!surface?.isConnected || editor !== surface || props.agentId !== agentId || props.value !== result.value)
+          return;
+        if (surface.ownerDocument.activeElement !== surface) return;
+        placeSerializedCaret(surface, result.caret);
+        scheduleCaretScroll();
+      });
+    });
+  }
+
+  function handleCopy(event: ClipboardEvent, cut = false) {
+    if (!editor || !event.clipboardData || !props.onCopyAttachments) return;
+    const selection = serializedEditorSelection(editor);
+    if (selection.start === selection.end) return;
+    const value = serializeEditor(editor);
+    const text = value.slice(selection.start, selection.end);
+    const ids = attachmentReferenceIds(text);
+    const all = selection.start === 0 && selection.end === value.length;
+    const attachments = (props.attachments ?? []).filter((attachment) => all || ids.has(attachment.id));
+    // Without an attachment, the native copy keeps its rich text.
+    if (!attachments.length) return;
+    event.preventDefault();
+    props.onCopyAttachments(event.clipboardData, text, attachments);
+    if (cut && !props.disabled) {
+      insertPlainText(editor, "");
+      emitValue();
+      updateMention();
+    }
   }
 
   return (
@@ -837,6 +895,8 @@ export function ComposerEditor(props: ComposerEditorProps) {
           setCompositionRevision((revision) => revision + 1);
         }}
         onPaste={handlePaste}
+        onCopy={(event) => handleCopy(event)}
+        onCut={(event) => handleCopy(event, true)}
         onBlur={() => {
           isComposing = false;
           // A menu can return the focus to the editor within this delay; keep the picker it opened.

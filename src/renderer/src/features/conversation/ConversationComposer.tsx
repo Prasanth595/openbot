@@ -51,6 +51,7 @@ import { reportErrorBanner, reportNotification } from "../../error-reports";
 import { deviceSendShortcut, sendShortcutAriaKey, sendShortcutHintKey } from "../../send-shortcut-preference";
 import { speechReading } from "../speech/speech-playback";
 import { stopSpokenReply } from "../speech/speech-replies";
+import { copyComposerSelection, readComposerCopy } from "./composer-clipboard";
 import { useConversationViewScope } from "./conversation-scope";
 
 // Module scope: the composer remounts on navigation, and a dismissed notice must stay dismissed.
@@ -84,6 +85,7 @@ export function ConversationComposer() {
     editingPendingSave,
     openAttachmentPicker,
     openAttachmentPickerFromKey,
+    pasteFiles,
     presentedQueueDeliveries,
     previewAttachment,
     props,
@@ -102,7 +104,7 @@ export function ConversationComposer() {
     cancelVoiceRecording,
     submitComposer,
     submitting,
-    unreferencedDraftAttachments,
+    visibleDraftAttachments,
     updateCurrentDraft,
     updateTeamTyping,
     voiceElapsedSeconds,
@@ -587,10 +589,8 @@ export function ConversationComposer() {
         </div>
         <div
           class="composer"
-          data-compact={
-            currentDraft().text.includes("\n") || unreferencedDraftAttachments().length > 0 ? undefined : ""
-          }
-          data-has-attachments={unreferencedDraftAttachments().length > 0 ? "" : undefined}
+          data-compact={currentDraft().text.includes("\n") || visibleDraftAttachments().length > 0 ? undefined : ""}
+          data-has-attachments={visibleDraftAttachments().length > 0 ? "" : undefined}
           onPointerDown={(event) => {
             if (!(event.target instanceof Element)) return;
             // The "+" menu is in a portal, but its events come here too. Focus taken from it closes the menu
@@ -600,9 +600,9 @@ export function ConversationComposer() {
             setComposerFocusRequest((current) => current + 1);
           }}
         >
-          <Show when={unreferencedDraftAttachments().length > 0}>
+          <Show when={visibleDraftAttachments().length > 0}>
             <div class="composer-attachments">
-              <For each={unreferencedDraftAttachments()}>
+              <For each={visibleDraftAttachments()}>
                 {(attachment) => {
                   // An image with no preview (the web client) shows as a file, with its name.
                   const chip = () => (attachment.kind === "image" && attachment.previewUrl ? "image" : "file");
@@ -673,8 +673,13 @@ export function ConversationComposer() {
               sendShortcut={deviceSendShortcut(props.platform)}
               onPickerOpenChange={setPickerOpen}
               dictation={{ text: voiceLiveText(), final: voicePhase() === "transcribing" }}
-              onPasteFiles={(files) => {
-                if (props.runtime?.importFiles) void props.runtime.importFiles(files);
+              onPasteFiles={pasteFiles}
+              onCopyAttachments={(clipboard, text, attachments) =>
+                copyComposerSelection(clipboard, text, attachments, props.runtime?.previewAttachment)
+              }
+              onPasteAttachments={(clipboard, selection) => {
+                const copy = readComposerCopy(clipboard);
+                return copy ? pasteFiles(copy.files, selection, copy) : undefined;
               }}
               onOpenAttachment={(attachment) =>
                 canPreviewAttachment(attachment)
