@@ -4,8 +4,8 @@
 // reports `authMethod: "api_key"` and no email, also when a claude.ai login exists. Cases: with a
 // claude.ai login, the own sign-in never gets the key; with no login, its account check and SDK
 // process get the key; the key account gets the key in its own folder, and its row shows only while
-// the own sign-in has a login, and a sign-in on it is refused; an added account never gets the key; no
-// saved key keeps the login.
+// the own sign-in has a login, and a sign-in or a peer removal on it is refused; an added account never
+// gets the key; no saved key keeps the login.
 // `bun scripts/claude-api-key-e2e.ts`. Writes .openbot-build/claude-api-key-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -19,6 +19,7 @@ import { ProviderAccounts, type ProviderAccountsHost } from "../src/backend/agen
 import { runCauseEffect } from "../src/backend/effect-boundary";
 import { CLAUDE_API_KEY_ACCOUNT_TYPE } from "../src/backend/protocol";
 import { BUILT_IN_PROVIDER_DRIVERS, NO_PROVIDER_CREDENTIALS } from "../src/backend/provider-drivers";
+import { ProviderAccountsHost as PeerAccountsHost } from "../src/main/provider-accounts-host";
 
 const OUT = resolve(import.meta.dirname, "../.openbot-build/claude-api-key-e2e");
 const KEY = "sk-ant-e2e-0f3c9a71";
@@ -112,10 +113,14 @@ async function runCase(
 }
 
 /** A host for `environment` and `rows` only. The other calls fail the run. */
-function accountsHost(key: Pick<ProviderAccountsHost, "apiKey" | "defaultUsesApiKey">): ProviderAccountsHost {
-  const unused = (name: string) => () => {
-    throw new Error(`unexpected ProviderAccountsHost.${name}`);
+/** A call that the case must not make. */
+function unused(name: string) {
+  return () => {
+    throw new Error(`unexpected call: ${name}`);
   };
+}
+
+function accountsHost(key: Pick<ProviderAccountsHost, "apiKey" | "defaultUsesApiKey">): ProviderAccountsHost {
   return {
     ...key,
     scope: unused("scope"),
@@ -139,6 +144,7 @@ function accountsHost(key: Pick<ProviderAccountsHost, "apiKey" | "defaultUsesApi
 const report: {
   cases: CaseResult[];
   keyAccountSignIn?: "refused";
+  keyAccountRemoval?: "refused";
   result?: "pass" | "fail";
   error?: string;
 } = { cases: [] };
@@ -229,6 +235,30 @@ try {
   assert.equal(readLog().length, startsBeforeSignIn, "a refused sign-in on the key account started Claude");
   assert.ok(store.get("claude", CLAUDE_API_KEY_ACCOUNT_ID), "a refused sign-in removed the key account");
   report.keyAccountSignIn = "refused";
+
+  // The same client can offer Remove on it. Only the key dialog removes the key account.
+  const peerAccounts = new PeerAccountsHost({
+    service: {
+      getStatus: unused("getStatus"),
+      getProviderAccountUsage: unused("getProviderAccountUsage"),
+      listAgents: unused("listAgents"),
+      updateAgent: unused("updateAgent"),
+      signInProviderAccountOnHost: unused("signInProviderAccountOnHost"),
+      renameProviderAccount: unused("renameProviderAccount"),
+      removeProviderAccount: unused("removeProviderAccount"),
+    },
+    browser: { openPrivate: unused("openPrivate"), privateTab: unused("privateTab"), close: unused("close") },
+  });
+  const removal = await runCauseEffect(
+    peerAccounts
+      .remove("claude", CLAUDE_API_KEY_ACCOUNT_ID)
+      .pipe(Effect.match({ onFailure: (failure) => failure.cause, onSuccess: () => null })),
+  );
+  assert.ok(
+    removal instanceof Error && removal.message.includes("saved API key"),
+    "a peer removal of the key account was not refused",
+  );
+  report.keyAccountRemoval = "refused";
   report.result = "pass";
 } catch (error) {
   report.result = "fail";
