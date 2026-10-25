@@ -56,7 +56,7 @@ or arm64 Linux as an AppImage.
 2. Make it executable with `chmod +x OpenBot-*.AppImage`, then run it.
 
 The AppImage does not need libfuse2, so it also runs on Arch Linux and Omarchy. It mounts itself
-with `fusermount3` from the `fuse3` package, or with `fusermount`.
+with `fusermount3` from the `fuse3` package.
 
 On Ubuntu 23.10 or newer and on Debian 13, unprivileged user namespaces are restricted by AppArmor
 and OpenBot exits during launch until you install an AppArmor profile:

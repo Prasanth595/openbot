@@ -52,8 +52,8 @@ local access on the other side of it.
 
 ## The Linux AppImage says that no fusermount binary was found
 
-The AppImage mounts itself with FUSE. It does not need libfuse2, but it needs the `fusermount3` or
-`fusermount` program. Install the `fuse3` package (`sudo pacman -S fuse3` on Arch Linux and Omarchy,
+The AppImage mounts itself with FUSE. It does not need libfuse2, but it needs the `fusermount3`
+program. Install the `fuse3` package (`sudo pacman -S fuse3` on Arch Linux and Omarchy,
 `sudo apt install fuse3` on Ubuntu and Debian), then start the AppImage again. With no FUSE, such
 as in a container, start it with `--appimage-extract-and-run`.
 

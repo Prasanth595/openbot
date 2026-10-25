@@ -82,8 +82,8 @@ directories:
   output: dist
 toolsets:
   # The static AppImage runtime (AppImage/type2-runtime) has libfuse built in, so the AppImage starts
-  # on Arch Linux, Omarchy and other systems with no libfuse.so.2. It needs only `fusermount3` or
-  # `fusermount`. The default toolset needs libfuse.so.2. `--appimage-extract` works with both.
+  # on Arch Linux, Omarchy and other systems with no libfuse.so.2. It needs only `fusermount3`
+  # from fuse3. The default toolset needs libfuse.so.2. `--appimage-extract` works with both.
   appimage: "1.0.3"
 mac:
   category: public.app-category.productivity

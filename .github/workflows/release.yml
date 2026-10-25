@@ -829,13 +829,16 @@ jobs:
           set -euo pipefail
           sudo apt-get install --no-install-recommends --yes fuse3
           appImage=$(echo dist/*.AppImage)
-          if readelf --program-headers "$appImage" | grep -Fq "program interpreter"; then
+          headers=$(readelf --program-headers "$appImage")
+          if grep -Fq "program interpreter" <<<"$headers"; then
             echo "The AppImage runtime is not static, so it needs system libraries such as libfuse.so.2." >&2
             exit 1
           fi
-          coproc appimage { "$appImage" --appimage-mount; }
-          read -r -t 60 mountPoint <&"${appimage[0]}"
-          test -x "$mountPoint/openbot"
+          coproc appimage { exec "$appImage" --appimage-mount; }
+          if ! read -r -t 60 mountPoint <&"${appimage[0]}" || [ ! -x "$mountPoint/openbot" ]; then
+            echo "The AppImage did not mount with fusermount3, or its mount has no openbot executable." >&2
+            exit 1
+          fi
           kill "$appimage_PID"
           wait "$appimage_PID" || true
 
