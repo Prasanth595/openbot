@@ -51,6 +51,12 @@ export interface LocalMcpSession {
  */
 const LOCAL_MCP_PROGRESS_INTERVAL_MS = 20_000;
 
+/**
+ * The `_meta` key in which OpenCode 2.1.4 names the session that makes a tool call. Its ACP session
+ * id is that session id, so a call on a token that a directory's sessions share finds its own thread.
+ */
+const OPENCODE_SESSION_META = "ai.opencode/sessionID";
+
 /** One session that a token serves. A token shared by a directory serves each session in it. */
 interface BridgeMember {
   threadId: string;
@@ -59,7 +65,10 @@ interface BridgeMember {
 
 interface BridgeRoute {
   namespace: DynamicToolNamespace;
-  /** The sessions in the order they opened. A call goes to the one in a turn, else to the last. */
+  /**
+   * The sessions in the order they opened. A call goes to the one that the client names, else to the
+   * one in a turn, else to the last.
+   */
   members: BridgeMember[];
   /** The key in `#shared`, for a token that a directory's sessions share. */
   shareKey: string | null;
@@ -288,9 +297,13 @@ export class LocalMcpBridge {
                     .sendNotification({ method: "notifications/progress", params: { progressToken, progress } })
                     .catch(() => undefined);
                 }, LOCAL_MCP_PROGRESS_INTERVAL_MS);
-          // A shared token does not say which session called. The one in a turn did; with two in a
-          // turn at once, the first that opened gets the call.
-          const member = route.members.find((candidate) => candidate.activeTurnId() !== null) ?? route.members.at(-1);
+          // A shared token does not say which session called. OpenCode names it in `_meta`; without
+          // that, the one in a turn did, and with two in a turn at once the first that opened gets it.
+          const caller = extra._meta?.[OPENCODE_SESSION_META];
+          const member =
+            route.members.find((candidate) => candidate.threadId === caller) ??
+            route.members.find((candidate) => candidate.activeTurnId() !== null) ??
+            route.members.at(-1);
           if (!member) return yield* mcpFailure(new Error(`The ${route.namespace.name} session closed.`));
           const result = yield* Effect.gen({ self: this }, function* () {
             return yield* route

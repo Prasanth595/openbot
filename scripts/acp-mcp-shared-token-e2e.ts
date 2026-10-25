@@ -51,8 +51,11 @@ function authorization(session: LocalMcpSession): string {
   return header.value;
 }
 
-/** One tool call over a new connection, as OpenCode makes after it adds the server again. */
-async function whoami(session: LocalMcpSession): Promise<string> {
+/**
+ * One tool call over a new connection, as OpenCode makes after it adds the server again. OpenCode
+ * 2.1.4 names the calling session in `_meta`.
+ */
+async function whoami(session: LocalMcpSession, caller?: string): Promise<string> {
   const server = session.servers[0];
   assert.ok(server);
   const client = new Client({ name: "e2e-opencode", version: "1.0.0" });
@@ -62,7 +65,11 @@ async function whoami(session: LocalMcpSession): Promise<string> {
         requestInit: { headers: { Authorization: authorization(session) } },
       }),
     );
-    const result = await client.callTool({ name: "whoami", arguments: {} });
+    const result = await client.callTool({
+      name: "whoami",
+      arguments: {},
+      ...(caller === undefined ? {} : { _meta: { "ai.opencode/sessionID": caller } }),
+    });
     const content = Array.isArray(result.content) ? result.content[0] : undefined;
     const text = isRecord(content) && typeof content.text === "string" ? content.text : "";
     report.calls?.push(text);
@@ -93,6 +100,12 @@ try {
   turns.set("thread-first", null);
   turns.set("thread-second", "turn-2");
   assert.equal(await whoami(first), "thread-second", "A call follows the turn, not the token's first session.");
+
+  // Both chats in a turn at once: the session that OpenCode names gets the call.
+  turns.set("thread-first", "turn-1b");
+  assert.equal(await whoami(first, "thread-second"), "thread-second", "The named session gets the call.");
+  assert.equal(await whoami(second, "thread-first"), "thread-first", "The named session gets the call.");
+  turns.set("thread-first", null);
   turns.set("thread-second", null);
 
   // The second chat goes idle and OpenBot releases it. OpenCode still holds the shared token.
