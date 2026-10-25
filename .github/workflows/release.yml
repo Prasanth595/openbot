@@ -834,13 +834,22 @@ jobs:
             echo "The AppImage runtime is not static, so it needs system libraries such as libfuse.so.2." >&2
             exit 1
           fi
-          coproc appimage { exec "$appImage" --appimage-mount; }
-          if ! read -r -t 60 mountPoint <&"${appimage[0]}" || [ ! -x "$mountPoint/openbot" ]; then
+          # The runtime prints the mount point and keeps the mount until it stops.
+          output=$(mktemp)
+          "$appImage" --appimage-mount >"$output" &
+          runtime=$!
+          for _ in $(seq 1 60); do
+            [ -s "$output" ] && break
+            sleep 1
+          done
+          mountPoint=$(head -n 1 "$output")
+          if [ -z "$mountPoint" ] || [ ! -x "$mountPoint/openbot" ]; then
             echo "The AppImage did not mount with fusermount3, or its mount has no openbot executable." >&2
+            cat "$output" >&2
             exit 1
           fi
-          kill "$appimage_PID"
-          wait "$appimage_PID" || true
+          kill "$runtime" 2>/dev/null || true
+          wait "$runtime" || true
 
       - name: Generate checksums
         run: |
