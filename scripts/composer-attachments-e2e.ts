@@ -26,6 +26,7 @@ const session = await connectToDevApp(instance.remoteDebuggingPort, createOpenBo
 const out = resolve(".openbot-build/composer-attachments-e2e");
 mkdirSync(out, { recursive: true });
 const results: string[] = [];
+let passed = false;
 const page = session.page;
 page.setDefaultTimeout(15_000);
 const png = Array.from(
@@ -284,9 +285,10 @@ try {
   assert.equal(await layout(nativeTarget), destinationLayout);
   results.push("Native Cmd/Ctrl+C and Cmd/Ctrl+V preserve text and original image bytes across agents.");
   await page.screenshot({ path: resolve(out, "native-clipboard.png") });
+  passed = true;
 } finally {
-  writeFileSync(resolve(out, "report.json"), `${JSON.stringify({ results, passed: results.length === 7 }, null, 2)}\n`);
+  writeFileSync(resolve(out, "report.json"), `${JSON.stringify({ results, passed }, null, 2)}\n`);
   await session.close();
 }
 // Machine-readable: E2E report for the caller.
-process.stdout.write(`${JSON.stringify({ results, passed: true }, null, 2)}\n`);
+process.stdout.write(`${JSON.stringify({ results, passed }, null, 2)}\n`);
