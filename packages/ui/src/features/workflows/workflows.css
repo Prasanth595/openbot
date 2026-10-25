@@ -205,7 +205,6 @@
 
 .wfn-stage .wfn-hud-add-button {
   margin-left: var(--openbot-space-1);
-  padding-inline: var(--openbot-space-2) var(--openbot-space-3);
 }
 
 /* A pressed tool, such as Select or an open minimap: a quiet fill, not a colour. */
@@ -220,10 +219,10 @@
 }
 
 /* The workflow switcher: the name and a small chevron in one button. The name has the type of the other page titles. */
-.wfn-stage .wfn-hud-switcher {
+.wfn-stage .wfn-hud-title .wfn-hud-switcher {
   gap: var(--openbot-space-1-5);
   min-width: 0;
-  padding: 0 var(--openbot-space-2);
+  padding-inline: var(--openbot-space-3) calc(var(--openbot-space-2) + var(--openbot-space-0-5));
 }
 
 .wfn-stage .wfn-hud-switcher-name {
@@ -462,7 +461,12 @@
 .wfn-stage .wfn-hud-button {
   gap: var(--openbot-space-1-5);
   height: var(--openbot-control-md);
-  padding-inline: var(--openbot-space-2) var(--openbot-space-3);
+  padding-inline: var(--openbot-space-3);
+}
+
+/* An icon has space of its own at its edge, so the side with the icon gets less padding. Then the two sides look equal. */
+.wfn-stage .wfn-hud-button:has(> svg:first-child) {
+  padding-inline-start: calc(var(--openbot-space-2) + var(--openbot-space-0-5));
 }
 
 .wfn-stage .wfn-hud-button svg {
