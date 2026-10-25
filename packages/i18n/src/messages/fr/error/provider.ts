@@ -285,6 +285,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "Seuls les liens de connexion HTTPS peuvent s’ouvrir dans le navigateur.",
   "error.provider.geminiKeyRefused":
     "Gemini a refusé la clé d’API enregistrée. Remplacez ou supprimez la clé dans les Réglages, puis reconnectez-vous.",
+  "error.provider.keyProviderRefused":
+    "{provider} a refusé la clé d’API enregistrée. Remplacez ou supprimez la clé dans les Réglages, puis réessayez.",
+  "error.provider.keyProviderNoBalance":
+    "Le compte {provider} de la clé d’API enregistrée n’a pas de solde. Ajoutez du crédit au compte, puis réessayez.",
   "error.provider.messageTooLarge": "OpenBot a arrêté {provider}, car il a envoyé un message de plus de {limit} Mo.",
   "error.provider.customAgentIdInvalid":
     "Un ID d’agent ne peut contenir que des lettres minuscules, des chiffres ou `-`, et ne peut pas être l’ID d’un fournisseur intégré.",
@@ -389,6 +393,7 @@ export const messages = {
     "L’authentification Muse n’est pas vérifiée. Connectez-vous sur l’ordinateur hôte, ou définissez une clé d’API Meta.",
   "error.provider.museSignIn": "Connectez-vous à Muse sur l’ordinateur hôte pour continuer.",
   "error.provider.inceptionSignIn": "Ajoutez une clé d’API Inception pour continuer.",
+  "error.provider.deepseekSignIn": "Ajoutez une clé d’API DeepSeek pour continuer.",
   "error.provider.terminalLoginFailed":
     "Le terminal de connexion n’a pas pu s’ouvrir. Ouvrez la CLI du fournisseur sur cet hôte et connectez-vous-y, puis actualisez les fournisseurs.",
   "error.provider.nativeArchiveInvalid": "Le téléchargement du fournisseur ne contient pas d’installation valide.",

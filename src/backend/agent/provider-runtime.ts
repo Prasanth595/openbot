@@ -2029,7 +2029,7 @@ export class ProviderRuntime implements ProviderPort {
           this.#hooks.onProviderResumed(provider);
         }),
     );
-    // A provider that runs this CLI, such as Inception on Pi, moves to the new binary when its own
+    // A provider that runs this CLI, such as Inception or DeepSeek on Pi, moves to the new binary when its own
     // turns end. One with no process, such as one that found no CLI, is checked again now.
     for (const driver of BUILT_IN_PROVIDER_DRIVERS) {
       if (driver.cliProvider !== provider || this.#off.has(driver.id)) continue;
@@ -2813,7 +2813,9 @@ export class ProviderRuntime implements ProviderPort {
           ? sourceText("error.provider.museSignIn")
           : provider === "inception"
             ? sourceText("error.provider.inceptionSignIn")
-            : agentProviderDescriptor(provider).signInMessage)
+            : provider === "deepseek"
+              ? sourceText("error.provider.deepseekSignIn")
+              : agentProviderDescriptor(provider).signInMessage)
     );
   }
 

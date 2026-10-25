@@ -272,6 +272,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "Solo se pueden abrir en el navegador enlaces de inicio de sesión HTTPS.",
   "error.provider.geminiKeyRefused":
     "Gemini rechazó la clave de API guardada. Reemplaza o elimina la clave en Ajustes y vuelve a conectar.",
+  "error.provider.keyProviderRefused":
+    "{provider} rechazó la clave de API guardada. Reemplaza o elimina la clave en Ajustes y vuelve a intentarlo.",
+  "error.provider.keyProviderNoBalance":
+    "La cuenta de {provider} de la clave de API guardada no tiene saldo. Añade saldo a la cuenta y vuelve a intentarlo.",
   "error.provider.messageTooLarge": "OpenBot detuvo {provider} porque envió un mensaje de más de {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "Un ID de agente debe contener letras minúsculas, dígitos o `-`, y no puede ser el ID de un proveedor integrado.",
@@ -377,6 +381,7 @@ export const messages = {
     "La autenticación de Muse no está verificada. Conéctate en el equipo host o define una clave de API de Meta.",
   "error.provider.museSignIn": "Inicia sesión en Muse en el equipo host para continuar.",
   "error.provider.inceptionSignIn": "Añade una clave de API de Inception para continuar.",
+  "error.provider.deepseekSignIn": "Añade una clave de API de DeepSeek para continuar.",
   "error.provider.terminalLoginFailed":
     "No se pudo abrir la terminal de inicio de sesión. Abre la CLI del proveedor en este host, inicia sesión allí y actualiza los proveedores.",
   "error.provider.nativeArchiveInvalid": "La descarga del proveedor no contiene una instalación válida.",

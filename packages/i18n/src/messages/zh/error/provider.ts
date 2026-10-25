@@ -238,6 +238,8 @@ export const messages = {
   "error.provider.acpSignInMethodMissing": "该服务商在这台电脑上不提供该登录方式。请更新服务商后重试。",
   "error.provider.httpsSignInLinkOnly": "只有 HTTPS 登录链接才能在浏览器中打开。",
   "error.provider.geminiKeyRefused": "Gemini 拒绝了已保存的 API 密钥。请在设置中更换或移除该密钥，然后重新连接。",
+  "error.provider.keyProviderRefused": "{provider} 拒绝了已保存的 API 密钥。请在设置中更换或移除该密钥，然后重试。",
+  "error.provider.keyProviderNoBalance": "已保存 API 密钥的 {provider} 账户没有余额。请为账户充值，然后重试。",
   "error.provider.messageTooLarge": "由于 {provider} 发送了大于 {limit} MB 的消息，OpenBot 已将其停止。",
   "error.provider.customAgentIdInvalid": "助手 ID 只能包含小写字母、数字或 `-`，且不能与内置服务商的 ID 相同。",
   "error.provider.customAgentEnvInvalid":
@@ -327,6 +329,7 @@ export const messages = {
   "error.provider.museAuthUnverified": "Muse 身份验证尚未确认。请在主机电脑上连接，或设置 Meta API 密钥。",
   "error.provider.museSignIn": "请在主机电脑上登录 Muse 以继续。",
   "error.provider.inceptionSignIn": "请添加 Inception API 密钥以继续。",
+  "error.provider.deepseekSignIn": "请添加 DeepSeek API 密钥以继续。",
   "error.provider.terminalLoginFailed": "无法打开登录终端。请在这台主机上打开服务商 CLI 并在那里登录，然后刷新服务商。",
   "error.provider.nativeArchiveInvalid": "服务商下载内容中不包含有效的安装。",
   "error.provider.nativeChecksum": "服务商安装未通过完整性校验。",

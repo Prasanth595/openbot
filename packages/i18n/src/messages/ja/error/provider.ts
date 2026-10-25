@@ -272,6 +272,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "ブラウザーで開けるのは HTTPS のサインインリンクだけです。",
   "error.provider.geminiKeyRefused":
     "Gemini は保存された API キーを拒否しました。設定でキーを置き換えるか削除してから、もう一度接続してください。",
+  "error.provider.keyProviderRefused":
+    "{provider} は保存された API キーを拒否しました。設定でキーを置き換えるか削除してから、もう一度お試しください。",
+  "error.provider.keyProviderNoBalance":
+    "保存された API キーの {provider} アカウントに残高がありません。アカウントにクレジットを追加してから、もう一度お試しください。",
   "error.provider.messageTooLarge":
     "{limit} MB を超えるメッセージを送信したため、OpenBot は {provider} を停止しました。",
   "error.provider.customAgentIdInvalid":
@@ -381,6 +385,7 @@ export const messages = {
     "Muse の認証が確認されていません。ホストコンピューターで接続するか、Meta API キーを設定してください。",
   "error.provider.museSignIn": "続行するには、ホストコンピューターで Muse にサインインしてください。",
   "error.provider.inceptionSignIn": "続行するには、Inception API キーを追加してください。",
+  "error.provider.deepseekSignIn": "続けるには DeepSeek API キーを追加してください。",
   "error.provider.terminalLoginFailed":
     "サインイン用のターミナルを開けませんでした。このホストでプロバイダーの CLI を開いてサインインしてから、プロバイダーを更新してください。",
   "error.provider.nativeArchiveInvalid": "プロバイダーのダウンロードに有効なインストールが含まれていません。",

@@ -619,7 +619,7 @@ provider added after v8 needs no new protocol version. The `providers-v8` routes
 The host hides a provider from a peer below v8 when that protocol's frozen list does not have it
 (`FROZEN_PROVIDERS` in `src/main/team-api/provider-visibility.ts`). So a new provider is hidden
 from old peers with no change there. Do not edit those lists. A local-only provider
-(`LOCAL_ONLY_PROVIDERS`, now only Inception) is hidden from peers on every protocol, v8 too, and the
+(`LOCAL_ONLY_PROVIDERS`, now Inception and DeepSeek) is hidden from peers on every protocol, v8 too, and the
 peer key routes refuse its key.
 
 A v8 client keeps the agents of a provider that its build does not know (`ForeignProviderId`,
@@ -788,12 +788,24 @@ Inception is a provider of its own that runs on Pi's managed CLI. Its driver set
 so it resolves Pi's downloaded binary and has no runtime or download of its own. After a Pi update, a
 running Inception process restarts on the new binary when its turns end. Connect and Reconnect on the
 row open the key dialog, and the composer's sign-in opens the Providers settings, because a key is the
-only sign-in. The key is stored as the `inception` API key. `pi-inception.ts` writes a key-free extension that
+only sign-in. The key is stored as the `inception` API key. `pi-key-providers.ts` writes a key-free extension that
 calls `pi.registerProvider("inception", …)` with the Mercury models; the key is in the process
 environment and a `globalThis` slot, because Pi runs extensions again on `switch_session`. The
 Inception client lists only the `inception` models, with bare ids such as `mercury-3`. The Pi client
 does not load this extension, so it keeps only the user's own `inception` models. Without a key the provider has no models and asks for a key. Inception is local-only:
 no Team API protocol carries it, v8 included (`LOCAL_ONLY_PROVIDERS`).
+
+## DeepSeek
+
+DeepSeek works as Inception does: a provider of its own on Pi's managed CLI (`cliProvider: "pi"`),
+with a key as its only sign-in (`KEY_ONLY_PROVIDERS` in contracts). The key is stored as the
+`deepseek` API key. Pi has a built-in `deepseek` provider, so the extension from
+`pi-key-providers.ts` calls `pi.registerProvider("deepseek", { apiKey })` with no models. A
+registration with only the key keeps Pi's DeepSeek models, endpoint and thinking levels (checked in
+Pi 1.4.0), so OpenBot keeps no DeepSeek model list. The DeepSeek client lists only the `deepseek`
+models, with bare ids such as `deepseek-v4-pro`. The Pi client loads no key extension, so it keeps
+the user's own `deepseek` models, for example from `DEEPSEEK_API_KEY` in Pi's environment.
+DeepSeek is local-only, as Inception is.
 
 ## Muse
 

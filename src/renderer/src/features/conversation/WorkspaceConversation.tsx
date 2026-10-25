@@ -1,4 +1,4 @@
-import { type AgentProviderId, isKnownAgentProvider } from "@openbot/contracts/agent-providers";
+import { type AgentProviderId, isKeyOnlyProvider, isKnownAgentProvider } from "@openbot/contracts/agent-providers";
 import {
   type AgentModelChoice,
   agentPermissionLevel,
@@ -98,9 +98,10 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
    * this surface started it: Settings shows its own for the sign-ins it starts.
    */
   const connectFromComposer = async (provider: AgentProviderId) => {
-    // Inception signs in only with a key, which the server's Providers settings take.
+    // A key-only provider, such as Inception, signs in only with a key, which the server's Providers
+    // settings take.
     const server = activeServer();
-    if (provider === "inception" && server) openServerSettings(server.id, null, "providers");
+    if (isKeyOnlyProvider(provider) && server) openServerSettings(server.id, null, "providers");
     else await connection.connect(provider, "composer");
   };
   const signInWithCode = (provider: AgentProviderId) => connection.alternative(provider, "composer");

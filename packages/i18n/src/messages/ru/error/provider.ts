@@ -265,6 +265,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "В браузере можно открыть только ссылки для входа по HTTPS.",
   "error.provider.geminiKeyRefused":
     "Gemini отклонил сохранённый ключ API. Замените или удалите ключ в настройках, затем подключитесь снова.",
+  "error.provider.keyProviderRefused":
+    "{provider} отклонил сохранённый ключ API. Замените или удалите ключ в настройках, затем повторите попытку.",
+  "error.provider.keyProviderNoBalance":
+    "На аккаунте {provider} для сохранённого ключа API нет средств. Пополните баланс аккаунта, затем повторите попытку.",
   "error.provider.messageTooLarge": "OpenBot остановил {provider}, потому что он отправил сообщение больше {limit} МБ.",
   "error.provider.customAgentIdInvalid":
     "ID агента должен состоять из строчных букв, цифр или `-` и не может совпадать с ID встроенного провайдера.",
@@ -368,6 +372,7 @@ export const messages = {
     "Аутентификация Muse не подтверждена. Подключитесь на компьютере-хосте или задайте ключ API Meta.",
   "error.provider.museSignIn": "Чтобы продолжить, войдите в Muse на компьютере-хосте.",
   "error.provider.inceptionSignIn": "Чтобы продолжить, добавьте ключ API Inception.",
+  "error.provider.deepseekSignIn": "Добавьте ключ API DeepSeek, чтобы продолжить.",
   "error.provider.terminalLoginFailed":
     "Не удалось открыть терминал для входа. Откройте CLI провайдера на этом хосте, войдите там, затем обновите список провайдеров.",
   "error.provider.nativeArchiveInvalid": "Загруженный файл провайдера не содержит корректной установки.",

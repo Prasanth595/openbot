@@ -267,6 +267,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "W przeglądarce można otworzyć tylko linki logowania HTTPS.",
   "error.provider.geminiKeyRefused":
     "Gemini odrzucił zapisany klucz API. Zastąp lub usuń klucz w Ustawieniach, a następnie połącz ponownie.",
+  "error.provider.keyProviderRefused":
+    "{provider} odrzucił zapisany klucz API. Zastąp lub usuń klucz w Ustawieniach, a następnie spróbuj ponownie.",
+  "error.provider.keyProviderNoBalance":
+    "Konto {provider} zapisanego klucza API nie ma środków. Doładuj konto, a następnie spróbuj ponownie.",
   "error.provider.messageTooLarge":
     "OpenBot zatrzymał {provider}, ponieważ wysłał on wiadomość większą niż {limit} MB.",
   "error.provider.customAgentIdInvalid":
@@ -370,6 +374,7 @@ export const messages = {
     "Uwierzytelnienie Muse nie jest zweryfikowane. Połącz się na komputerze hosta lub ustaw klucz API Meta.",
   "error.provider.museSignIn": "Zaloguj się do Muse na komputerze hosta, aby kontynuować.",
   "error.provider.inceptionSignIn": "Dodaj klucz API Inception, aby kontynuować.",
+  "error.provider.deepseekSignIn": "Dodaj klucz API DeepSeek, aby kontynuować.",
   "error.provider.terminalLoginFailed":
     "Nie można otworzyć terminala logowania. Otwórz CLI dostawcy na tym hoście, zaloguj się tam, a potem odśwież dostawców.",
   "error.provider.nativeArchiveInvalid": "Pobrany plik dostawcy nie zawiera prawidłowej instalacji.",

@@ -278,6 +278,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "Im Browser können nur HTTPS-Anmeldelinks geöffnet werden.",
   "error.provider.geminiKeyRefused":
     "Gemini hat den gespeicherten API-Schlüssel abgelehnt. Ersetze oder entferne den Schlüssel in den Einstellungen und verbinde dich dann erneut.",
+  "error.provider.keyProviderRefused":
+    "{provider} hat den gespeicherten API-Schlüssel abgelehnt. Ersetze oder entferne den Schlüssel in den Einstellungen und versuche es dann erneut.",
+  "error.provider.keyProviderNoBalance":
+    "Das {provider}-Konto des gespeicherten API-Schlüssels hat kein Guthaben. Lade Guthaben auf das Konto und versuche es dann erneut.",
   "error.provider.messageTooLarge":
     "OpenBot hat {provider} gestoppt, da eine Nachricht mit mehr als {limit} MB gesendet wurde.",
   "error.provider.customAgentIdInvalid":
@@ -390,6 +394,7 @@ export const messages = {
     "Die Muse-Authentifizierung ist nicht bestätigt. Verbinde dich auf dem Host-Computer oder lege einen Meta-API-Schlüssel fest.",
   "error.provider.museSignIn": "Melde dich auf dem Host-Computer bei Muse an, um fortzufahren.",
   "error.provider.inceptionSignIn": "Füge einen Inception-API-Schlüssel hinzu, um fortzufahren.",
+  "error.provider.deepseekSignIn": "Füge einen DeepSeek-API-Schlüssel hinzu, um fortzufahren.",
   "error.provider.terminalLoginFailed":
     "Das Anmeldeterminal konnte nicht geöffnet werden. Öffne die Anbieter-CLI auf diesem Host, melde dich dort an und aktualisiere dann die Anbieter.",
   "error.provider.nativeArchiveInvalid": "Der Anbieter-Download enthält keine gültige Installation.",

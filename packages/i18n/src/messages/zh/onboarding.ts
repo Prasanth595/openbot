@@ -41,6 +41,7 @@ export const messages = {
   "onboarding.provider.cursorPlan": "Cursor 套餐或 API 密钥",
   "onboarding.provider.clineAccount": "使用 Cline 账号的免费模型",
   "onboarding.provider.inceptionKey": "使用 Inception API 密钥的 Mercury 模型",
+  "onboarding.provider.deepseekKey": "使用 DeepSeek API 密钥的 DeepSeek 模型",
   "onboarding.provider.tryFree": "免费试用",
   "onboarding.provider.noSignIn": "无需登录",
   "onboarding.provider.more": "更多服务商",

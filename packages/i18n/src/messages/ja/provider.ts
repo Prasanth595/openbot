@@ -151,6 +151,10 @@ export const messages = {
   "provider.inceptionKey.description":
     "Mercury モデルを使うには、このコンピューターに Inception API キーを保存します。OpenBot はダウンロードした Pi CLI でモデルを実行します。",
   "provider.inceptionKey.label": "Inception API キー",
+  "provider.deepseekKey.title": "DeepSeek API キー",
+  "provider.deepseekKey.description":
+    "DeepSeek モデルを使うには、このコンピューターに DeepSeek API キーを保存します。OpenBot はダウンロードした Pi CLI でモデルを実行します。",
+  "provider.deepseekKey.label": "DeepSeek API キー",
 
   "provider.openCodeKey.title": "OpenCode Go にサインイン",
   "provider.openCodeKey.description": "無料モデルにアカウントは不要です。キーがあると有料の Go モデルを使えます。",

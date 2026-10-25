@@ -150,6 +150,10 @@ export const messages = {
   "provider.inceptionKey.description":
     "Mercury modellerini kullanmak için bu bilgisayara bir Inception API anahtarı kaydedin. OpenBot bunları indirdiği Pi CLI'da çalıştırır.",
   "provider.inceptionKey.label": "Inception API anahtarı",
+  "provider.deepseekKey.title": "DeepSeek API anahtarı",
+  "provider.deepseekKey.description":
+    "DeepSeek modellerini kullanmak için bu bilgisayara bir DeepSeek API anahtarı kaydedin. OpenBot bunları indirdiği Pi CLI'da çalıştırır.",
+  "provider.deepseekKey.label": "DeepSeek API anahtarı",
   "provider.openCodeKey.title": "OpenCode Go'da oturum açın",
   "provider.openCodeKey.description":
     "Ücretsiz modeller hesap gerektirmez. Bir anahtar, ücretli Go modellerinin kilidini açar.",

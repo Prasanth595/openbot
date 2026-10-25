@@ -270,6 +270,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "Solo i link di accesso HTTPS possono aprirsi nel browser.",
   "error.provider.geminiKeyRefused":
     "Gemini ha rifiutato la chiave API salvata. Sostituisci o rimuovi la chiave nelle Impostazioni, poi connettiti di nuovo.",
+  "error.provider.keyProviderRefused":
+    "{provider} ha rifiutato la chiave API salvata. Sostituisci o rimuovi la chiave nelle Impostazioni, poi riprova.",
+  "error.provider.keyProviderNoBalance":
+    "L’account {provider} della chiave API salvata non ha credito. Aggiungi credito all’account, poi riprova.",
   "error.provider.messageTooLarge":
     "OpenBot ha fermato {provider} perché ha inviato un messaggio più grande di {limit} MB.",
   "error.provider.customAgentIdInvalid":
@@ -374,6 +378,7 @@ export const messages = {
     "L'autenticazione di Muse non è verificata. Connettiti sul computer host, oppure imposta una chiave API di Meta.",
   "error.provider.museSignIn": "Per continuare, accedi a Muse sul computer host.",
   "error.provider.inceptionSignIn": "Per continuare, aggiungi una chiave API di Inception.",
+  "error.provider.deepseekSignIn": "Aggiungi una chiave API di DeepSeek per continuare.",
   "error.provider.terminalLoginFailed":
     "Impossibile aprire il terminale di accesso. Apri la CLI del provider su questo host e accedi da lì, poi aggiorna i provider.",
   "error.provider.nativeArchiveInvalid": "Il download del provider non contiene un'installazione valida.",

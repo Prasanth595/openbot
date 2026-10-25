@@ -26,9 +26,9 @@ const FROZEN_PROVIDERS: ReadonlyMap<number, readonly string[]> = (() => {
 
 /**
  * Providers that run only on this computer, so no peer sees them on any protocol. Inception
- * (`inception`) runs in the host's Pi CLI with the host's own key.
+ * (`inception`) and DeepSeek (`deepseek`) run in the host's Pi CLI with the host's own key.
  */
-const LOCAL_ONLY_PROVIDERS: readonly string[] = ["inception"];
+const LOCAL_ONLY_PROVIDERS: readonly string[] = ["inception", "deepseek"];
 
 /**
  * Tells if a peer on this protocol must not see the provider: a local-only provider, or a provider of

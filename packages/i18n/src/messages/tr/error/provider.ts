@@ -267,6 +267,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "Tarayıcıda yalnızca HTTPS oturum açma bağlantıları açılabilir.",
   "error.provider.geminiKeyRefused":
     "Gemini kayıtlı API anahtarını reddetti. Ayarlar'da anahtarı değiştirin veya kaldırın, ardından yeniden bağlanın.",
+  "error.provider.keyProviderRefused":
+    "{provider} kayıtlı API anahtarını reddetti. Ayarlar'da anahtarı değiştirin veya kaldırın, ardından yeniden deneyin.",
+  "error.provider.keyProviderNoBalance":
+    "Kayıtlı API anahtarının {provider} hesabında bakiye yok. Hesaba kredi ekleyin, ardından yeniden deneyin.",
   "error.provider.messageTooLarge":
     "OpenBot, {limit} MB'tan daha büyük bir mesaj gönderdiği için {provider} sağlayıcısını durdurdu.",
   "error.provider.customAgentIdInvalid":
@@ -367,6 +371,7 @@ export const messages = {
     "Muse kimlik doğrulaması doğrulanmadı. Ana makinede bağlanın veya bir Meta API anahtarı ayarlayın.",
   "error.provider.museSignIn": "Devam etmek için ana makinede Muse'da oturum açın.",
   "error.provider.inceptionSignIn": "Devam etmek için bir Inception API anahtarı ekleyin.",
+  "error.provider.deepseekSignIn": "Devam etmek için bir DeepSeek API anahtarı ekleyin.",
   "error.provider.terminalLoginFailed":
     "Oturum açma terminali açılamadı. Bu ana makinede sağlayıcı CLI'sini açıp orada oturum açın, ardından sağlayıcıları yenileyin.",
   "error.provider.nativeArchiveInvalid": "Sağlayıcı indirmesi geçerli bir kurulum içermiyor.",

@@ -1,5 +1,6 @@
 import {
   agentProviderName,
+  isKeyOnlyProvider,
   isManagedRuntimeProvider,
   MANAGED_RUNTIME_PROVIDERS,
   MANAGED_TOOL_RUNTIMES,
@@ -316,10 +317,10 @@ function codeSubmitInputV4(body: DynamicRecord): { provider: SignInProviderIdV4;
   return { provider: signInProviderV4(body), code: pastedCode(body) };
 }
 
-// Inception runs only on this computer, so a peer does not set its key.
+// Inception and DeepSeek run only on this computer, so a peer does not set their keys.
 function peerApiKeyInput(body: DynamicRecord) {
   const input = parseProviderApiKeyInput(body);
-  if (input.provider === "inception") throw new Error("Unknown provider.");
+  if (isKeyOnlyProvider(input.provider)) throw new Error("Unknown provider.");
   return input;
 }
 

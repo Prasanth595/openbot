@@ -261,6 +261,10 @@ export const messages = {
   "error.provider.httpsSignInLinkOnly": "브라우저에서는 HTTPS 로그인 링크만 열 수 있어요.",
   "error.provider.geminiKeyRefused":
     "Gemini가 저장된 API 키를 거부했어요. 설정에서 키를 교체하거나 제거한 후 다시 연결하세요.",
+  "error.provider.keyProviderRefused":
+    "{provider}가 저장된 API 키를 거부했어요. 설정에서 키를 교체하거나 제거한 후 다시 시도하세요.",
+  "error.provider.keyProviderNoBalance":
+    "저장된 API 키의 {provider} 계정에 잔액이 없어요. 계정에 크레딧을 추가한 후 다시 시도하세요.",
   "error.provider.messageTooLarge":
     "{provider}이(가) {limit}MB보다 큰 메시지를 보내서 OpenBot이 {provider}을(를) 중지했어요.",
   "error.provider.customAgentIdInvalid":
@@ -360,6 +364,7 @@ export const messages = {
     "Muse 인증이 확인되지 않았어요. 호스트 컴퓨터에서 연결하거나 Meta API 키를 설정하세요.",
   "error.provider.museSignIn": "계속하려면 호스트 컴퓨터에서 Muse에 로그인하세요.",
   "error.provider.inceptionSignIn": "계속하려면 Inception API 키를 추가하세요.",
+  "error.provider.deepseekSignIn": "계속하려면 DeepSeek API 키를 추가하세요.",
   "error.provider.terminalLoginFailed":
     "로그인 터미널을 열 수 없었어요. 이 호스트에서 제공자 CLI를 열어 로그인한 후 제공자를 새로 고치세요.",
   "error.provider.nativeArchiveInvalid": "제공자 다운로드에 올바른 설치 파일이 없어요.",

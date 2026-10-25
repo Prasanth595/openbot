@@ -152,6 +152,10 @@ export const messages = {
   "provider.inceptionKey.description":
     "Guarda una clave de API de Inception en este equipo para usar los modelos Mercury. OpenBot los ejecuta en la CLI de Pi que descarga.",
   "provider.inceptionKey.label": "Clave de API de Inception",
+  "provider.deepseekKey.title": "Clave de API de DeepSeek",
+  "provider.deepseekKey.description":
+    "Guarda una clave de API de DeepSeek en este equipo para usar los modelos de DeepSeek. OpenBot los ejecuta en la CLI de Pi que descarga.",
+  "provider.deepseekKey.label": "Clave de API de DeepSeek",
   "provider.openCodeKey.title": "Iniciar sesión en OpenCode Go",
   "provider.openCodeKey.description":
     "Los modelos gratuitos no requieren una cuenta. Una clave permite usar los modelos Go de pago.",

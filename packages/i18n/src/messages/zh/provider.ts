@@ -157,6 +157,10 @@ export const messages = {
   "provider.inceptionKey.description":
     "在这台电脑上保存 Inception API 密钥，即可使用 Mercury 模型。OpenBot 会在它下载的 Pi CLI 中运行这些模型。",
   "provider.inceptionKey.label": "Inception API 密钥",
+  "provider.deepseekKey.title": "DeepSeek API 密钥",
+  "provider.deepseekKey.description":
+    "在这台电脑上保存 DeepSeek API 密钥，即可使用 DeepSeek 模型。OpenBot 会在它下载的 Pi CLI 中运行这些模型。",
+  "provider.deepseekKey.label": "DeepSeek API 密钥",
 
   // The optional OpenCode Go key dialog.
   "provider.openCodeKey.title": "登录 OpenCode Go",

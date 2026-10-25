@@ -258,6 +258,10 @@ export const messages = defineMessages("error.provider", {
   "error.provider.httpsSignInLinkOnly": "Only HTTPS sign-in links can open in the browser.",
   "error.provider.geminiKeyRefused":
     "Gemini refused the saved API key. Replace or remove the key in Settings, then connect again.",
+  "error.provider.keyProviderRefused":
+    "{provider} refused the saved API key. Replace or remove the key in Settings, then try again.",
+  "error.provider.keyProviderNoBalance":
+    "The {provider} account of the saved API key has no balance. Add credit to the account, then try again.",
   "error.provider.messageTooLarge": "OpenBot stopped {provider} because it sent a message larger than {limit} MB.",
   "error.provider.customAgentIdInvalid":
     "An agent ID must be lowercase letters, digits or `-`, and cannot be the ID of a built-in provider.",
@@ -356,6 +360,7 @@ export const messages = defineMessages("error.provider", {
     "Muse authentication is not verified. Connect on the host computer, or set a Meta API key.",
   "error.provider.museSignIn": "Sign in to Muse on the host computer to continue.",
   "error.provider.inceptionSignIn": "Add an Inception API key to continue.",
+  "error.provider.deepseekSignIn": "Add a DeepSeek API key to continue.",
   "error.provider.terminalLoginFailed":
     "The sign-in terminal could not open. Open the provider CLI on this host and sign in there, then refresh providers.",
   "error.provider.nativeArchiveInvalid": "The provider download does not contain a valid installation.",

@@ -7,6 +7,7 @@
  * could show a key would carry it into every screenshot and crash report that follows.
  */
 
+import { isKeyOnlyProvider } from "@openbot/contracts/agent-providers";
 import type {
   AgentProviderId,
   ExternalDestination,
@@ -60,6 +61,12 @@ const KEY_TEXT = {
     title: "provider.inceptionKey.title",
     description: "provider.inceptionKey.description",
     label: "provider.inceptionKey.label",
+  },
+  deepseek: {
+    name: "DeepSeek",
+    title: "provider.deepseekKey.title",
+    description: "provider.deepseekKey.description",
+    label: "provider.deepseekKey.label",
   },
 } as const satisfies Record<string, { name: string; title: AppTextKey; description: AppTextKey; label: AppTextKey }>;
 
@@ -229,14 +236,14 @@ export function OpenCodeKeyDialog(props: OpenCodeKeyDialogProps) {
                   {t("common.cancel")}
                 </Button>
                 {/* Gemini's and Claude's reconnect is an account sign-in, which a saved key
-                    overrides. The row's Connect offers it once the key is removed. Inception has
-                    nothing to reconnect with until a key is saved. */}
+                    overrides. The row's Connect offers it once the key is removed. A key-only provider,
+                    such as Inception, has nothing to reconnect with until a key is saved. */}
                 <Show
                   when={
                     props.onReconnect &&
                     provider() !== "antigravity" &&
                     provider() !== "claude" &&
-                    !(provider() === "inception" && stored() === "missing")
+                    !(isKeyOnlyProvider(provider()) && stored() === "missing")
                   }
                 >
                   <Button type="button" variant="ghost" disabled={busy()} onClick={() => void reconnect()}>
