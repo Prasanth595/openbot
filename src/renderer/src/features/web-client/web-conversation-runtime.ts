@@ -135,6 +135,31 @@ export function createWebConversationRuntime(
       // The in-flight upload reports transport errors through its import event.
     }
   }
+  // One file at a time, so a stop or host change takes effect before the next upload. On a stop,
+  // a host change or a failure, the files already uploaded are discarded if the host is the same.
+  async function uploadFiles(
+    files: readonly File[],
+    serverId: string,
+    stopped: () => boolean,
+  ): Promise<AttachmentSummary[] | null> {
+    const attachments: AttachmentSummary[] = [];
+    const discard = async () => {
+      if (hostId() === serverId)
+        await Promise.allSettled(attachments.map((attachment) => remote.discard(attachment.id)));
+    };
+    try {
+      for (const file of files) {
+        if (stopped() || hostId() !== serverId) break;
+        attachments.push(await remote.upload(file));
+      }
+    } catch (error) {
+      await discard();
+      throw error;
+    }
+    if (!stopped() && hostId() === serverId) return attachments;
+    await discard();
+    return null;
+  }
   const unavailable = async (): Promise<never> => {
     throw new Error(currentText().t("webClient.error.desktopOnly"));
   };
@@ -152,6 +177,13 @@ export function createWebConversationRuntime(
   return {
     agent: {
       ...messageLinks,
+      async importAttachmentData(data, serverId) {
+        if (serverId !== hostId()) throw new Error(currentText().t("webClient.error.hostChanged"));
+        const files = data.map((file) => new File([new Uint8Array(file.bytes)], file.name, { type: file.mimeType }));
+        const attachments = await uploadFiles(files, serverId, () => false);
+        if (!attachments) throw new Error(currentText().t("webClient.error.hostChanged"));
+        return attachments;
+      },
       discardDraftAttachment: (id) => remote.discard(id),
       downloadAttachments: unavailable,
       editQueuedMessage: async (input, serverId) => {
@@ -240,24 +272,12 @@ export function createWebConversationRuntime(
       importing = job;
       const requestId = crypto.randomUUID();
       emit({ type: "started", serverId, requestId });
-      const attachments: AttachmentSummary[] = [];
       try {
         if (files.length > INPUT_LIMITS.attachments)
           throw new Error(currentText().t("webClient.error.attachmentLimit", { limit: INPUT_LIMITS.attachments }));
-        for (const file of files) {
-          if (job.cancelled || hostId() !== serverId) break;
-          attachments.push(await remote.upload(file));
-        }
-        if (job.cancelled || hostId() !== serverId) {
-          if (hostId() === serverId)
-            await Promise.allSettled(attachments.map((attachment) => remote.discard(attachment.id)));
-          emit({ type: "completed", serverId, requestId, attachments: [] });
-          return;
-        }
-        emit({ type: "completed", serverId, requestId, attachments });
+        const attachments = await uploadFiles(files, serverId, () => job.cancelled);
+        emit({ type: "completed", serverId, requestId, attachments: attachments ?? [] });
       } catch (error) {
-        if (hostId() === serverId)
-          await Promise.allSettled(attachments.map((attachment) => remote.discard(attachment.id)));
         if (job.cancelled) {
           emit({ type: "completed", serverId, requestId, attachments: [] });
           return;

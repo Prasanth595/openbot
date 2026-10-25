@@ -153,6 +153,7 @@ import type {
   RespondToBrowserTakeoverInput,
 } from "./ipc-approvals";
 import type {
+  AttachmentDataInput,
   ChooseAttachmentsInput,
   DownloadAttachmentsInput,
   DraftAttachment,
@@ -1415,6 +1416,8 @@ export const IPC_ENDPOINTS = {
     resend: request<ResendRoutineResultInput, void>()("routine-results:resend"),
   },
   agentAttachments: {
+    /** Imports bytes only. Disk paths remain private to the preload's attachmentImports group. */
+    importAttachmentData: scopedRequest<AttachmentDataInput[], DraftAttachment[]>()("agent:import-attachment-data"),
     chooseAttachments: scopedRequest<ChooseAttachmentsInput, DraftAttachment[]>()("agent:choose-attachments"),
     discardDraftAttachment: scopedRequest<string, void>()("agent:discard-draft-attachment"),
     downloadAttachments: scopedRequest<DownloadAttachmentsInput, void>()("agent:download-attachments"),
