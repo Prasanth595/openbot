@@ -35,8 +35,8 @@ function entryFromState(state: unknown): WebChatHistoryEntry | null {
 export function createWebChatHistory(options: {
   /** The chat on screen, or null when a page or a form covers it. */
   current: () => WebChatHistoryEntry | null;
-  /** Opens the chat of an entry that Back or Forward reached. */
-  open: (entry: WebChatHistoryEntry) => void;
+  /** Opens the chat of an entry that Back or Forward reached. False when the chat cannot open. */
+  open: (entry: WebChatHistoryEntry) => boolean;
 }) {
   /** The next chat that matches gets a new entry. */
   let pushNext: ((entry: WebChatHistoryEntry) => boolean) | null = null;
@@ -60,6 +60,16 @@ export function createWebChatHistory(options: {
     window.history.replaceState({ ...state, [CHAT_STATE_KEY]: entry }, "", window.location.href);
   }
 
+  /** A chat that was deleted since then does not open. Its entry then takes the chat on screen. */
+  function openEntry(entry: WebChatHistoryEntry): boolean {
+    popped = entry;
+    if (options.open(entry)) return true;
+    popped = null;
+    const current = untrack(options.current);
+    if (current) write(current, false);
+    return false;
+  }
+
   createEffect(
     () => {
       const entry = options.current();
@@ -72,11 +82,7 @@ export function createWebChatHistory(options: {
         if (restored) {
           const start = restored;
           restored = null;
-          if (!sameEntry(start, entry)) {
-            popped = start;
-            options.open(start);
-            return;
-          }
+          if (!sameEntry(start, entry) && openEntry(start)) return;
         }
         if (popped) {
           if (!sameEntry(popped, entry)) return;
@@ -101,8 +107,7 @@ export function createWebChatHistory(options: {
       popped = null;
       return;
     }
-    popped = entry;
-    options.open(entry);
+    openEntry(entry);
   };
   window.addEventListener("popstate", onPopState);
   onCleanup(() => window.removeEventListener("popstate", onPopState));
@@ -114,6 +119,10 @@ export function createWebChatHistory(options: {
       pushNext = (next) => sameEntry(next, entry);
       popped = null;
       restored = null;
+    },
+    /** Opens again the entry that Back or Forward reached, when it matches. A server connect can finish after the first try. */
+    reopen(match: (entry: WebChatHistoryEntry) => boolean): void {
+      if (popped && match(popped)) openEntry(popped);
     },
     /** Gives the first chat of the server that the user opens now its own entry. */
     userOpensServer(hostId: string): void {

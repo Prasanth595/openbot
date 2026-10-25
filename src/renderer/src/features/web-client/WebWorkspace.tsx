@@ -525,6 +525,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (hostId !== workspace.state.host?.hostId) {
       const host = workspace.state.hosts.find((item) => item.hostId === hostId);
       if (!host) return;
+      // The first chat of the server does not take the entry of the chat on screen.
+      chatHistory.userOpens({ hostId, kind: "agent", id: agentId });
       await workspace.connect(host);
     }
     if (workspace.state.host?.hostId === hostId && workspace.state.agents.some((agent) => agent.id === agentId))
@@ -532,6 +534,7 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
   }
   async function openNotifiedChannel(hostId: string, channelId: string) {
     setMobilePane("conversation");
+    chatHistory.userOpens({ hostId, kind: "channel", id: channelId });
     if (hostId !== workspace.state.host?.hostId) {
       const host = workspace.state.hosts.find((item) => item.hostId === hostId);
       if (!host) return;
@@ -1409,25 +1412,32 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
     if (current && current !== id) setPreviousHostId(current);
     await workspace.connect(host);
   }
-  /** Opens the chat of a browser history entry. A chat that was deleted since then does not open. */
-  function openHistoryChat(entry: WebChatHistoryEntry): void {
-    setMobilePane("conversation");
+  /** Opens the chat of a browser history entry. False when its chat or its server is gone. */
+  function openHistoryChat(entry: WebChatHistoryEntry): boolean {
     if (entry.hostId !== workspace.state.host?.hostId) {
+      if (!workspace.state.hosts.some((host) => host.hostId === entry.hostId)) return false;
+      setMobilePane("conversation");
       // The server opens the chat of the entry, not the channel that it saved.
       writeChannelSelection(props.accountId, entry.hostId, entry.kind === "channel" ? entry.id : null);
       showAgents();
+      // Only the entry that is still open, after a later Back, Forward or click.
       void connectServer(entry.hostId).then(() => {
-        if (entry.kind === "agent" && workspace.state.host?.hostId === entry.hostId) openHistoryChat(entry);
+        const hostId = workspace.state.host?.hostId;
+        chatHistory.reopen((pending) => pending.kind === "agent" && pending.hostId === hostId);
       });
-      return;
+      return true;
     }
     if (entry.kind === "channel") {
-      if (!channels.state.channels.some((channel) => channel.id === entry.id && !channel.archived)) return;
+      if (!channels.state.channels.some((channel) => channel.id === entry.id && !channel.archived)) return false;
+      setMobilePane("conversation");
       showAgents();
       void channels.open(entry.id);
-      return;
+      return true;
     }
-    if (workspace.state.agents.some((agent) => agent.id === entry.id)) void openAgentChat(entry.id);
+    if (!workspace.state.agents.some((agent) => agent.id === entry.id)) return false;
+    setMobilePane("conversation");
+    void openAgentChat(entry.id);
+    return true;
   }
   /** The server the provider step goes back to: the one open before, else any other on the rail. */
   const returnHostId = () => {
@@ -1498,6 +1508,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
       // An open channel does not open again, so its settings would stay under the page.
       showAgents();
       // The channel settings hold its routines one step down.
+      const hostId = workspace.state.host?.hostId;
+      if (hostId) chatHistory.userOpens({ hostId, kind: "channel", id: routine.owner.channelId });
       void channels.editChannel(routine.owner.channelId);
       return;
     }
@@ -1884,6 +1896,8 @@ function WebWorkspaceFrame(props: WebWorkspaceProps) {
                     if (agentId !== workspace.state.selectedId) void select(agentId);
                     else {
                       // The agent is already loaded; only what covers its conversation closes.
+                      const hostId = workspace.state.host?.hostId;
+                      if (hostId) chatHistory.userOpens({ hostId, kind: "agent", id: agentId });
                       setCreating(false);
                       showAgents();
                       channels.close();
