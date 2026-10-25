@@ -548,8 +548,6 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
   /** The canvas with its bars. Its keys act only when the focus is in it, in its menus or on the page. */
   let root: HTMLElement | undefined;
   let cameraMoved = false;
-  /** False until the first render is on screen, so the first nodes do not come in. */
-  let settled = false;
   /** The camera glide that runs: how to stop it, and where it ends. */
   const glide: { stop: () => void; goal: Camera | undefined } = { stop: () => {}, goal: undefined };
   /**
@@ -602,7 +600,6 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
     resultsOf: (id) => runIndex().get(id)?.results ?? [],
     duplicate: (id) => duplicateNodes([id]),
     resetSize: (id) => resetSize(id),
-    fresh: () => settled,
     beforeChange: () => commit(),
     canChange: () => !frozen() && !deleted(),
     root: () => root,
@@ -988,7 +985,6 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
     const snapshot = snapshotFromGraph(next);
     savedGraph = savedJson(next);
     liveCanvas = undefined;
-    settled = false;
     scheduleEdit = undefined;
     canvas.endTyping();
     closeDrop();
@@ -1006,10 +1002,7 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
     else if (stableJson(graphFromSnapshot(before)) !== savedGraph) edits.push(before);
     board.view(null);
     cameraMoved = false;
-    requestAnimationFrame(() => {
-      settled = true;
-      fitView(false);
-    });
+    requestAnimationFrame(() => fitView(false));
   };
   // The reset rule of the component comment. The first run is the graph that the canvas opened with.
   // The memo stops a new `workflow` object with the same id and key: an effect runs on each change of
@@ -1813,7 +1806,6 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
   /* --------------------------------------------------------- Gestures */
 
   onSettled(() => {
-    settled = true;
     const area = viewport;
     if (!area) return;
     let gesture:
@@ -3000,7 +2992,6 @@ export function WorkflowCanvas(props: WorkflowCanvasProps) {
         </Show>
         <div
           class="wfn-hud wfn-hud-tools"
-          style={{ "--wfn-hud-order": 2 }}
           role="toolbar"
           aria-label={t("workflow.canvas.tool.label")}
           hidden={frozen()}

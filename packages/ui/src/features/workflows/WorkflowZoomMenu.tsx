@@ -40,7 +40,7 @@ export function WorkflowZoomMenu(props: {
   const percent = () => Math.round(props.scale * 100);
   const actions: readonly ZoomAction[] = ["in", "out", "reset", "fit"];
   return (
-    <div class="wfn-hud wfn-hud-zoom" style={{ "--wfn-hud-order": 3 }}>
+    <div class="wfn-hud wfn-hud-zoom">
       <HudButton
         label={t(ZOOM_LABEL.out)}
         keys={ZOOM_KEYS.out}

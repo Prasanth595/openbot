@@ -13,7 +13,6 @@ import {
   type CanvasColor,
   COLORS,
   colorVar,
-  enter,
   FONTS,
   isAlign,
   isColor,
@@ -83,7 +82,6 @@ export function TextNode(props: { id: string; text?: string; size?: TextSize; bo
   return (
     <Show when={!board.isRemoved(props.id)}>
       <article
-        {...enter(board)}
         class="wfn-node wfn-text"
         data-node-id={props.id}
         data-selected={board.isSelected(props.id) ? "" : undefined}

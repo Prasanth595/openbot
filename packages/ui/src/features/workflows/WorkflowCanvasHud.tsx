@@ -171,7 +171,7 @@ export function WorkflowCanvasHeader(props: {
   });
   return (
     <header class={props.frame === "window" ? "wfn-hud-top window-drag" : "wfn-hud-top"}>
-      <div class="wfn-hud wfn-hud-title" style={{ "--wfn-hud-order": 0 }}>
+      <div class="wfn-hud wfn-hud-title">
         <DropdownMenu.Root placement="bottom-start" gutter={8} getAnchorRect={hudBarRect} modal={false}>
           <DropdownMenu.Trigger
             ref={props.menuRef}
@@ -271,7 +271,7 @@ export function WorkflowCanvasHeader(props: {
           </Show>
         </div>
         <Show when={!props.previewing && (props.pastRuns.length > 0 || props.canRun || props.running)}>
-          <div class="wfn-hud" style={{ "--wfn-hud-order": 1 }}>
+          <div class="wfn-hud">
             <Show when={props.pastRuns.length > 0}>
               <DropdownMenu.Root placement="bottom-end" gutter={8} getAnchorRect={hudBarRect} modal={false}>
                 <DropdownMenu.Trigger class={`${buttonVariants({ variant: "ghost", size: "sm" })} wfn-hud-button`}>

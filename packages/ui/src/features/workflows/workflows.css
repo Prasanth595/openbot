@@ -170,15 +170,6 @@
   color: var(--openbot-text-primary);
   font-size: var(--openbot-text-sm);
   backdrop-filter: var(--wfn-glass-blur);
-  animation: wfn-hud-in var(--openbot-duration-normal) var(--openbot-ease-out) backwards;
-  animation-delay: calc(var(--wfn-hud-order, 0) * var(--stagger-stagger));
-}
-
-@keyframes wfn-hud-in {
-  from {
-    opacity: 0;
-    filter: blur(4px);
-  }
 }
 
 .wfn-hud-top {
@@ -293,15 +284,6 @@
   gap: var(--openbot-space-1);
   width: fit-content;
   margin-inline: auto;
-  transform-origin: bottom center;
-  animation-name: wfn-panel-in;
-}
-
-@keyframes wfn-panel-in {
-  from {
-    opacity: 0;
-    filter: blur(4px);
-  }
 }
 
 .wfn-stage .wfn-hud-sub .wfn-hud-tool {
@@ -833,7 +815,6 @@
   width: min(480px, calc(100% - var(--openbot-space-8)));
   height: auto;
   translate: round(-50%, 1px) 0;
-  animation-delay: 0s;
 }
 
 .wfn-search-field {
@@ -958,7 +939,6 @@
   height: auto;
   padding: 0;
   overflow: hidden;
-  animation-delay: 0s;
 }
 
 .wfn-minimap svg {
@@ -1041,7 +1021,6 @@
 @media (prefers-reduced-motion: reduce) {
   .wfn-edge-line,
   .wfn-edge-comet,
-  .wfn-hud,
   .wfn-hud-progress,
   .wfn-stage .wfn-hud-stop {
     animation: none;
@@ -1234,7 +1213,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wfn-node[data-entering],
   .wfn-ghost {
     animation: none;
   }

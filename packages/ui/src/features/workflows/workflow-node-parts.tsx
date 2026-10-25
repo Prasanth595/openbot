@@ -400,19 +400,6 @@ export function ResizeGrip(props: { id: string }) {
   );
 }
 
-/**
- * A node that the user adds, pastes, duplicates or brings back with Undo comes in. The attribute
- * goes when the motion ends, so a later change of the node does not play it again.
- */
-export const enter = (board: WfnBoard) => ({
-  ref: (element: HTMLElement) => {
-    if (board.fresh()) element.dataset.entering = "";
-  },
-  onAnimationEnd: (event: AnimationEvent & { currentTarget: HTMLElement }) => {
-    if (event.animationName === "wfn-node-in") delete event.currentTarget.dataset.entering;
-  },
-});
-
 export function NodeShell(props: ShellProps) {
   const board = useBoard();
   const { t } = useText();
@@ -432,7 +419,6 @@ export function NodeShell(props: ShellProps) {
   return (
     <Show when={!board.isRemoved(props.id)}>
       <article
-        {...enter(board)}
         class="wfn-node"
         data-kind={props.kind}
         data-node-id={props.id}

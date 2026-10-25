@@ -240,8 +240,6 @@ export interface WfnBoard {
   upload: (file: File) => StoredFileRow;
   /** Whether the nodes show a resize handle. Only the canvas resizes them. */
   resizable: boolean;
-  /** Whether a node that shows now is new, so it comes in. The nodes of the first render do not. */
-  fresh: () => boolean;
   size: (id: string) => WfnSize | undefined;
   stretch: (id: string) => WfnStretch;
   /** Gives a node its default size again. Only the canvas has it. */
@@ -313,8 +311,6 @@ export interface BoardOptions {
   /** How each node resizes. Without it, a node changes only its width. */
   stretch?: (id: string) => WfnStretch;
   resetSize?: (id: string) => void;
-  /** Whether a node that shows now is new. Without it, no node comes in. */
-  fresh?: () => boolean;
   edgeTone?: (edge: WfnEdge) => WfnEdgeTone;
   /** The results that the steps have before the story opens. */
   results?: Record<string, readonly WfnResult[]> | undefined;
@@ -822,7 +818,6 @@ export function createBoard(options: BoardOptions) {
     uploads,
     upload,
     resizable: options.size !== undefined,
-    fresh: () => options.fresh?.() ?? false,
     size: (id) => options.size?.(id),
     stretch: (id) => options.stretch?.(id) ?? "x",
     resetSize: options.resetSize,

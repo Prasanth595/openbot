@@ -45,18 +45,6 @@
   transition: width var(--openbot-duration-slow) var(--openbot-ease-out);
 }
 
-/* A new node fades in out of a blur, in place. */
-.wfn-node[data-entering] {
-  animation: wfn-node-in var(--openbot-duration-normal) var(--openbot-ease-out);
-}
-
-@keyframes wfn-node-in {
-  from {
-    opacity: 0;
-    filter: blur(4px);
-  }
-}
-
 .wfn-node[data-kind="prompt"] {
   --wfn-width: 296px;
   --wfn-height: 151px;
@@ -371,7 +359,6 @@
   transform-origin: bottom center;
   scale: calc(1 / var(--wfn-scale, 1));
   backdrop-filter: var(--wfn-glass-blur);
-  animation: wfn-rise var(--openbot-duration-normal) var(--openbot-ease-out);
 }
 
 /*
@@ -382,7 +369,6 @@
   top: calc(100% + var(--openbot-space-3) / var(--wfn-scale, 1));
   bottom: auto;
   transform-origin: top center;
-  animation-name: wfn-drop;
 }
 
 .wfn-toolbar[data-side="below"][data-strip] {
@@ -441,14 +427,6 @@
   width: var(--openbot-icon-xs);
   height: var(--openbot-icon-xs);
   color: var(--openbot-text-muted);
-}
-
-/* The toolbar fades in out of a blur, in place, as the other parts of the canvas do. */
-@keyframes wfn-rise {
-  from {
-    opacity: 0;
-    filter: blur(4px);
-  }
 }
 
 /* ---------------------------------------------------------------- Text */
@@ -1415,11 +1393,6 @@ fieldset.wfn-picker-group {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wfn-toolbar,
-  .wfn-strip {
-    animation: none;
-  }
-
   .wfn-overlay {
     translate: 0 0;
   }
@@ -1951,7 +1924,6 @@ fieldset.wfn-picker-group {
   border: 0;
   color: var(--openbot-text-secondary);
   translate: round(-50%, 1px) 0;
-  animation: wfn-drop var(--openbot-duration-fast) var(--openbot-ease-out);
 }
 
 /* Seven results fit. More scroll, and the arrows move through all of them. */
@@ -2026,13 +1998,6 @@ fieldset.wfn-picker-group {
 .wfn-strip-failed {
   width: var(--openbot-icon-sm);
   height: var(--openbot-icon-sm);
-}
-
-@keyframes wfn-drop {
-  from {
-    opacity: 0;
-    filter: blur(4px);
-  }
 }
 
 :is(.wfn-menu-icon, .wfn-picker-tile, .wfn-node, .wfn-minimap-node)[data-kind="text"] {
