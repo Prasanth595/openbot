@@ -1,7 +1,7 @@
 import type { AppInfo } from "@openbot/contracts/ipc";
 import type { ServerView } from "@openbot/ui/features/servers/ServerMenu";
 import type { SidebarView } from "@openbot/ui/features/sidebar/sidebar-types";
-import type { PageRailPinnablePage } from "@openbot/ui/features/window/PageRail";
+import { PAGE_RAIL_PINNABLE_PAGES, type PageRailPinnablePage } from "@openbot/ui/features/window/PageRail";
 import { createEffect, createMemo, createSignal, onSettled } from "solid-js";
 import { z } from "zod";
 import { readPanelWidth } from "./components/panel-width-storage";
@@ -46,18 +46,11 @@ function shouldAutoCompactSidebar(
   return window.innerWidth - serverRailWidth - panelWidth < CONVERSATION_MIN_WIDTH;
 }
 
-/** The pages that the user can pin, in rail order. */
-const RAIL_PIN_PAGES: readonly PageRailPinnablePage[] = ["routines", "workflows", "tasks", "schedule", "usage"];
 /** The pages in the rail until the user chooses. The others start in the More menu. */
 const RAIL_PINNED_BY_DEFAULT: ReadonlySet<PageRailPinnablePage> = new Set(["workflows", "usage"]);
 
-const railPinChoicesSchema = z.object({
-  routines: z.boolean().optional().catch(undefined),
-  workflows: z.boolean().optional().catch(undefined),
-  tasks: z.boolean().optional().catch(undefined),
-  schedule: z.boolean().optional().catch(undefined),
-  usage: z.boolean().optional().catch(undefined),
-}) satisfies z.ZodType<Partial<Record<PageRailPinnablePage, boolean>>>;
+// A record, not an object: a page that only another version knows keeps its choice when this version saves.
+const railPinChoicesSchema = z.record(z.string(), z.boolean().optional().catch(undefined));
 
 type RailPinChoices = z.infer<typeof railPinChoicesSchema>;
 
@@ -119,7 +112,7 @@ const Layout = createSimpleContext({
     const [railPinChoices, setRailPinChoices] = createSignal<RailPinChoices>(readRailPinChoices());
     const railPinned = createMemo(() => {
       const choices = railPinChoices();
-      return RAIL_PIN_PAGES.filter((page) => choices[page] ?? RAIL_PINNED_BY_DEFAULT.has(page));
+      return PAGE_RAIL_PINNABLE_PAGES.filter((page) => choices[page] ?? RAIL_PINNED_BY_DEFAULT.has(page));
     });
     const [leftPanelAutoCompact, setLeftPanelAutoCompact] = createSignal(false);
     const leftPanelCompact = createMemo(() => leftPanelCollapsed() || leftPanelAutoCompact());
@@ -146,6 +139,16 @@ const Layout = createSimpleContext({
       return () => window.removeEventListener("resize", updateResponsiveSidebar);
     });
 
+    // Another window or browser tab can change the pins.
+    function readRailPinsFromStorage(event: StorageEvent): void {
+      if (event.key === null || event.key === RAIL_PINS_STORAGE_KEY) setRailPinChoices(readRailPinChoices());
+    }
+
+    onSettled(() => {
+      window.addEventListener("storage", readRailPinsFromStorage);
+      return () => window.removeEventListener("storage", readRailPinsFromStorage);
+    });
+
     function setSidebarCollapsed(collapsed: boolean): void {
       setLeftPanelCollapsed(collapsed);
       window.localStorage.setItem(LEFT_PANEL_COLLAPSED_STORAGE_KEY, String(collapsed));
@@ -162,7 +165,8 @@ const Layout = createSimpleContext({
     }
 
     function setRailPinned(page: PageRailPinnablePage, pinned: boolean): void {
-      const choices = { ...railPinChoices(), [page]: pinned };
+      // Start from the saved value, so the choices of another window stay. Blocked storage reads as no choice.
+      const choices = { ...railPinChoices(), ...readRailPinChoices(), [page]: pinned };
       setRailPinChoices(choices);
       try {
         window.localStorage.setItem(RAIL_PINS_STORAGE_KEY, JSON.stringify(choices));

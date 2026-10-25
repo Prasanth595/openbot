@@ -18,7 +18,7 @@ import { AccountUsageDetails } from "@openbot/ui/features/account/AccountUsageDe
 import { type AccountUsageProviderRow, accountUsageRowKey } from "@openbot/ui/features/account/account-usage-view";
 import { useText } from "@openbot/ui/text";
 import { Dynamic, type JSX } from "@solidjs/web";
-import { createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 
 /** One rail button. Its name shows as a tooltip, unless it has a `card`: the card shows instead. */
 function RailButton(props: {
@@ -169,8 +169,15 @@ export type PageRailPage =
   | "marketplace"
   | "settings";
 
-/** The pages that the user can pin to the rail. The others are in the More menu. Agents always shows. */
-export type PageRailPinnablePage = Extract<PageRailPage, "routines" | "workflows" | "tasks" | "schedule" | "usage">;
+/** The pages that the user can pin to the rail, in rail order. Agents always shows. */
+export const PAGE_RAIL_PINNABLE_PAGES = [
+  "routines",
+  "workflows",
+  "tasks",
+  "schedule",
+  "usage",
+] as const satisfies readonly PageRailPage[];
+export type PageRailPinnablePage = (typeof PAGE_RAIL_PINNABLE_PAGES)[number];
 
 export interface PageRailProps {
   hidden: boolean;
@@ -229,10 +236,22 @@ function RailMoreMenu(props: {
   const { t } = useText();
   const [open, setOpen] = createSignal(false);
   let trigger: HTMLElement | undefined;
+  // A pin adds or removes a rail button above More, so the trigger moves. The menu keeps the place
+  // where it opened, so the row under the pointer stays the same.
+  let anchor: DOMRect | undefined;
+  const changeOpen = (next: boolean) => {
+    anchor = next ? trigger?.getBoundingClientRect() : undefined;
+    setOpen(next);
+  };
   const pinned = (page: PageRailPinnablePage) => props.pinned.includes(page);
   const currentInMenu = () => props.pages.some((page) => page.id === props.current && !pinned(page.id));
   return (
-    <DropdownMenu.Root placement="right-start" gutter={10} onOpenChange={setOpen}>
+    <DropdownMenu.Root
+      placement="right-start"
+      gutter={10}
+      onOpenChange={changeOpen}
+      getAnchorRect={(element?: HTMLElement) => anchor ?? element?.getBoundingClientRect()}
+    >
       <MotionTooltip content={t("app.rail.more")} suppressed={open()}>
         <DropdownMenu.Trigger
           ref={(element: HTMLElement) => {
@@ -251,7 +270,7 @@ function RailMoreMenu(props: {
             {(page) => (
               // The pin is its own menu item beside the page, so the keyboard reaches it.
               <div role="none" class="window-rail-more-row" data-pinned={pinned(page().id) ? "" : undefined}>
-                <DropdownMenu.Item onSelect={() => trigger && page().open(trigger)}>
+                <DropdownMenu.Item onSelectAfterClose={() => trigger && page().open(trigger)}>
                   <Dynamic component={page().icon} class="agent-context-icon size-4" aria-hidden="true" />
                   <span>{page().label}</span>
                 </DropdownMenu.Item>
@@ -304,7 +323,7 @@ function RailLogo(props: { variant: AppLogoVariant; href: string | undefined }) 
 export function PageRail(props: PageRailProps) {
   const { t } = useText();
   /** The pages that this server has, in rail order. */
-  const pages = (): RailPage[] => {
+  const pages = createMemo((): RailPage[] => {
     const list: RailPage[] = [];
     const { onRoutines, onWorkflows, onTasks, onSchedule } = props;
     if (onRoutines) {
@@ -336,7 +355,7 @@ export function PageRail(props: PageRailProps) {
     }
     list.push({ id: "usage", label: t("app.rail.usage"), icon: ChartArea, open: props.onUsage });
     return list;
-  };
+  });
   return (
     <nav class="window-rail" aria-label={t("app.rail.label")} hidden={props.hidden}>
       <Show when={props.logo}>{(logo) => <RailLogo variant={logo().variant} href={logo().href} />}</Show>

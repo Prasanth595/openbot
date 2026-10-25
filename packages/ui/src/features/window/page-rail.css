@@ -212,6 +212,13 @@
   opacity: 1;
 }
 
+/* A touch screen has no hover, so each pin shows. */
+@media (hover: none) {
+  .ui-action-menu.window-rail-more-menu .window-rail-more-pin[role="menuitemcheckbox"] {
+    opacity: 1;
+  }
+}
+
 /* Only a pinned page has a filled pin. A highlighted pin stays an outline. */
 .ui-action-menu.window-rail-more-menu .window-rail-more-pin > .agent-context-icon > * {
   fill-opacity: 0;
