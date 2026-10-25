@@ -45,7 +45,7 @@
   transition: width var(--openbot-duration-slow) var(--openbot-ease-out);
 }
 
-/* A new node comes in from a little smaller, as a Higgsfield toolbar does. */
+/* A new node fades in out of a blur, in place. */
 .wfn-node[data-entering] {
   animation: wfn-node-in var(--openbot-duration-normal) var(--openbot-ease-out);
 }
@@ -53,7 +53,7 @@
 @keyframes wfn-node-in {
   from {
     opacity: 0;
-    scale: 0.96;
+    filter: blur(4px);
   }
 }
 
@@ -443,12 +443,11 @@
   color: var(--openbot-text-muted);
 }
 
-/* The toolbar sets `scale` for the zoom, so the rise scales with `transform`, which adds to it. */
+/* The toolbar fades in out of a blur, in place, as the other parts of the canvas do. */
 @keyframes wfn-rise {
   from {
     opacity: 0;
-    translate: round(-50%, 1px) 2px;
-    transform: scale(0.96);
+    filter: blur(4px);
   }
 }
 
@@ -2032,7 +2031,7 @@ fieldset.wfn-picker-group {
 @keyframes wfn-drop {
   from {
     opacity: 0;
-    translate: round(-50%, 1px) -4px;
+    filter: blur(4px);
   }
 }
 
