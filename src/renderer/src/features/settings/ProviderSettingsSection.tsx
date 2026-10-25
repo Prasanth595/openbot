@@ -45,6 +45,7 @@ import {
 } from "@openbot/ui/features/settings/OpenCodeKeyDialog";
 import {
   type ProviderDefaultChoice,
+  type ProviderDelegationTiers,
   type ProviderPromptCache,
   type ProviderSettingsDetail,
   ProviderSettingsPage,
@@ -56,6 +57,7 @@ import { ProviderSignInDialogs } from "../../components/ProviderSignInDialogs";
 import type { ProviderConnectionApi } from "../../components/provider-connection-api";
 import { createCustomProviderHostState } from "../custom-providers/custom-provider-host-state";
 import { savedCustomModel } from "../onboarding/SetupProviderPicker";
+import { createProviderDelegationTiers } from "./provider-local-settings";
 import { createProviderPromptCache, type ProviderPromptCacheSource } from "./provider-prompt-cache";
 import { createSettingsGeneralStore, type SettingsGeneralStore } from "./stores/general-store";
 
@@ -105,6 +107,7 @@ interface ProviderSettingsSectionProps {
   usage?: readonly AccountUsageProviderRow[] | undefined;
   onDetailChange?: ((detail: ProviderSettingsDetail | null) => void) | undefined;
   promptCache?: ProviderPromptCache | undefined;
+  delegationTiers?: ProviderDelegationTiers | undefined;
 }
 
 /** The provider list of the computer the agents run on, with its custom endpoint dialogs. */
@@ -257,6 +260,7 @@ function ProviderSettingsSection(props: ProviderSettingsSectionProps) {
         menuMount={props.selectMount}
         onDetailChange={props.onDetailChange}
         promptCache={props.promptCache}
+        delegationTiers={props.delegationTiers}
         footer={
           <>
             <Show when={props.providerDetection}>
@@ -495,6 +499,10 @@ export function HostProviderSettingsPanel(
   },
 ) {
   const promptCache = createProviderPromptCache(() => props.promptCache);
+  // The tiers are of this computer: main holds them, and no Team API route reaches them. The web
+  // client has no `window.openbot`.
+  const local = () => props.hostName === undefined && "openbot" in window;
+  const delegationTiers = createProviderDelegationTiers(local);
   const keys = createProviderKeyState({
     open: true,
     get providerKeys() {
@@ -556,6 +564,7 @@ export function HostProviderSettingsPanel(
         usage={props.usage}
         onDetailChange={props.onDetailChange}
         promptCache={promptCache()}
+        delegationTiers={delegationTiers()}
         detectionSettings={
           <Show when={props.detectionSettings}>
             {(value) => (

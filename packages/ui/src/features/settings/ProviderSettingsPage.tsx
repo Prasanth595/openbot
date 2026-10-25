@@ -79,7 +79,10 @@ import { useText } from "../../text";
 import { AccountUsageWindowList } from "../account/AccountUsageDetails";
 import type { AccountUsageProviderRow, AccountUsageWindowRow } from "../account/account-usage-view";
 import { providerUpdateAvailable } from "../provider-updates/provider-update";
+import { DelegationTiersPage, type ProviderDelegationTiers, setDelegationTierCount } from "./DelegationTiersPage";
 import { DetailHeader, type IntegrationStatus } from "./IntegrationLayout";
+
+export type { ProviderDelegationTiers } from "./DelegationTiersPage";
 
 /** The provider page on screen. The settings window puts "Providers ›" before its title. */
 export interface ProviderSettingsDetail {
@@ -131,23 +134,26 @@ export interface ProviderSettingsPageProps extends ProviderRowHost {
   onDetailChange?: ((detail: ProviderSettingsDetail | null) => void) | undefined;
   /** On the Claude page. Only for a host with `prompt-cache-ttl-v1` that this account administers. */
   promptCache?: ProviderPromptCache | undefined;
+  /** The delegation tiers of this computer. A joined server's section has none. */
+  delegationTiers?: ProviderDelegationTiers | undefined;
   /** Below the list: what the host found, and the other agents the user can add. */
   footer?: JSX.Element;
 }
 
-type PageId = AgentProviderId | "custom";
+type PageId = AgentProviderId | "custom" | "tiers";
 
 export function ProviderSettingsPage(props: ProviderSettingsPageProps) {
   const { t } = useText();
   const [open, setOpen] = createSignal<PageId | null>(null);
   const openOption = () => {
     const id = open();
-    return id && id !== "custom" ? props.options.find((option) => option.id === id) : undefined;
+    return id && id !== "custom" && id !== "tiers" ? props.options.find((option) => option.id === id) : undefined;
   };
   const customOffered = () => Boolean(props.onAddCustomProvider);
   /** The page on screen. The list shows again when its provider leaves the options. */
   const page = (): PageId | null => {
     if (open() === "custom") return customOffered() ? "custom" : null;
+    if (open() === "tiers") return props.delegationTiers ? "tiers" : null;
     return openOption()?.id ?? null;
   };
   // The dialog outlives this page, so the cleanup clears a title that names a page that is gone.
@@ -155,6 +161,7 @@ export function ProviderSettingsPage(props: ProviderSettingsPageProps) {
     () => {
       const id = page();
       if (id === null) return null;
+      if (id === "tiers") return t("provider.tiers.title");
       return id === "custom" ? t("provider.custom.name") : (openOption()?.name ?? null);
     },
     (title) => {
@@ -167,8 +174,15 @@ export function ProviderSettingsPage(props: ProviderSettingsPageProps) {
     <div class="provider-settings-stack">
       <Show when={page()} fallback={<ProviderList {...props} onOpen={setOpen} />}>
         {(id) => (
-          <Show when={id() === "custom" ? null : openOption()} fallback={<CustomEndpointsPage {...props} />}>
-            {(option) => <ProviderPage {...props} option={option()} />}
+          <Show
+            when={id() === "tiers" ? props.delegationTiers : undefined}
+            fallback={
+              <Show when={id() === "custom" ? null : openOption()} fallback={<CustomEndpointsPage {...props} />}>
+                {(option) => <ProviderPage {...props} option={option()} />}
+              </Show>
+            }
+          >
+            {(tiers) => <DelegationTiersPage tiers={tiers()} disabled={props.disabled} menuMount={props.menuMount} />}
           </Show>
         )}
       </Show>
@@ -235,9 +249,25 @@ function ProviderList(props: ProviderSettingsPageProps & { onOpen: (id: PageId) 
   };
   return (
     <>
-      <Show when={props.defaultProvider}>
+      <Show when={props.defaultProvider || props.delegationTiers}>
         <ItemGroup class="settings-modal-card">
-          <DefaultProviderRow {...props} />
+          <Show when={props.defaultProvider}>
+            <DefaultProviderRow {...props} />
+          </Show>
+          <Show when={props.delegationTiers}>
+            {(tiers) => (
+              <NavRow
+                logo={<Gauge class="provider-picker-custom-mark" aria-hidden="true" />}
+                name={t("provider.tiers.title")}
+                summary={
+                  setDelegationTierCount(tiers().value) > 0
+                    ? t("provider.tiers.summary", { count: setDelegationTierCount(tiers().value) })
+                    : t("provider.tiers.summaryNone")
+                }
+                onOpen={() => props.onOpen("tiers")}
+              />
+            )}
+          </Show>
         </ItemGroup>
       </Show>
       <SettingsSection

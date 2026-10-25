@@ -22,6 +22,7 @@ import {
   decodeChannelRoutineRuns,
   decodeChannelRoutines,
   decodeChannelSummaries,
+  decodeDelegationTiers,
   decodeHermesImportPreview,
   decodeHermesImportResult,
   decodeHostAgentMemoryLimit,
@@ -898,6 +899,10 @@ const openbotApi: OpenBotDesktopApi = {
     discoverModels: decodeDiscoverModelsResult,
     getSettings: decodeProviderDetectionSettings,
     setSettings: decodeProviderDetectionSettings,
+  }),
+  delegation: bridgeGroup(IPC_ENDPOINTS.delegation, {
+    getTiers: decodeDelegationTiers,
+    setTiers: decodeDelegationTiers,
   }),
   providerAdmin: bridgeGroup(IPC_ENDPOINTS.providerAdmin, {
     startCodeLogin: decodeProviderCodeLoginStart,

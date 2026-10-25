@@ -810,6 +810,16 @@ models, with bare ids such as `deepseek-v4-pro`. The Pi client loads no key exte
 the user's own `deepseek` models, for example from `DEEPSEEK_API_KEY` in Pi's environment.
 DeepSeek is local-only, as Inception is.
 
+## Delegation tiers
+
+The user sets a provider, a model and an effort for three tiers, `fast`, `balanced` and `deep`
+(`ipc-delegation-tiers.ts`, stored in `openbot-delegation-tiers-v1.json`, this computer only). A lead
+agent passes `tier` to `create_agent`, `update_profile` or `update_agents` in place of a provider and a
+model. `resolveTierRequest` replaces the tier with its model, and `requestedToolModel` checks it as it
+checks a named model. A tier with a provider or a model, or a tier that is not set, is an error that
+the lead can correct. `list_models` shows the tiers that are set, each with when to use it. These
+tiers are not `fastServiceTier`, which is a provider's fast mode of one model.
+
 ## Muse
 
 Muse uses the official `@muse-code/sdk` to run `muse serve` over MSP. The SDK is pinned to `1.4.2`;

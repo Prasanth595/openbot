@@ -242,6 +242,7 @@ import type {
   SaveCustomProviderInput,
   UpdateCustomProviderInput,
 } from "./ipc-custom-providers";
+import type { DelegationTiers } from "./ipc-delegation-tiers";
 import type {
   DynamicIslandAction,
   DynamicIslandGeometry,
@@ -887,6 +888,11 @@ export const IPC_ENDPOINTS = {
     setSettings: request<ProviderDetectionSettings, ProviderDetectionSettings>()("provider-detection:set-settings"),
     // Looks for known agent command names only. It starts no file.
     scanAgents: request<undefined, DetectedAcpAgent[]>()("provider-detection:scan-agents"),
+  },
+  // The models that a lead agent gives the agents it creates, by tier. This computer only.
+  delegation: {
+    getTiers: request<undefined, DelegationTiers>()("delegation:get-tiers"),
+    setTiers: request<DelegationTiers, DelegationTiers>()("delegation:set-tiers"),
   },
   // The user's own ACP agents, on this computer only: no Team API route and no `providerAdmin` entry.
   // Environment values travel only towards main.
@@ -1739,6 +1745,7 @@ export const IPC_GROUP_PATHS = {
   skills: "skills",
   customProviders: "customProviders",
   providerDetection: "providerDetection",
+  delegation: "delegation",
   customAgents: "customAgents",
   acpRegistry: "acpRegistry",
   providerAdmin: "providerAdmin",
