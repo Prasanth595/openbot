@@ -7,9 +7,9 @@
  * with white eyes in dark mode. The packaged app names it with `CFBundleIconName`.
  *
  * electron-builder can compile a `.icon` given as `mac.icon`, but then it also replaces
- * `icon.icns` with the 256-pixel fallback from `actool`. macOS 13 to 15 use that file, so the app
- * keeps `build/icon-production.icns` and adds this catalog. The catalog is committed, so the
- * release runners do not need Xcode 26.
+ * `icon.icns` with the 256-pixel fallback from `actool`, and `verify-macos-package` needs the
+ * 1024-pixel file. So the app keeps `build/icon-production.icns` and adds this catalog. The catalog
+ * is committed, so the release runners do not need Xcode 26.
  *
  * Run with `bun scripts/compile-macos-icon.ts` on a Mac with Xcode 26 or later, after a change
  * to `build/icon-production.icon`.
