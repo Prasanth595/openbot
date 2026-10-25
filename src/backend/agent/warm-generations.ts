@@ -1,6 +1,6 @@
 import type { AgentModelOption } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
-import { Effect } from "effect";
+import { Effect, Fiber } from "effect";
 import type { AgentClient, AgentProvider } from "../agent-client";
 import type { ProfileClients } from "./profile-clients";
 import {
@@ -48,6 +48,8 @@ export interface WarmGenerationsOptions {
 export class WarmGenerations {
   readonly #options: WarmGenerationsOptions;
   readonly #warm = new Map<AgentProvider, WarmClient>();
+  /** Idle stops that a timer started; shutdown waits for them. */
+  readonly #stopping = new Set<Fiber.Fiber<void>>();
 
   constructor(options: WarmGenerationsOptions) {
     this.#options = options;
@@ -73,47 +75,69 @@ export class WarmGenerations {
       );
     }
     const started = warm !== undefined;
-    if (!warm) {
-      const client = this.#options.createClient(provider);
-      const cwd = yield* makeToollessDirectory();
-      warm = { owner, client, cwd, busy: false, stale: false, timer: null };
-      this.#warm.set(provider, warm);
-    }
-    const entry = warm;
-    if (entry.timer) clearTimeout(entry.timer);
-    entry.timer = null;
-    entry.busy = true;
-    const { text, threadId } = yield* this.#options.profileClients
-      .run(entry.client, (cancelled) =>
-        toollessTurn(
-          entry.client,
-          entry.cwd,
-          model,
-          prompt,
-          started
-            ? Effect.void
-            : // Read before the process is spawned: an endpoint change finds no process to stop then.
-              Effect.suspend(() =>
-                cancelled()
-                  ? Effect.fail(
-                      new ProfileGenerationFailed({
-                        cause: new Error(sourceText("error.agent.profileEndpointsChanged")),
-                      }),
-                    )
-                  : startToolless(entry.client),
-              ),
-          observe,
-        ),
-      )
-      // A failed or interrupted turn can leave the provider mid-turn. Start the next one clean.
-      .pipe(Effect.onError(() => this.#drop(provider, entry)));
-    entry.busy = false;
-    if (entry.client.releaseThread) yield* entry.client.releaseThread(threadId).pipe(Effect.ignore);
-    // Two first generations can each start a client; only the one in the map stays.
-    if (entry.stale || !entry.client.running || this.#warm.get(provider) !== entry) yield* this.#drop(provider, entry);
-    else this.#arm(provider, entry);
-    return text;
+    return yield* Effect.uninterruptibleMask((restore) =>
+      Effect.gen({ self: this }, function* () {
+        // Uninterruptible from the directory to the `busy` flag, so an interrupt never leaves a
+        // directory with no entry or an entry that is busy for ever.
+        let entry = warm;
+        if (!entry) {
+          const client = this.#options.createClient(provider);
+          const cwd = yield* makeToollessDirectory();
+          entry = { owner, client, cwd, busy: false, stale: false, timer: null };
+          this.#warm.set(provider, entry);
+        }
+        const current = entry;
+        if (current.timer) clearTimeout(current.timer);
+        current.timer = null;
+        current.busy = true;
+        const turn = yield* restore(this.#turn(provider, current, model, prompt, started, observe)).pipe(
+          Effect.ensuring(Effect.sync(() => (current.busy = false))),
+        );
+        if (current.client.releaseThread) yield* current.client.releaseThread(turn.threadId).pipe(Effect.ignore);
+        // Two first generations can each start a client; only the one in the map stays.
+        if (current.stale || !current.client.running || this.#warm.get(provider) !== current)
+          yield* this.#drop(provider, current);
+        else this.#arm(provider, current);
+        return turn.text;
+      }),
+    );
   });
+
+  #turn(
+    provider: AgentProvider,
+    entry: WarmClient,
+    model: AgentModelOption,
+    prompt: string,
+    started: boolean,
+    observe: GenerationObserver | undefined,
+  ) {
+    return (
+      this.#options.profileClients
+        .run(entry.client, (cancelled) =>
+          toollessTurn(
+            entry.client,
+            entry.cwd,
+            model,
+            prompt,
+            started
+              ? Effect.void
+              : // Read before the process is spawned: an endpoint change finds no process to stop then.
+                Effect.suspend(() =>
+                  cancelled()
+                    ? Effect.fail(
+                        new ProfileGenerationFailed({
+                          cause: new Error(sourceText("error.agent.profileEndpointsChanged")),
+                        }),
+                      )
+                    : startToolless(entry.client),
+                ),
+            observe,
+          ),
+        )
+        // A failed or interrupted turn can leave the provider mid-turn. Start the next one clean.
+        .pipe(Effect.onError(() => this.#drop(provider, entry)))
+    );
+  }
 
   /** Stops each warm client that started under `owner`, now or after its current generation. */
   readonly ownerStopped = Effect.fn("WarmGenerations.ownerStopped")(function* (
@@ -140,12 +164,16 @@ export class WarmGenerations {
       concurrency: "unbounded",
       discard: true,
     });
+    yield* Fiber.awaitAll([...this.#stopping]);
   });
 
   #arm(provider: AgentProvider, warm: WarmClient): void {
     warm.timer = setTimeout(() => {
       warm.timer = null;
-      if (this.#warm.get(provider) === warm && !warm.busy) Effect.runFork(this.#drop(provider, warm));
+      if (this.#warm.get(provider) !== warm || warm.busy) return;
+      const fiber = Effect.runFork(this.#drop(provider, warm));
+      this.#stopping.add(fiber);
+      fiber.addObserver(() => this.#stopping.delete(fiber));
     }, WARM_IDLE_MS);
     warm.timer.unref?.();
   }

@@ -992,7 +992,19 @@ class Workflows extends Context.Service<Workflows, WorkflowsShape>()("openbot/ba
                     requestId: input.requestId,
                     agentId: nodeAgentId(node),
                     status: "running",
-                    input: failed.input,
+                    // An agent step's input is its whole message, with the task: build it again.
+                    input:
+                      node.kind === "agent"
+                        ? stepInput(
+                            node,
+                            failed.workflowId,
+                            soloInputs(
+                              run?.graph ?? current,
+                              failed.nodeId,
+                              run ? latestSteps(run.id) : runs.latestDone(failed.workflowId),
+                            ),
+                          )
+                        : failed.input,
                   },
                   now(),
                 ),

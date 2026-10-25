@@ -27,6 +27,7 @@ import { type CreateAgentInput, type DuplicateAgentResult, WORKFLOWS_USAGE_ID } 
 import { TEAM_API_ROUTES } from "@openbot/contracts/team-api-routes";
 import { V5_AGENT_MODEL } from "@openbot/contracts/team-protocol/v5-adapter";
 import { V6_AGENT_MODEL } from "@openbot/contracts/team-protocol/v6-adapter";
+import { WORKFLOWS_CAPABILITY } from "@openbot/contracts/team-protocol/workflows-v1";
 import { sourceText } from "@openbot/i18n/source";
 import type { Effect } from "effect";
 import type { AgentDuplicationFailed } from "../../backend/agent/duplication-gate";
@@ -112,13 +113,19 @@ export async function routeAgents(
       endDate: url.searchParams.get("endDate"),
       timeZone: url.searchParams.get("timeZone"),
     });
+    // A peer without workflows-v1 does not know the Workflows row.
+    const workflows = capabilities.has(WORKFLOWS_CAPABILITY);
     if (
       input.agentId &&
-      input.agentId !== WORKFLOWS_USAGE_ID &&
+      !(workflows && input.agentId === WORKFLOWS_USAGE_ID) &&
       !agents.listAgents().some((agent) => agent.id === input.agentId)
     )
       throw new HttpError(404, sourceText("error.team.agentNotFound"));
-    return json(200, agents.getHostAnalytics(input));
+    const report = agents.getHostAnalytics(input);
+    return json(
+      200,
+      workflows ? report : { ...report, agents: report.agents.filter((row) => row.agentId !== WORKFLOWS_USAGE_ID) },
+    );
   }
   if (
     method === "POST" &&

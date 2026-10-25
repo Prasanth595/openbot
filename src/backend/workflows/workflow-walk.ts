@@ -55,7 +55,8 @@ export function runScope(
   const origin = start.triggerNodeId ?? start.fromNodeId;
   if (origin === null || !steps.has(origin)) return { nodes: new Set(steps.keys()), reused: new Set() };
   const loops = workflowLoopEdges(graph.nodes, graph.edges);
-  const ahead = reach(origin, outgoing(graph.edges.filter((edge) => !loops.has(edge.id))));
+  const forward = graph.edges.filter((edge) => !loops.has(edge.id));
+  const ahead = reach(origin, outgoing(forward));
   const after = reach(origin, outgoing(graph.edges));
   const before = incoming(graph.edges);
   const nodes = new Set(after);
@@ -78,7 +79,8 @@ export function runScope(
       pending.push(source.id);
     }
   }
-  return { nodes, reused };
+  // In graph order: a reused step written after the one of a node behind it would make that node due.
+  return { nodes, reused: new Set(graphOrder(graph.nodes, forward, reused)) };
 }
 
 export type WalkAction = { nodeId: string; action: "run"; inputs: string[] } | { nodeId: string; action: "skip" };

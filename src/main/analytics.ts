@@ -65,6 +65,8 @@ const MAX_SITE_TABS = 1_000;
 const MAX_ROUTINE_RUNS = 10_000;
 // A run holds at most this many nodes that run; a larger count is not sent.
 const MAX_WORKFLOW_RUN_STEPS = 1_000;
+/** A run can wait days for an approval, so its duration has a longer limit than a turn's. */
+const MAX_WORKFLOW_RUN_MS = 30 * 24 * 60 * 60 * 1_000;
 const WORKFLOW_RUN_STEP_COUNTS = [
   ["agent_step_count", ["agent"]],
   ["model_step_count", ["llm", "condition"]],
@@ -1065,6 +1067,10 @@ function sanitizeHostProperty(name: HostEventName, key: string, value: unknown):
     if (key === "source") return isOneOf(WORKFLOW_RUN_SOURCES, value) ? value : undefined;
     if (key === "step_count" || WORKFLOW_RUN_STEP_COUNTS.some(([property]) => property === key))
       return boundedCount(value, MAX_WORKFLOW_RUN_STEPS);
+    if (key === "duration_ms")
+      return isNumber(value) && Number.isFinite(value) && value >= 0 && value <= MAX_WORKFLOW_RUN_MS
+        ? value
+        : undefined;
   }
   if (name === "system_tool_used") {
     if (key === "tool_kind") return isOneOf(TOOL_KINDS, value) ? value : undefined;
