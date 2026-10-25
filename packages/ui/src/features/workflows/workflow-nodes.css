@@ -355,7 +355,8 @@
   white-space: nowrap;
   background: var(--wfn-glass);
   box-shadow: 0 0 0 1px var(--wfn-ring-strong);
-  translate: round(-50%, 1px) 0;
+  translate: calc(round(-50%, 1px) + var(--wfn-snap-x, 0px) / var(--wfn-scale, 1))
+    calc(var(--wfn-snap-y, 0px) / var(--wfn-scale, 1));
   transform-origin: bottom center;
   scale: calc(1 / var(--wfn-scale, 1));
   backdrop-filter: var(--wfn-glass-blur);
@@ -394,8 +395,8 @@
 }
 
 .wfn-stage .wfn-toolbar .wfn-tool-action svg {
-  width: var(--openbot-icon-sm);
-  height: var(--openbot-icon-sm);
+  width: var(--openbot-icon-md);
+  height: var(--openbot-icon-md);
 }
 
 /* Delete takes the danger colour under the pointer or the focus, as are the nodes and the lines that it removes. */
@@ -1923,7 +1924,8 @@ fieldset.wfn-picker-group {
   padding: 0;
   border: 0;
   color: var(--openbot-text-secondary);
-  translate: round(-50%, 1px) 0;
+  translate: calc(round(-50%, 1px) + var(--wfn-snap-x, 0px) / var(--wfn-scale, 1))
+    calc(var(--wfn-snap-y, 0px) / var(--wfn-scale, 1));
 }
 
 /* Seven results fit. More scroll, and the arrows move through all of them. */
