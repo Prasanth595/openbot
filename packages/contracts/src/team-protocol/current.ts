@@ -35,6 +35,7 @@ import { TEAM_CHANNEL_ATTENTION_CAPABILITY } from "./channel-attention-v1";
 import { CONNECTORS_CAPABILITY } from "./connectors-v1";
 import { CONTEXT_RESET_CAPABILITY } from "./context-reset-v1";
 import { CONVERSATION_FILE_SEARCH_CAPABILITY } from "./conversation-file-search-v1";
+import { DEVICE_TOOLS_CAPABILITY } from "./device-tools-v1";
 import { DISCORD_ACCESS_CAPABILITY } from "./discord-access-v1";
 import { EVENTS_CAPABILITY } from "./events-v1";
 import { FOCUS_USE_CAPABILITY } from "./focus-use-v1";
@@ -140,6 +141,7 @@ export {
   CONNECTORS_CAPABILITY,
   CONTEXT_RESET_CAPABILITY,
   CONVERSATION_FILE_SEARCH_CAPABILITY,
+  DEVICE_TOOLS_CAPABILITY,
   DISCORD_ACCESS_CAPABILITY,
   EVENTS_CAPABILITY,
   FOCUS_USE_CAPABILITY,
@@ -273,6 +275,7 @@ export const TEAM_CURRENT_CAPABILITIES = [
   TEAM_UI_BLOCKS_CAPABILITY,
   AGENT_TASKS_CAPABILITY,
   BROWSER_USER_CONTROL_CAPABILITY,
+  DEVICE_TOOLS_CAPABILITY,
   BROWSER_PAGE_STATE_CAPABILITY,
   BROWSER_SIGN_IN_CAPABILITY,
   AGENT_MEMORY_LIMIT_CAPABILITY,
@@ -386,6 +389,7 @@ export const TEAM_BOOTSTRAP_CAPABILITIES = TEAM_CURRENT_CAPABILITIES.filter(
     capability !== AGENT_HIDDEN_CAPABILITY &&
     capability !== TEAM_QUEUE_WINDOW_CAPABILITY &&
     capability !== BROWSER_USER_CONTROL_CAPABILITY &&
+    capability !== DEVICE_TOOLS_CAPABILITY &&
     capability !== BROWSER_PAGE_STATE_CAPABILITY &&
     capability !== BROWSER_SIGN_IN_CAPABILITY &&
     capability !== TEAM_UI_BLOCKS_CAPABILITY &&
@@ -444,6 +448,7 @@ export function legacyTeamCapabilities(capabilities: readonly string[]): string[
       capability !== AGENT_HIDDEN_CAPABILITY &&
       capability !== TEAM_QUEUE_WINDOW_CAPABILITY &&
       capability !== BROWSER_USER_CONTROL_CAPABILITY &&
+      capability !== DEVICE_TOOLS_CAPABILITY &&
       capability !== BROWSER_PAGE_STATE_CAPABILITY &&
       capability !== BROWSER_SIGN_IN_CAPABILITY &&
       capability !== TEAM_UI_BLOCKS_CAPABILITY &&
