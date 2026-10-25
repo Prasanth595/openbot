@@ -64,7 +64,7 @@ import { startProviderTerminalLogin } from "../provider-terminal-login";
 import { recordRestartActivity } from "../restart-activity";
 import { shortenDiagnostic } from "./../stderr-diagnostics";
 import { stopProcessTree } from "../windows-process-tree";
-import { normalizeAccountUsage } from "./account-usage";
+import { normalizeAccountUsage, usageWindowHasReset } from "./account-usage";
 import { captureBrowser } from "./browser-capture";
 import { startCliCodeLogin } from "./cli-code-login";
 import { CliLoginFailed, CliLoginFlow, toCliLoginFailed } from "./cli-login-flow";
@@ -192,17 +192,6 @@ function logProviderStateChanges(
       message: row.message === null ? null : shortenDiagnostic(redactMcp(row.message)),
     });
   }
-}
-
-/**
- * True once a window of a kept reading has passed its reset time, so the reading is stale. Only
- * then does a usage read start a released provider again. `resetsAt` is in seconds.
- */
-function usageWindowHasReset(limit: AccountUsage["limits"][number]): boolean {
-  const now = Date.now() / 1_000;
-  return [limit, ...(limit.groups ?? [])].some((group) =>
-    [group.primary, group.secondary].some((window) => window?.resetsAt != null && window.resetsAt <= now),
-  );
 }
 
 /**

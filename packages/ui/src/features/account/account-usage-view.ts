@@ -47,6 +47,8 @@ export interface AccountUsageProviderRow {
    * provider that names quota groups, the windows of each group in the provider's order.
    */
   windows: AccountUsageWindowRow[];
+  /** The reading's own windows, the shortest first. The rail ring shows them, not the quota groups. */
+  ringWindows: AccountUsageWindowRow[];
   /** `false` for a provider that has no usage reading, so a missing amount is not a failure. */
   reportsUsage: boolean;
 }
@@ -163,6 +165,7 @@ function usageRow(
     remainingPercent,
     tone: usageTone(remainingPercent),
     windows,
+    ringWindows: ownWindows,
     reportsUsage: agentProviderDescriptor(provider).reportsUsage,
   };
 }

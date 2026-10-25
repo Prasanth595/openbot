@@ -23,6 +23,7 @@ import { type ProviderAccountSupport, requireProviderDriver } from "./../provide
 import type { ProviderTempOptions } from "./../provider-temp";
 import { shortenDiagnostic } from "./../stderr-diagnostics";
 import { stopProcessTree } from "../windows-process-tree";
+import { usageWindowHasReset } from "./account-usage";
 import { captureBrowser } from "./browser-capture";
 import type { ProviderAccountStore, StoredProviderAccount } from "./provider-account-store";
 import { waitForSuccessfulProcess } from "./provider-status";
@@ -395,7 +396,7 @@ export class ProviderAccounts {
     for (const account of this.#store.list(provider)) {
       if (this.#states.get(account.id)?.state !== "connected") continue;
       const kept = this.#usage.get(account.id);
-      if (kept && now - kept.at < ACCOUNT_CHECK_TTL_MS && !windowHasReset(kept.limit)) {
+      if (kept && now - kept.at < ACCOUNT_CHECK_TTL_MS && !usageWindowHasReset(kept.limit)) {
         limits.push(kept.limit);
         continue;
       }
@@ -638,9 +639,4 @@ function isSignInError(error: unknown): boolean {
 
 export function defaultUsageModel(provider: AgentProviderId): string | undefined {
   return provider === "codex" ? undefined : agentProviderDescriptor(provider).defaultModel || undefined;
-}
-
-function windowHasReset(limit: AccountUsageLimit): boolean {
-  const now = Date.now() / 1_000;
-  return [limit.primary, limit.secondary].some((window) => window?.resetsAt != null && window.resetsAt <= now);
 }

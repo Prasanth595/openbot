@@ -38,6 +38,17 @@ function normalizeUsageGroup(group: AccountRateLimitGroupResult): AccountUsageGr
   };
 }
 
+/**
+ * True once a window of a kept reading, or of one of its groups, has passed its reset time, so the
+ * reading is stale. `resetsAt` is in seconds.
+ */
+export function usageWindowHasReset(limit: AccountUsageLimit): boolean {
+  const now = Date.now() / 1_000;
+  return [limit, ...(limit.groups ?? [])].some((group) =>
+    [group.primary, group.secondary].some((window) => window?.resetsAt != null && window.resetsAt <= now),
+  );
+}
+
 function selectModelRateLimits(
   entries: Array<[string, AccountRateLimitResult]>,
   model: string,

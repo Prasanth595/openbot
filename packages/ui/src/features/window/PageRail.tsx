@@ -72,7 +72,7 @@ function UsageRings(props: { row: AccountUsageProviderRow; onOpen: (button: HTML
         .map((window) => t("account.usage.row.window", { window: window.label, percent: window.remainingPercent }))
         .join(", "),
     });
-  const windows = () => [...props.row.windows].reverse().slice(0, 2);
+  const windows = () => [...props.row.ringWindows].reverse().slice(0, 2);
   const outerRadius = (RING.size - RING.stroke) / 2;
   return (
     <RailButton

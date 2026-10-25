@@ -221,8 +221,13 @@ export function ConversationComposer() {
     for (const limit of props.accountUsage?.limits ?? []) {
       if (limit.id !== provider) continue;
       // A provider that names quota groups limits each group apart: only the agent's model's group
-      // can stop it, and a model that no group lists has no notice.
-      const quota = limit.groups?.length ? usageGroupForModel(limit.groups, props.agent?.model ?? "") : limit;
+      // can stop it, and a model that no group lists has no notice. With no model, or no listed
+      // models, the reading's own windows apply, as in the backend.
+      const model = props.agent?.model;
+      const quota =
+        model && limit.groups?.some((group) => group.models.length > 0)
+          ? usageGroupForModel(limit.groups, model)
+          : limit;
       if (!quota) continue;
       for (const window of ["primary", "secondary"] as const) {
         const plan = quota[window];
@@ -232,7 +237,7 @@ export function ConversationComposer() {
           provider,
           resetsAt: plan.resetsAt,
           // A named group is the model's own quota.
-          covers: quota !== limit || accountUsageCoversModel(provider, props.agent?.model),
+          covers: quota !== limit || accountUsageCoversModel(provider, model),
           key: JSON.stringify([window, plan.windowDurationMins, plan.resetsAt]),
         };
       }
