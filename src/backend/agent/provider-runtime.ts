@@ -641,9 +641,7 @@ export class ProviderRuntime implements ProviderPort {
             : {}),
           ...(source ? { cliSource: source } : {}),
           ...(lastError ? { lastError: lastError.message, lastErrorAt: lastError.at } : {}),
-          ...((row.id === "antigravity" || row.id === "claude") && this.#credentials.apiKey(row.id)
-            ? { apiKeyInUse: true }
-            : {}),
+          ...(row.id === "antigravity" && this.#credentials.apiKey("antigravity") ? { apiKeyInUse: true } : {}),
         };
         const accounts =
           row.state === "available" && row.id !== "acp"
