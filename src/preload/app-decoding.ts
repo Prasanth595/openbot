@@ -46,8 +46,13 @@ import {
   type DetectedAcpAgent,
   type DetectedModelServer,
   type DiscoverModelsResult,
+  decodeExternalLinkTarget,
   decodeScheduledUpdateRestart,
   type ExportResult,
+  type ExternalLinkBrowser,
+  type ExternalLinkBrowsers,
+  type ExternalLinkFallback,
+  type ExternalLinkPreference,
   type GitHubConnectorRepositories,
   type GitHubConnectorStatus,
   type HostedSiteList,
@@ -350,6 +355,34 @@ export function decodeAppBehaviorPreference(value: unknown): AppBehaviorPreferen
     keepAwake: nullableBoolean(preference, "keepAwake"),
     keepAwakeOnBattery: nullableBoolean(preference, "keepAwakeOnBattery"),
   };
+}
+
+export function decodeExternalLinkPreference(value: unknown): ExternalLinkPreference {
+  const target = decodeExternalLinkTarget(decodeRecord(value, "external link preference").target);
+  if (!target) throw new Error("Invalid external link target.");
+  return { target };
+}
+
+function decodeExternalLinkBrowser(value: unknown): ExternalLinkBrowser {
+  const browser = decodeRecord(value, "browser");
+  return { name: requiredString(browser, "name"), path: requiredString(browser, "path") };
+}
+
+export function decodeExternalLinkBrowserOrNull(value: unknown): ExternalLinkBrowser | null {
+  return value === null ? null : decodeExternalLinkBrowser(value);
+}
+
+export function decodeExternalLinkBrowsers(value: unknown): ExternalLinkBrowsers {
+  const list = decodeRecord(value, "browser list");
+  if (!Array.isArray(list.browsers)) throw new Error("Invalid browser list.");
+  return {
+    defaultBrowser: decodeExternalLinkBrowserOrNull(list.defaultBrowser),
+    browsers: list.browsers.map(decodeExternalLinkBrowser),
+  };
+}
+
+export function decodeExternalLinkFallback(value: unknown): ExternalLinkFallback {
+  return { name: requiredString(decodeRecord(value, "external link fallback"), "name") };
 }
 
 export function decodeRemoteSessionReusePreference(value: unknown): RemoteSessionReusePreference {

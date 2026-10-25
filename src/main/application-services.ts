@@ -181,6 +181,11 @@ import {
 } from "./development-remote-bootstrap";
 import { performDynamicIslandCriticalAction } from "./dynamic-island-actions";
 import { DynamicIslandFailed, DynamicIslandWindowController, toDynamicIslandFailed } from "./dynamic-island-window";
+import {
+  createExternalLinkPreferenceStore,
+  ExternalLinkOpener,
+  type ExternalLinkPreferenceStore,
+} from "./external-link-opener";
 import { githubAppConfig } from "./github-connector-config";
 import { GitHubConnectorService } from "./github-connector-service";
 import { GitHubConnectorStore } from "./github-connector-store";
@@ -338,6 +343,7 @@ const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
 const PROMPT_CACHE_TTL_PREFERENCE_FILE = "openbot-prompt-cache-ttl-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
+const EXTERNAL_LINK_PREFERENCE_FILE = "openbot-external-link-preference-v1.json";
 const REMOTE_NETWORK_ROUTE_PREFERENCE_FILE = "openbot-remote-network-route-v1.json";
 const APP_BEHAVIOR_PREFERENCE_FILE = "openbot-app-behavior-preference-v1.json";
 const DYNAMIC_ISLAND_PREFERENCE_FILE = "openbot-dynamic-island-preference-v1.json";
@@ -543,6 +549,10 @@ export interface ApplicationServices {
   serverTimezone: ServerTimezonePreferenceStore;
   promptCacheTtl: PromptCacheTtlPreferenceStore;
   remoteSessionReuse: RemoteSessionReusePreferenceStore;
+  externalLinkPreference: ExternalLinkPreferenceStore;
+  externalLinks: ExternalLinkOpener;
+  /** Opens a web page in the program that the user chose in Settings. */
+  openLink: (url: string) => Promise<void>;
   remoteNetworkRoute: RemoteNetworkRoutePreferenceStore;
   remoteSessionCache: RemoteSessionCache;
   appBehavior: AppBehaviorService;
@@ -629,6 +639,7 @@ interface MessagingServicesContext {
   sidebarLayout: SidebarLayoutStore;
   /** Read on each call: the team store that names this host is built after messaging. */
   readHostId: () => string | null;
+  openLink: (url: string) => Promise<void>;
 }
 
 /**
@@ -642,6 +653,7 @@ async function createMessagingServices({
   service,
   sidebarLayout,
   readHostId,
+  openLink,
 }: MessagingServicesContext): Promise<{ messaging: MessagingService; signalIngress: SignalIngress }> {
   /*
    * The Slack workspaces, Discord guilds and Telegram chats where the agents answer. The tokens use the same cipher as every other
@@ -740,7 +752,7 @@ async function createMessagingServices({
             ? centralAuth.unlinkSlackWorkspace(hostId, workspaceId).pipe(toSlackConnectFailed)
             : Effect.void;
         }),
-      openExternal: (url) => shell.openExternal(url),
+      openExternal: openLink,
     },
     discordApp: {
       authorize: (input) =>
@@ -767,7 +779,7 @@ async function createMessagingServices({
           const hostId = readHostId();
           return hostId ? centralAuth.unlinkDiscordGuild(hostId, guildId).pipe(toDiscordConnectFailed) : Effect.void;
         }),
-      openExternal: (url) => shell.openExternal(url),
+      openExternal: openLink,
     },
     telegramApp: {
       createLink: () =>
@@ -800,7 +812,7 @@ async function createMessagingServices({
                 .pipe(Effect.mapError((error) => new MessagingOperationFailed({ cause: error.cause })))
             : Effect.void;
         }),
-      openExternal: (url) => shell.openExternal(url),
+      openExternal: openLink,
     },
   });
   // Not awaited: a connection waits for Slack, and the app does not wait for it.
@@ -851,6 +863,17 @@ export async function createApplicationServices({
   );
   teardown.push(TEARDOWN_ORDER.agentLog, "the agent log", startAgentLog(join(app.getPath("userData"), "logs")));
   teardown.push(TEARDOWN_ORDER.accountLog, "the account log", startAccountLog(join(app.getPath("userData"), "logs")));
+  const externalLinkPreference = createExternalLinkPreferenceStore(
+    join(app.getPath("userData"), EXTERNAL_LINK_PREFERENCE_FILE),
+  );
+  await runCauseEffect(externalLinkPreference.load());
+  const externalLinks = new ExternalLinkOpener({
+    preference: externalLinkPreference,
+    platform: process.platform,
+    openDefault: (url) => shell.openExternal(url),
+    onFallback: (fallback) => sendToRenderer(windows.getMainWindow(), IPC_ENDPOINTS.app.externalLinkFallback, fallback),
+  });
+  const openLink = (url: string) => runCauseEffect(externalLinks.open(url));
   // The one forward reference left in this function: the controller is built at the top of
   // startup because its window must be able to appear immediately, but the two services its
   // critical actions drive are built hundreds of lines below. A single named local rather than
@@ -986,11 +1009,11 @@ export async function createApplicationServices({
     const hostId = teamStore.getIdentity()?.serverId;
     return hostId ? centralAuth.hostSiteCredential(hostId) : null;
   });
-  const billing = new BillingDesktopService(centralAuth, (url) => shell.openExternal(url));
-  const license = new LicenseDesktopService(centralAuth, (url) => shell.openExternal(url));
+  const billing = new BillingDesktopService(centralAuth, openLink);
+  const license = new LicenseDesktopService(centralAuth, openLink);
   const hostedServers = new HostedServerDesktopService(
     withHostingDeveloperKey(centralAuth, hostingDeveloperKey),
-    (url) => shell.openExternal(url),
+    openLink,
     Date.now,
     // A new server is running, but the joined list has no entry for it yet: read the list again.
     (serverId) => {
@@ -1296,7 +1319,7 @@ export async function createApplicationServices({
   // A joined server's sign-in can send its callback to this same port: the host's own listener
   // uses the same port number. A `state` that no local sign-in started goes to the relay.
   const signInRelayClient = new SignInRelayClient({
-    openExternal: (url) => shell.openExternal(url),
+    openExternal: openLink,
     language,
     ownListener: () =>
       mcpOAuthRedirect
@@ -1331,7 +1354,7 @@ export async function createApplicationServices({
   }
   const mcpOAuth = new McpOAuth({
     storage: mcpOAuthStore,
-    openExternal: (url) => shell.openExternal(url),
+    openExternal: openLink,
     redirectUrl: mcpOAuthRedirect?.redirectUrl ?? MCP_OAUTH_REDIRECT_URL,
     logger: createOpenBotLogger("mcp-oauth"),
   });
@@ -1347,7 +1370,7 @@ export async function createApplicationServices({
     store: new GitHubConnectorStore(join(app.getPath("userData"), GITHUB_CONNECTOR_FILE), secretCipher),
     toolDirectory: join(app.getPath("userData"), "provider-state", "github"),
     apiUrl: centralAuthApiUrl,
-    openExternal: (url) => shell.openExternal(url),
+    openExternal: openLink,
   });
   await runCauseEffect(githubConnector.load());
   teardown.push(TEARDOWN_ORDER.githubConnector, "the GitHub connection", () =>
@@ -1401,7 +1424,7 @@ export async function createApplicationServices({
     cliInstall: onePasswordCliTarget
       ? { directory: join(app.getPath("userData"), "provider-state", "1password-cli"), target: onePasswordCliTarget }
       : null,
-    openExternal: (url) => shell.openExternal(url),
+    openExternal: openLink,
   });
   await runCauseEffect(onePasswordConnector.load());
   performance.mark("openbot:services.connectors");
@@ -1827,6 +1850,7 @@ export async function createApplicationServices({
     service,
     sidebarLayout,
     readHostId: () => ingressHostId(),
+    openLink,
   });
   // A connect, a disconnect or an expiry changes the tools and the `gh` sign-in of every agent.
   githubConnector.onAgentAccessChanged(() => {
@@ -2951,6 +2975,9 @@ export async function createApplicationServices({
     serverTimezone,
     promptCacheTtl,
     remoteSessionReuse,
+    externalLinkPreference,
+    externalLinks,
+    openLink,
     remoteNetworkRoute,
     remoteSessionCache,
     appBehavior,

@@ -486,6 +486,26 @@
   width: 168px;
 }
 
+/* "Open external links in": browser names are longer than the other choices. */
+.app-settings-modal-shell .settings-modal-link-select {
+  width: 220px;
+}
+
+/* A line between the two fixed places and the browsers. */
+.ui-select-item.settings-modal-select-group-end {
+  margin-bottom: var(--openbot-space-1);
+  border-bottom: 1px solid var(--openbot-border);
+}
+
+/* The command field under the link list on Linux and Windows. */
+.settings-modal-link-command {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: var(--openbot-space-2);
+}
+
 .app-settings-modal-shell .settings-modal-select .ui-select-trigger {
   background: var(--openbot-bg-surface-raised);
   color: var(--openbot-text-secondary);

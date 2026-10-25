@@ -65,6 +65,7 @@ import {
   DEFAULT_APPROVAL_AUTOMATION_PREFERENCE,
   DEFAULT_BUSY_MESSAGE_MODE,
   DEFAULT_DYNAMIC_ISLAND_PREFERENCE,
+  DEFAULT_EXTERNAL_LINK_PREFERENCE,
   DEFAULT_PROMPT_CACHE_TTL,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   DEFAULT_PROVIDER_DETECTION_SETTINGS,
@@ -77,6 +78,8 @@ import {
   type DynamicIslandPreference,
   type DynamicIslandPresentation,
   defaultProviderModel,
+  type ExternalLinkBrowsers,
+  type ExternalLinkPreference,
   type FilePreview,
   type HostedSiteSummary,
   type HostStatus,
@@ -361,6 +364,17 @@ function mockWorkspaceDirectory(path: string): WorkspaceDirectory {
 }
 
 /** What each story server answers with when it is tested, so a story reads the same way twice. */
+const PREVIEW_BROWSERS: ExternalLinkBrowsers = {
+  defaultBrowser: { name: "Safari", path: "/Applications/Safari.app" },
+  browsers: [
+    { name: "Arc", path: "/Applications/Arc.app" },
+    { name: "Brave Browser", path: "/Applications/Brave Browser.app" },
+    { name: "Firefox", path: "/Applications/Firefox.app" },
+    { name: "Google Chrome", path: "/Applications/Google Chrome.app" },
+    { name: "Safari", path: "/Applications/Safari.app" },
+  ],
+};
+
 const MOCK_MCP_TOOL_COUNTS: Record<string, number> = { "Local SQLite": 12, Linear: 1, Figma: 6 };
 /** The one address that asks for a sign-in until it has one, so the preview shows Save signing in. */
 const MOCK_MCP_SIGN_IN_URL = "https://mcp.granola.ai/mcp";
@@ -391,6 +405,7 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
   let agentAccess: AgentAccessChange = { revision: 0, everyone: {}, roles: [] };
   const agentMemoryLimitListeners = new Set<(preference: AgentMemoryLimitPreference) => void>();
   let remoteSessionReuse: RemoteSessionReusePreference = { ...DEFAULT_REMOTE_SESSION_REUSE_PREFERENCE };
+  let externalLinks: ExternalLinkPreference = clone(DEFAULT_EXTERNAL_LINK_PREFERENCE);
   // The preview computer has Tailscale, so the private route shows what it finds.
   let remoteNetworkRoute: RemoteNetworkRouteState = { route: DEFAULT_REMOTE_NETWORK_ROUTE, tailscaleConnected: true };
   let appBehavior: AppBehaviorPreference = {
@@ -959,6 +974,14 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
       remoteSessionReuse = { keepBetweenRuns };
       return clone(remoteSessionReuse);
     },
+    getExternalLinkPreference: async () => clone(externalLinks),
+    setExternalLinkPreference: async (preference) => {
+      externalLinks = clone(preference);
+      return clone(externalLinks);
+    },
+    listExternalLinkBrowsers: async () => clone(PREVIEW_BROWSERS),
+    chooseExternalLinkApp: async () => ({ name: "Orion", path: "/Applications/Orion.app" }),
+    onExternalLinkFallback: () => () => undefined,
     getRemoteNetworkRoute: async () => clone(remoteNetworkRoute),
     setRemoteNetworkRoute: async ({ route }) => {
       remoteNetworkRoute = { ...remoteNetworkRoute, route };

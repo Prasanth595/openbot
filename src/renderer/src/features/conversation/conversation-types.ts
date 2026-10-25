@@ -248,6 +248,8 @@ export interface ConversationProps {
    */
   isOwnSender: (senderId: string) => boolean;
   browserEnabled?: boolean | undefined;
+  /** Settings → General sends links in chats to the built-in browser, when it shows. */
+  openLinksInBrowser?: boolean | undefined;
   remoteDesktopEnabled?: boolean | undefined;
   remoteDesktopSessionActive: boolean;
   remoteDesktopVisible: boolean;

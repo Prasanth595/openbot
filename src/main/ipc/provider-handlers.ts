@@ -15,7 +15,6 @@ import {
 } from "@openbot/contracts/ipc";
 import { isDynamicRecord, isString } from "@openbot/contracts/runtime-values";
 import { sourceText } from "@openbot/i18n/source";
-import { shell } from "electron";
 import { AgentLifecycleFailed, type AgentService } from "../../backend/agent-service";
 import { runCauseEffect } from "../../backend/effect-boundary";
 import type { ProviderCredentialStore } from "../provider-credential-store";
@@ -31,12 +30,15 @@ export interface ProviderIpcDependencies {
   service: AgentService;
   providerRuntimes: ProviderRuntimeManager;
   credentials: ProviderCredentialStore;
+  /** Opens a web page in the program that the user chose in Settings. */
+  openLink: (url: string) => Promise<void>;
 }
 
 export function providerIpcHandlers({
   service,
   providerRuntimes,
   credentials,
+  openLink,
 }: ProviderIpcDependencies): Pick<IpcGroupHandlers, "providers" | "providerRuntimes"> {
   return {
     providers: {
@@ -48,7 +50,7 @@ export function providerIpcHandlers({
           service.connectProvider(provider, async (value) => {
             const url = new URL(value);
             if (url.protocol !== "https:") throw new Error(sourceText("error.provider.httpsSignInLinkOnly"));
-            await shell.openExternal(url.toString());
+            await openLink(url.toString());
           }),
         ),
       ),
@@ -108,7 +110,7 @@ export function providerIpcHandlers({
           service.connectProviderAccount(provider, accountId, async (value) => {
             const url = new URL(value);
             if (url.protocol !== "https:") throw new Error(sourceText("error.provider.httpsSignInLinkOnly"));
-            await shell.openExternal(url.toString());
+            await openLink(url.toString());
           }),
         ),
       ),

@@ -537,6 +537,7 @@ export function WorkspaceConversation(props: { account: () => CentralAuthUser })
         browserEnabled={
           !platform.landingPreview && !platform.chatWindow && activeServerSupportsCapability("browser-control")
         }
+        openLinksInBrowser={generalSettings().externalLinkTarget.kind === "openbot"}
         remoteDesktopSessionActive={Boolean(activeRemoteDesktopSession())}
         remoteDesktopVisible={remoteDesktopWorkspaceVisible()}
         remoteDesktopEnabled={

@@ -264,6 +264,12 @@ import type {
   WebhookSecret,
   WebhookTestResult,
 } from "./ipc-events";
+import type {
+  ExternalLinkBrowser,
+  ExternalLinkBrowsers,
+  ExternalLinkFallback,
+  ExternalLinkPreference,
+} from "./ipc-external-links";
 import type { GitHubConnectorRepositories, GitHubConnectorStatus } from "./ipc-github-connector";
 import type { ApplyHermesImportInput, HermesImportPreview } from "./ipc-hermes-import";
 import type { HiddenAgentsSnapshot, SetAgentHiddenInput } from "./ipc-hidden-agents";
@@ -658,6 +664,17 @@ export const IPC_ENDPOINTS = {
     openSettings: event<undefined>()("app:open-settings"),
     openExternal: request<ExternalDestination, void>()("app:open-external"),
     openUrl: request<string, void>()("app:open-url"),
+    getExternalLinkPreference: request<undefined, ExternalLinkPreference>()("app:get-external-link-preference"),
+    setExternalLinkPreference: request<ExternalLinkPreference, ExternalLinkPreference>()(
+      "app:set-external-link-preference",
+    ),
+    // The browsers that the setting lists. Only macOS tells which applications open web pages.
+    listExternalLinkBrowsers: request<undefined, ExternalLinkBrowsers>()("app:list-external-link-browsers"),
+    // The file dialog of "Other app…". Null when the user closed the dialog.
+    chooseExternalLinkApp: request<undefined, ExternalLinkBrowser | null>()("app:choose-external-link-app"),
+    // A page can open from main with no window action, such as a sign-in page, so main tells the
+    // window when the chosen browser did not start.
+    externalLinkFallback: event<ExternalLinkFallback>()("app:external-link-fallback"),
     // A chat in a window of its own, for a second display. A chat that has a window already brings
     // that window to the front.
     openChatWindow: request<ChatWindowTarget, void>()("app:open-chat-window"),

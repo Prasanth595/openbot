@@ -5,7 +5,7 @@ import {
   fileQuoteTarget,
   limitedQuoteText,
 } from "@openbot/contracts/chat-tag-references";
-import type { McpSignInRelayPage, UpdateAgentInput } from "@openbot/contracts/ipc";
+import { type McpSignInRelayPage, relayableSignInLink, type UpdateAgentInput } from "@openbot/contracts/ipc";
 import type { QuoteRequest } from "@openbot/ui/features/conversation/ComposerEditor";
 import { currentText } from "@openbot/ui/text";
 import { usesTouchLayout } from "@openbot/ui/utils";
@@ -66,6 +66,12 @@ const READER_INPUT_WINDOW_MS = 250;
  * chat mounts again when the user comes back from another page; it must not open a new routine again.
  */
 const handledSettingsRequests = new WeakSet<AgentSettingsRequest>();
+
+/** An http or https page that the built-in browser can show. A relayed sign-in page needs this computer's browser. */
+function builtInBrowserPage(url: string): boolean {
+  const page = URL.parse(url);
+  return (page?.protocol === "http:" || page?.protocol === "https:") && relayableSignInLink(url) === null;
+}
 
 function followConversationBottom(element: HTMLDivElement): void {
   element.scrollTop = element.scrollHeight - element.clientHeight;
@@ -1398,6 +1404,12 @@ export function createConversationViewScope(props: ConversationProps) {
     const target = currentTarget();
     const runtime = conversationRuntime(props);
     try {
+      // A relayed sign-in page must open on this computer, so it does not go to the built-in browser.
+      if (props.openLinksInBrowser && props.browserEnabled !== false && builtInBrowserPage(url)) {
+        setActiveRightPanel("browser");
+        await openBrowserAddress(url, true);
+        return;
+      }
       if (target && runtime.agent.openMessageLink) {
         const page = await runtime.agent.openMessageLink({ agentId: target.agentId, url }, target.serverId);
         if (page) setMessageLinkRelay({ url, target, page });

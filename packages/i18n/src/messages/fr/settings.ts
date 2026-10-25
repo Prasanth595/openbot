@@ -49,10 +49,19 @@ export const messages = {
   "settings.restoreWorkspace.title": "Restaurer le dernier espace de travail au lancement",
   "settings.restoreWorkspace.description": "Rouvrir l’espace de travail et les tâches de votre session précédente.",
   "settings.externalLinks.title": "Ouvrir les liens externes dans",
-  "settings.externalLinks.description": "Choisir où s’ouvrent les liens provenant des conversations.",
+  "settings.externalLinks.description":
+    "Les liens des discussions, des pages de connexion et de facturation s’ouvrent ici.",
   // The two link targets. The saved value stays in English; only the label is translated.
   "settings.externalLinks.defaultBrowser": "Navigateur par défaut",
   "settings.externalLinks.openbot": "OpenBot",
+  "settings.externalLinks.defaultBrowserNamed": "Navigateur par défaut ({name})",
+  "settings.externalLinks.otherApp": "Autre app…",
+  "settings.externalLinks.command": "Commande…",
+  "settings.externalLinks.commandLabel": "Commande du navigateur",
+  "settings.externalLinks.commandPlaceholder": "Chemin du programme ou commande",
+  "settings.externalLinks.useCommand": "Utiliser",
+  "settings.externalLinks.fallback.title": "Impossible d’ouvrir {name}",
+  "settings.externalLinks.fallback.description": "Le lien s’est ouvert dans le navigateur par défaut.",
   "settings.sendShortcut.title": "Raccourci d’envoi",
   "settings.sendShortcut.description":
     "Choisissez les touches qui envoient un message sur cet appareil et dans ce navigateur.",

@@ -20,4 +20,6 @@ export const messages = {
   "dialog.saveTransfer": "保存传输文件",
   "dialog.chooseTransfer": "选择传输文件",
   "dialog.filter.transfer": "OpenBot 传输文件",
+  "dialog.chooseExternalLinkApp": "选择浏览器",
+  "dialog.filter.applications": "应用程序",
 } as const satisfies PartialTranslation<typeof source>;
