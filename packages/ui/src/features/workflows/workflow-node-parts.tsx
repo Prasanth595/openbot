@@ -582,11 +582,7 @@ export function ResultField(props: { id: string; running: boolean }) {
   const board = useBoard();
   const { t } = useText();
   const value = () => resultValue(board.shown(props.id)) ?? "";
-  const failure = () => {
-    const shown = board.shown(props.id);
-    if (shown?.failed) return shown.value;
-    return shown === undefined && board.status(props.id) === "failed" ? board.error(props.id) : undefined;
-  };
+  const failure = () => resultFailure(board, props.id);
   return (
     <Show when={value() || failure() || props.running}>
       <Field class="wfn-field-result">
@@ -608,6 +604,28 @@ export function ResultField(props: { id: string; running: boolean }) {
           </Show>
         </div>
       </Field>
+    </Show>
+  );
+}
+
+/** Why the shown result failed: its error, or the error of a newest step that failed with no result. */
+function resultFailure(board: WfnBoard, id: string): string | undefined {
+  const shown = board.shown(id);
+  if (shown?.failed) return shown.value;
+  return shown === undefined && board.status(id) === "failed" ? board.error(id) : undefined;
+}
+
+/** Why a step failed, for a card that has no result field. */
+export function FailureAlert(props: { id: string; running: boolean }) {
+  const board = useBoard();
+  return (
+    <Show when={props.running ? undefined : resultFailure(board, props.id)}>
+      {(failure) => (
+        <p class="wfn-alert" data-tone="danger">
+          <CircleX aria-hidden="true" />
+          <span class="wfn-alert-text">{failure()}</span>
+        </p>
+      )}
     </Show>
   );
 }

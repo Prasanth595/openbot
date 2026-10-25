@@ -4,7 +4,16 @@ import { Button, CircleCheck, Play, Split, Textarea } from "@openbot/ui";
 import { For, Show, untrack } from "solid-js";
 import { useText } from "../../text";
 import { BRANCH_NAME, resultValue, useBoard } from "./workflow-board";
-import { Field, NodeShell, NodeToolbar, Port, useLocked, useStepRun, useTextField } from "./workflow-node-parts";
+import {
+  FailureAlert,
+  Field,
+  NodeShell,
+  NodeToolbar,
+  Port,
+  useLocked,
+  useStepRun,
+  useTextField,
+} from "./workflow-node-parts";
 
 const BRANCHES = ["yes", "no"] as const;
 
@@ -75,6 +84,7 @@ export function ConditionNode(props: { id: string; rule?: string }) {
           </div>
         )}
       </For>
+      <FailureAlert id={props.id} running={run.running()} />
     </NodeShell>
   );
 }

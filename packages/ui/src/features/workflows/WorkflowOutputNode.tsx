@@ -8,6 +8,7 @@ import { resultValue, useBoard, type WfnPortType } from "./workflow-board";
 import {
   type Choice,
   ChoicePill,
+  FailureAlert,
   Field,
   NodeShell,
   NodeToolbar,
@@ -132,7 +133,7 @@ export function OutputNode(props: {
       <Show
         when={shown()}
         fallback={
-          <Show when={run.running()}>
+          <Show when={run.running()} fallback={<FailureAlert id={props.id} running={false} />}>
             <div class="wfn-alert" data-pending aria-hidden="true">
               <Skeleton />
             </div>
