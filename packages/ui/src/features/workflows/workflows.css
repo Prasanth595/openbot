@@ -52,6 +52,14 @@
   position: relative;
 }
 
+/* On a screen with one device pixel for each CSS pixel, a line of 1.5 in a 24px icon that shows at 14px or 16px is
+ * thinner than a pixel, so it shows faint and soft. A line of 2 fills whole pixels. */
+@media (max-resolution: 1.5dppx) {
+  .wfn-stage {
+    --openbot-icon-stroke: 2;
+  }
+}
+
 /* --------------------------------------------------------------- Canvas */
 
 .wfn-stage.wfn-canvas {
