@@ -19,7 +19,7 @@ export interface HtmlPageProps {
  * build from before Android linked it has none: there this is null, and the caller shows the page
  * with no scripts.
  */
-const pageView: typeof import("./html-page-view") | null = TurboModuleRegistry.get("RNCWebViewModule")
-  ? require("./html-page-view")
+const pageView: typeof import("./html-page-view.native") | null = TurboModuleRegistry.get("RNCWebViewModule")
+  ? require("./html-page-view.native")
   : null;
-export const HtmlPage: ComponentType<HtmlPageProps> | null = pageView?.HtmlPageView ?? null;
+export const HtmlPage: ComponentType<HtmlPageProps> | null = pageView ? pageView.HtmlPageView : null;

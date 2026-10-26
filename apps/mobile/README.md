@@ -119,7 +119,7 @@ The native UI does not depend on a native WebRTC module. A hidden Expo DOM compo
 events to React Native. This keeps the production transport identical while remaining testable in
 Expo Go without a development build. Expo Go on Android does not include `@expo/dom-webview`, so there
 the component uses `react-native-webview`. Native builds link that package for HTML pages
-(`html-page-view.tsx`), and iOS also uses it for the PDF preview (`pdf-preview.ios.tsx`). An Android
+(`html-page-view.native.tsx`), and iOS also uses it for the PDF preview (`pdf-preview.ios.tsx`). An Android
 build from before it was linked shows HTML pages with no scripts.
 
 Remote connection recovery starts the first attempt immediately, then waits 10 seconds after each failure. After

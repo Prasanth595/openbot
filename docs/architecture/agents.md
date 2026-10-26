@@ -505,7 +505,7 @@ page's next context replaces it. Full screen puts the frame's
 box in the top layer with the Popover API, so the frame does not load again; it exits before the app
 opens a dialog for the page. Only the renderer's allowlist of shortcuts (`chat-visual-shortcuts.ts`)
 leaves the page, as a key event on the frame element. Mobile runs the
-page in its own react-native-webview `WebView` (`html-page-view.tsx`), in the chat at the agent's
+page in its own react-native-webview `WebView` (`html-page-view.native.tsx`), in the chat at the agent's
 height with no touches, and on the preview screen. It gets the base styles and the app theme from
 `chatVisualDocument` with `bootstrap: false`, from a string at `about:blank`, and a
 `form-action 'none'` policy. The view has no `onMessage` and injects no script, so
