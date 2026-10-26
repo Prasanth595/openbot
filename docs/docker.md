@@ -145,16 +145,17 @@ only to `tmpfs` folders that count toward the memory limit: `/tmp` (8 GiB), `/va
 started 63 on a 64-CPU host that gives the instance 8, and two builds filled 32 GiB. `setup`
 installs LXCFS with `--enable-cfs` (`lxcfs-openbot.conf`). When LXCFS runs, `openbot-instance` adds
 `lxcfs.yaml`: the container then reads its own CPU and memory limits in `/proc/cpuinfo`, `/proc/stat`,
-`/proc/meminfo`, `/proc/loadavg` and `/proc/swaps`. Without LXCFS, an instance still starts (an
+`/proc/meminfo` and `/proc/swaps`. Without LXCFS, an instance still starts (an
 update from the app must not fail), and `ready` prints a warning. OpenBot then limits only the Node
 programs of agents (see [agent processes](hosted-servers.md#memory)).
 
 An instance gets the LXCFS files when its container is made again: run `openbot-instance up <name>`
 after `setup`. A restart of LXCFS breaks its files in the containers that run, so `setup` does not
-restart it while a container uses it. Docker starts after LXCFS (`docker-openbot.conf`).
+restart it while a container uses it; each `setup` prints a warning until LXCFS runs with
+`--enable-cfs`. Docker starts after LXCFS (`docker-openbot.conf`).
 
 `start` also checks that the container cannot swap (`memory.swap.max` is 0), and prints a warning if
-it can. A container that swaps stops for seconds at a time when its memory is full, and its clients
+it can, or if it cannot read the value. A container that swaps stops for seconds at a time when its memory is full, and its clients
 lose the connection.
 
 ### Logs

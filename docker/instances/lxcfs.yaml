@@ -9,5 +9,4 @@ services:
       - /var/lib/lxcfs/proc/cpuinfo:/proc/cpuinfo:ro
       - /var/lib/lxcfs/proc/stat:/proc/stat:ro
       - /var/lib/lxcfs/proc/meminfo:/proc/meminfo:ro
-      - /var/lib/lxcfs/proc/loadavg:/proc/loadavg:ro
       - /var/lib/lxcfs/proc/swaps:/proc/swaps:ro

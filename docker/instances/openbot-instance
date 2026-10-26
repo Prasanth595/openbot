@@ -35,7 +35,7 @@ BACKUP_UNIT=openbot-instance-backup
 LOCKS=/run
 # LXCFS shows each container its own CPU and memory limits in these files. See lxcfs.yaml.
 LXCFS=/var/lib/lxcfs
-LXCFS_FILES=(proc/cpuinfo proc/stat proc/meminfo proc/loadavg proc/swaps)
+LXCFS_FILES=(proc/cpuinfo proc/stat proc/meminfo proc/swaps)
 LXCFS_DROP_IN=/etc/systemd/system/lxcfs.service.d/openbot.conf
 # The files without which a backup cannot open: the database and the keyring with its password.
 REQUIRED_FILES=(.config/OpenBot/openbot.db .local/share/keyrings/login.keyring .config/openbot-container/keyring-password)
@@ -127,6 +127,9 @@ setup_lxcfs() {
   fi
   systemctl enable --now --quiet lxcfs.service
   lxcfs_ready || fail "LXCFS does not show its files in $LXCFS."
+  # Each setup says it again until LXCFS runs with the options of the drop-in.
+  tr '\0' ' ' <"/proc/$(systemctl show --property MainPID --value lxcfs.service)/cmdline" | grep -q -- --enable-cfs ||
+    echo "LXCFS runs without --enable-cfs, so the containers see the CPUs of the host. Stop the instances, run 'systemctl restart lxcfs', and start them." >&2
 }
 
 setup() {
@@ -186,7 +189,9 @@ ready() {
 start() {
   ready
   update_folders "$1" || fail "The update folders of $1 could not be made."
-  compose "$1" up --detach
+  # update_request runs start in a subshell on the left of `||`, where `set -e` is off: a failed
+  # `up` must still be the result of start.
+  compose "$1" up --detach || return
   check_swap "$1"
 }
 
@@ -196,7 +201,10 @@ start() {
 check_swap() {
   local id swap
   id=$(docker inspect --format '{{.Id}}' "openbot-$1") || return 0
-  swap=$(cat "/sys/fs/cgroup/system.slice/docker-$id.scope/memory.swap.max" 2>/dev/null) || return 0
+  if ! swap=$(cat "/sys/fs/cgroup/system.slice/docker-$id.scope/memory.swap.max" 2>/dev/null); then
+    echo "The swap limit of openbot-$1 cannot be read. Check that Docker uses cgroup v2 with the systemd driver and swap accounting." >&2
+    return 0
+  fi
   [ "$swap" = 0 ] || echo "openbot-$1 can use swap (memory.swap.max is $swap). Check the swap accounting of Docker." >&2
 }
 

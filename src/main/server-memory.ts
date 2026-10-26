@@ -28,6 +28,8 @@ const AGENT_PROCESS_ENTRY = `\0${AGENT_PROCESS_VARIABLE}=1\0`;
 const AGENT_PROCESS_NICE = 10;
 /** An orphan that SIGTERM has not ended after this long gets SIGKILL. */
 const STOP_GRACE_MS = 5_000;
+/** A process younger than this is never stopped, such as the wake-up command that a stopped job's shell runs. */
+const STOP_MIN_AGE_MS = 5_000;
 
 export interface ServerMemoryOptions {
   /** True on a hosted server, whose plan sets the memory. */
@@ -295,6 +297,10 @@ interface Classification {
   start: string;
   exe: string | null;
   marked: boolean;
+  /** When this pass first saw the program. */
+  seenAt: number;
+  /** True once the process had a child: a shell or a build that runs others is never stopped. */
+  parent: boolean;
 }
 
 /**
@@ -305,8 +311,10 @@ interface Classification {
  * `AGENT_PROCESS_NICE`. The variable is the test because a job that an agent detaches, and the
  * workers of a build whose parent the OOM killer took, leave main's tree: the kernel gives them to
  * PID 1. Such an orphan is not part of a provider that runs. When the level is critical, this stops
- * the largest orphans with no children first, never the root of a tree: the shell that started a
- * detached job then runs its next command, such as the one that wakes the agent with the exit status.
+ * the largest orphans that never had a child and that run for at least `STOP_MIN_AGE_MS`. A shell or
+ * a build that runs other programs is never stopped, so the shell of a detached job runs its next
+ * command, such as the one that wakes the agent with the exit status, and that new short command is
+ * too young to be stopped. A job of one process, such as a preview server, is stopped.
  * A process can end during the pass, so each read, write and signal can fail and is ignored.
  *
  * An Electron process runs the same binary as main. Chromium sets the values of its renderers and GPU
@@ -317,8 +325,8 @@ interface Classification {
  */
 class AgentProcesses {
   readonly #known = new Map<number, Classification>();
-  /** The orphans that got SIGTERM, and when. */
-  readonly #stopping = new Map<number, { start: string; at: number }>();
+  /** The orphans that got SIGTERM, when, and whether they got SIGKILL after it. */
+  readonly #stopping = new Map<number, { start: string; at: number; killed: boolean }>();
 
   /** `neededBytes` is the memory to free, 0 when the level is not critical. Returns the processes it signalled. */
   update = Effect.fn("ServerMemory.agentProcesses")(function* (this: AgentProcesses, neededBytes: number, now: number) {
@@ -361,9 +369,12 @@ class AgentProcesses {
               start: entry.start,
               exe,
               marked: environment !== null && `\0${environment}`.includes(AGENT_PROCESS_ENTRY),
+              seenAt: now,
+              parent: false,
             };
             this.#known.set(entry.pid, known);
           }
+          if (children.has(entry.pid)) known.parent = true;
           return { entry, known };
         }),
       { concurrency: PROC_READ_CONCURRENCY },
@@ -402,20 +413,28 @@ class AgentProcesses {
       if (!stopping) continue;
       const rssBytes = (yield* readRssBytes(entry.pid)) ?? 0;
       freeing += rssBytes;
-      if (now - stopping.at >= STOP_GRACE_MS && signal(entry.pid, "SIGKILL")) {
+      // One SIGKILL: a process in uninterruptible sleep or a zombie stays listed for a while after it.
+      if (!stopping.killed && now - stopping.at >= STOP_GRACE_MS && signal(entry.pid, "SIGKILL")) {
+        stopping.killed = true;
         stopped.push({ pid: entry.pid, name: entry.name, rssBytes, signal: "SIGKILL" });
       }
     }
     if (neededBytes <= freeing) return stopped;
     const leaves = yield* Effect.forEach(
-      orphans.filter(({ entry }) => entry.state !== "Z" && !children.has(entry.pid) && !this.#stopping.has(entry.pid)),
+      orphans.filter(
+        ({ entry, known }) =>
+          entry.state !== "Z" &&
+          !known.parent &&
+          now - known.seenAt >= STOP_MIN_AGE_MS &&
+          !this.#stopping.has(entry.pid),
+      ),
       ({ entry }) => Effect.map(readRssBytes(entry.pid), (rssBytes) => ({ entry, rssBytes: rssBytes ?? 0 })),
       { concurrency: PROC_READ_CONCURRENCY },
     );
     for (const { entry, rssBytes } of leaves.sort((left, right) => right.rssBytes - left.rssBytes)) {
       if (freeing >= neededBytes) break;
       if (!signal(entry.pid, "SIGTERM")) continue;
-      this.#stopping.set(entry.pid, { start: entry.start, at: now });
+      this.#stopping.set(entry.pid, { start: entry.start, at: now, killed: false });
       freeing += rssBytes;
       stopped.push({ pid: entry.pid, name: entry.name, rssBytes, signal: "SIGTERM" });
     }

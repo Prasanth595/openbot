@@ -240,9 +240,10 @@ async function inside(): Promise<void> {
       `nice ${nice(process.pid)}, OOM ${await procValue(process.pid, "oom_score_adj")}`,
     );
 
-    // A detached job whose leaf, `tail`, holds all it reads: about 100 MB a second, until it is stopped.
+    // A detached job whose leaf, `tail`, holds all it reads: about 50 MB a second, until it is stopped.
+    // The guard stops only a process that runs for 5 s, and the limit is reached after about 13 s.
     // The shell then writes the exit status, as a routine wake-up command reports it.
-    detach(`(while :; do head -c 20000000 /dev/zero || exit; sleep 0.2; done) | tail; echo "$?" > ${WAKE_FILE}`, true);
+    detach(`(while :; do head -c 20000000 /dev/zero || exit; sleep 0.4; done) | tail; echo "$?" > ${WAKE_FILE}`, true);
     const status = await until(
       "the wake-up file",
       () =>
