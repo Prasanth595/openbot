@@ -1,1 +1,1 @@
-export { ConnectedScreen as default } from "@/features/agents/screens/connected-screen";
+export { HomeScreen as default } from "@/features/agents/screens/home-screen";

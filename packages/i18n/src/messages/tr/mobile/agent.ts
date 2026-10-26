@@ -527,6 +527,8 @@ export const messages = {
   "mobile.agent.home.noAgentsBody": "Telefonunuzdan çalışmaya başlamak için bir ajan ekleyin.",
   "mobile.agent.home.chatOptions": "Sohbet seçenekleri",
   "mobile.agent.home.markAllRead": "Tümünü okundu olarak işaretle",
+  "mobile.agent.home.detailEmpty": "Açık sohbet yok",
+  "mobile.agent.home.detailEmptyBody": "Burada okumak için listeden bir ajan ya da kanal seçin.",
   "mobile.agent.route.appearance": "Görünüm",
   "mobile.agent.route.cropPhoto": "Taşı ve Ölçeklendir",
   "mobile.agent.info.memory.inclusion.label": "Bellek kullanımı",

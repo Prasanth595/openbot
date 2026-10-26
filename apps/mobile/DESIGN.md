@@ -110,6 +110,25 @@ sign-in opens its connect page; each page has its own `SheetSaveAction`. The arr
 (a skill keeps its `@[name](skill:id)` marker) in an agent's message field and the chat replaces the
 sheet, as Agent info > Skills does for a new skill. Several agents that can use it are a native menu.
 
+## Tablet layout
+
+An iPad window of 744 pt or more keeps the chat list beside the chat, as the desktop sidebar does.
+Narrower windows, which Slide Over and a narrow Split View give, keep the phone layout, where the
+list and the chat take the window in turn. `useTwoPane` in `features/tablet` is the one place that
+decides this, and it follows the window and not the device, so a window that is resized changes
+layout with it.
+
+- The list pane is the home screen in `pane` mode and the right side is the navigation stack, with
+  every route it has on a phone. The home route is the detail pane: it holds the empty state until
+  a chat opens over it.
+- A pane is content and not a navigation screen, so it has no native header. This is the one place
+  where the home bar buttons are not native: they float over the list on `expo-glass-effect` glass,
+  as the chat header buttons float over the conversation, over the blur that `LargeTitleBar` draws.
+  Everything else, including the chats, the sheets and their headers, stays native.
+- A chat the user picks in the list is a new selection and not a step deeper. It takes the place of
+  the chat in the pane rather than stacking on it, it opens with no animation, and it has no Back:
+  the list it came from is on screen. The first-run flow is the exception and takes the window.
+
 ## Sheets
 
 The sheet style is a neutral iOS-style grouped surface: a white/light-gray sheet in light mode,

@@ -239,6 +239,7 @@ src/
     search/             search model, controls, results, and screen
     servers/            server drawer and joining a server
     settings/           account settings screen
+    tablet/             the two-pane iPad layout and the window size that decides it
     workspace/          remote directory, WebRTC transport, live events, and workspace state
   shared/
     components/         UI used by more than one feature

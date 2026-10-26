@@ -66,6 +66,8 @@ import { setHomeSearchOpener } from "@/features/search/model/home-search-request
 import { useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { TaskListRow } from "@/features/servers/components/task-list-row";
 import { useServerTasks } from "@/features/servers/model/use-server-tasks";
+import { useTwoPane } from "@/features/tablet/context/two-pane-context";
+import { collapseDetailPane } from "@/features/tablet/model/detail-pane";
 import {
   type MobileAgent,
   useMobileWorkspaceReader,
@@ -1017,6 +1019,7 @@ interface Shortcut {
 function HomeSearchIdle({ onLeave, canUseTasks }: { onLeave: () => void; canUseTasks: boolean }) {
   const { t } = useText();
   const gate = useContext(ChatNavigationGateContext);
+  const twoPane = useTwoPane();
   const serverId = useMobileWorkspaceSelector((current) => current.activeServer.id);
   const hasServer = useMobileWorkspaceSelector((current) =>
     current.servers.some((server) => server.id === current.activeServer.id),
@@ -1073,6 +1076,7 @@ function HomeSearchIdle({ onLeave, canUseTasks }: { onLeave: () => void; canUseT
   );
   const openChat = (agent: MobileAgent) => {
     onLeave();
+    if (twoPane) collapseDetailPane();
     if (!gate?.openFromHome(agent.id)) router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id } });
   };
   return (
@@ -1123,6 +1127,7 @@ const NAME_MARK = "\u2063";
 function TaskEditorPage({ agent, search }: { agent: MobileAgent; search: HomeSearch }) {
   const { t } = useText();
   const gate = useContext(ChatNavigationGateContext);
+  const twoPane = useTwoPane();
   const muted = String(useThemeColor("muted"));
   const color = getBloubAvatarColor(agent.avatarSeed, agent.avatarHue);
   const { tasks } = useServerTasks(agent.serverId, { agentId: agent.id });
@@ -1134,6 +1139,7 @@ function TaskEditorPage({ agent, search }: { agent: MobileAgent; search: HomeSea
   const [before = "", after = ""] = t("mobile.search.task.newFor", { name: NAME_MARK }).split(NAME_MARK);
   const message = () => {
     search.leave();
+    if (twoPane) collapseDetailPane();
     if (!gate?.openFromHome(agent.id)) router.push({ pathname: "/chat/[agentId]", params: { agentId: agent.id } });
   };
   return (

@@ -1,5 +1,6 @@
 import { GlassView } from "expo-glass-effect";
 import { Link, router } from "expo-router";
+import { useNavigationState } from "expo-router/react-navigation";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
@@ -12,6 +13,7 @@ import { BloubAvatar } from "@/features/agents/components/bloub-avatar";
 import { useBrowserFeature } from "@/features/browser/components/use-browser-feature";
 import { ChannelAvatar } from "@/features/channels/components/channel-avatar";
 import { ChatGlassIconButton } from "@/features/chat/components/chat-glass-icon-button";
+import { useTwoPane } from "@/features/tablet/context/two-pane-context";
 import { useMobileWorkspaceSelector } from "@/features/workspace/context/mobile-workspace-context";
 import { showsOnline } from "@/features/workspace/model/server-status";
 import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-effect";
@@ -59,6 +61,11 @@ export function ChatHeader({
   trailing,
 }: ChatHeaderProps) {
   const { t } = useText();
+  const twoPane = useTwoPane();
+  const stackIndex = useNavigationState((state) => state.index);
+  // Beside the list, the first screen of the detail pane has nothing under it to go back to, and
+  // the list it opened from is on screen. A screen pushed on top of it keeps its Back.
+  const backHidden = twoPane && stackIndex <= 1;
   const warning = useThemeColor("warning");
   const disconnected = useMobileWorkspaceSelector(
     (current) => !current.servers.some((server) => server.id === target.serverId && showsOnline(server)),
@@ -85,17 +92,19 @@ export function ChatHeader({
         importantForAccessibility={accessibilityHidden ? "no-hide-descendants" : "auto"}
         style={{ top: topInset + 8 }}
       >
-        <ChatGlassIconButton
-          accessibilityLabel={t("common.back")}
-          fallbackBackground={fallbackBackground}
-          liquidGlassAvailable={liquidGlassAvailable}
-          onPress={() => {
-            void haptics.impact("soft");
-            onBack();
-          }}
-        >
-          <ArrowLeft color={iconColor} size={24} strokeWidth={2} />
-        </ChatGlassIconButton>
+        {backHidden ? null : (
+          <ChatGlassIconButton
+            accessibilityLabel={t("common.back")}
+            fallbackBackground={fallbackBackground}
+            liquidGlassAvailable={liquidGlassAvailable}
+            onPress={() => {
+              void haptics.impact("soft");
+              onBack();
+            }}
+          >
+            <ArrowLeft color={iconColor} size={24} strokeWidth={2} />
+          </ChatGlassIconButton>
+        )}
 
         <GlassView
           glassEffectStyle={liquidGlassAvailable ? "regular" : "none"}

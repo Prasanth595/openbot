@@ -1,8 +1,10 @@
 import type { ChannelSummary, SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
 import { BlurTargetView } from "expo-blur";
+import { GlassView } from "expo-glass-effect";
 import { type Href, router, Stack } from "expo-router";
 import { Button, Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";
+import Ellipsis from "lucide-react-native/icons/ellipsis";
 import EllipsisVertical from "lucide-react-native/icons/ellipsis-vertical";
 import Layers3 from "lucide-react-native/icons/layers";
 import WifiOff from "lucide-react-native/icons/wifi-off";
@@ -46,8 +48,9 @@ import { SidebarSectionHeader } from "@/features/agents/components/sidebar-secti
 import { showFailureAlert } from "@/features/analytics/failure-reports";
 import { ChannelListRow } from "@/features/channels/components/channel-list";
 import { useChannels } from "@/features/channels/components/use-channels";
+import { ChatGlassButton } from "@/features/chat/components/chat-glass-icon-button";
 import { OnboardingFlow } from "@/features/onboarding/components/onboarding-flow";
-import { useOnboardingGate } from "@/features/onboarding/model/use-onboarding-gate";
+import { useOnboardingGate } from "@/features/onboarding/context/onboarding-gate-context";
 import {
   HOME_SEARCH_HEIGHT,
   HomeSearchBar,
@@ -75,12 +78,13 @@ import {
 } from "@/features/workspace/model/sidebar-layout";
 import { useAppLoadingOverlay, useScreenLoadingLabel } from "@/shared/components/app-loading-overlay";
 import { ChromeGlassSheen } from "@/shared/components/chrome-glass-sheen";
-import { LargeTitle, LargeTitleBar, useLargeTitleScroll } from "@/shared/components/large-title";
+import { BAR_HEIGHT, LargeTitle, LargeTitleBar, useLargeTitleScroll } from "@/shared/components/large-title";
 import { type MenuAction, MenuView } from "@/shared/components/menu-view";
 import { useChromeGlass } from "@/shared/lib/chrome-glass";
 import { haptics } from "@/shared/lib/haptics";
 import { isAndroid, isIOS } from "@/shared/lib/platform";
 import { currentText, useText } from "@/shared/lib/text";
+import { useLiquidGlass } from "@/shared/lib/use-liquid-glass";
 
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const ONBOARDING_EXIT = FadeOut.duration(220).easing(EASE_OUT);
@@ -90,6 +94,8 @@ const LIST_REFLOW = LinearTransition.duration(240).easing(EASE_OUT).reduceMotion
 // so a server with many agents mounts fewer avatars, swipe handlers and menus.
 const LIST_WINDOW_SIZE = 7;
 const LIST_BATCH = 10;
+/** The bar buttons of the chat list pane, a little smaller than the floating chat buttons. */
+const PANE_BUTTON_SIZE = 40;
 
 /** A chat row: an agent, or a channel with its server and the agents of that server. */
 interface ChatRowTarget {
@@ -260,7 +266,12 @@ function openFromMenu(href: Href): void {
   router.push(href);
 }
 
-export function ConnectedScreen() {
+/**
+ * The chat list. On a phone it is the home screen; on a tablet it also shows as the pane beside the
+ * chat, where it is content and not a navigation screen, so it draws its own bar in place of the
+ * native header and its buttons float over the list as the chat header does.
+ */
+export function ConnectedScreen({ pane = false }: { pane?: boolean }) {
   const { t, sourceText } = useText();
   const { isLoaderPresent } = useAppLoadingOverlay();
   const { openDrawer } = useAppDrawer();
@@ -284,7 +295,10 @@ export function ConnectedScreen() {
     () => new Map(agents.filter((agent) => agent.serverId === activeServer.id).map((agent) => [agent.id, agent])),
     [agents, activeServer.id],
   );
-  const [foreground, muted] = useThemeColor(["foreground", "muted"]);
+  // `default` is the field fill, the solid stand-in the chat and the search field use for glass.
+  const [foreground, muted, fieldBackground] = useThemeColor(["foreground", "muted", "default"]);
+  // The pane bar has no native glass behind it, so its buttons carry their own, as in the chat.
+  const liquidGlass = useLiquidGlass();
   // The Android header buttons have the glass of the search field.
   const buttonGlass = useChromeGlass();
   const searchBlurTarget = useRef<ViewInstance>(null);
@@ -391,9 +405,9 @@ export function ConnectedScreen() {
     () => items.filter((item) => item.kind === "section").map((item) => item.id),
     [items],
   );
-  const scroll = useLargeTitleScroll();
-  const { headerHeight } = scroll;
   const insets = useSafeAreaInsets();
+  const scroll = useLargeTitleScroll(pane ? insets.top + BAR_HEIGHT : undefined);
+  const { headerHeight } = scroll;
   const search = useHomeSearch();
   // Search has no bar: the list and the results move up by the bar's height as it opens.
   const searchBarOffset = Math.max(0, headerHeight - insets.top);
@@ -545,6 +559,15 @@ export function ConnectedScreen() {
     ];
   }, [hasHiddenChats, hasDeletedChannels, hasSelectedServer, canMarkAllRead, channels.supported, sidebar?.layout, t]);
 
+  const runOptionsAction = (action: string) => {
+    if (action === "add-section") router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
+    if (action === "add-agent") router.push("/add-agent");
+    if (action === "add-channel") router.push({ pathname: "/add-channel", params: { serverId: activeServer.id } });
+    if (action === "hidden-chats") router.push("/hidden-chats");
+    if (action === "deleted-chats") router.push({ pathname: "/deleted-chats", params: { serverId: activeServer.id } });
+    if (action === "mark-all-read") markAllChatsRead();
+  };
+
   return (
     <View className="flex-1 bg-background">
       <SearchBlurTarget target={searchBlurTarget}>
@@ -554,7 +577,10 @@ export function ConnectedScreen() {
             // both. Its top leaves the transparent header and its blur clear.
             <EmptyAgentsScene
               onAddAgent={addAgent}
-              style={{ paddingTop: insets.top + CROWD_TOP, paddingBottom: insets.bottom + 12 }}
+              style={{
+                paddingTop: (pane ? headerHeight : insets.top) + CROWD_TOP,
+                paddingBottom: insets.bottom + 12,
+              }}
               afterWelcome={welcomeHandOff}
             />
           ) : listReady ? (
@@ -567,16 +593,17 @@ export function ConnectedScreen() {
               className="flex-1 bg-background"
               alwaysBounceVertical={false}
               contentContainerClassName={items.length > 0 ? undefined : "grow"}
-              // Android has no content inset, so the list starts below the transparent header. The end of
-              // the list scrolls clear of the search field.
+              // Android and the tablet pane have no content inset, so the list starts below the bar it
+              // draws. The end of the list scrolls clear of the search field.
               contentContainerStyle={{
-                paddingTop: isAndroid ? headerHeight : 0,
+                paddingTop: scroll.nativeInset ? 0 : headerHeight,
                 paddingBottom: insets.bottom + HOME_SEARCH_HEIGHT + 24,
               }}
               scrollEventThrottle={16}
               onScroll={scroll.onScroll}
-              // Keep the native header inset even when short content cannot scroll or bounce.
-              contentInsetAdjustmentBehavior="always"
+              // Keep the native header inset even when short content cannot scroll or bounce. A pane
+              // has no native header, and the safe area it would add is already in its own padding.
+              contentInsetAdjustmentBehavior={scroll.nativeInset ? "always" : "never"}
               data={items}
               keyExtractor={listItemKey}
               renderItem={renderItem}
@@ -704,6 +731,62 @@ export function ConnectedScreen() {
         />
       )}
 
+      {/* The pane is content, not a navigation screen, so there is no native bar to hold these. They
+          float over the list on their own glass, as the buttons of the chat header do, and the blur
+          under them is the one `LargeTitleBar` already draws. */}
+      {pane && headerActions && !search.open ? (
+        <View
+          className="absolute inset-x-0 z-20 flex-row items-center gap-2 px-3"
+          pointerEvents="box-none"
+          style={{ top: insets.top + (BAR_HEIGHT - PANE_BUTTON_SIZE) / 2 }}
+        >
+          <ChatGlassButton
+            accessibilityLabel={t("mobile.agent.home.openServers")}
+            className="flex-1 items-center justify-center"
+            fallbackBackground={fieldBackground}
+            height={PANE_BUTTON_SIZE}
+            liquidGlassAvailable={liquidGlass}
+            width={PANE_BUTTON_SIZE}
+            onPress={openDrawer}
+          >
+            <Layers3 color={iconColor} size={20} strokeWidth={2} />
+          </ChatGlassButton>
+          <ConnectionHeaderStatus fill server={hasSelectedServer ? activeServer : undefined} />
+          {showsPlanLimits ? (
+            <PlanLimitsHeaderButton
+              serverId={activeServer.id}
+              rows={planLimits.rows}
+              accounts={planLimits.accounts}
+              disabled={!planLimits.online}
+              androidGlass={buttonGlass}
+            />
+          ) : null}
+          <MenuView
+            actions={optionsActions}
+            onPressAction={(event) => runOptionsAction(event.nativeEvent.event)}
+            style={{ height: PANE_BUTTON_SIZE, width: PANE_BUTTON_SIZE }}
+          >
+            <View accessible accessibilityLabel={t("mobile.agent.home.chatOptions")} accessibilityRole="button">
+              <GlassView
+                glassEffectStyle={liquidGlass ? "regular" : "none"}
+                style={{
+                  alignItems: "center",
+                  backgroundColor: liquidGlass ? "transparent" : String(fieldBackground),
+                  borderCurve: "continuous",
+                  borderRadius: PANE_BUTTON_SIZE / 2,
+                  height: PANE_BUTTON_SIZE,
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  width: PANE_BUTTON_SIZE,
+                }}
+              >
+                <Ellipsis color={iconColor} size={20} strokeWidth={2} />
+              </GlassView>
+            </View>
+          </MenuView>
+        </View>
+      ) : null}
+
       {/* The results lie over the bar's edge, so its blur cannot soften them; they have their own. */}
       {searchShows ? <HomeSearchResults search={search} barHeight={searchBarOffset} /> : null}
 
@@ -716,79 +799,71 @@ export function ConnectedScreen() {
         </Animated.View>
       ) : null}
 
-      <Stack.Screen
-        options={{
-          // The first-run flow is a whole screen with its own back and skip actions.
-          headerShown: !onboarding.active,
-          headerLeft:
-            isAndroid && headerActions && !search.open
-              ? () => (
-                  <View className="flex-row items-center gap-2">
-                    <HeaderIconButton
-                      accessibilityLabel={t("mobile.agent.home.openServers")}
-                      glass={buttonGlass}
-                      onPress={openDrawer}
-                    >
-                      <Layers3 color={iconColor} size={22} strokeWidth={2} />
-                    </HeaderIconButton>
-                    <ConnectionHeaderStatus server={hasSelectedServer ? activeServer : undefined} />
-                  </View>
-                )
-              : undefined,
-          headerRight:
-            isAndroid && headerActions && !search.open
-              ? () => (
-                  <View className="flex-row items-center gap-1">
-                    {showsPlanLimits ? (
-                      <PlanLimitsHeaderButton
-                        serverId={activeServer.id}
-                        rows={planLimits.rows}
-                        accounts={planLimits.accounts}
-                        disabled={!planLimits.online}
-                        androidGlass={buttonGlass}
-                      />
-                    ) : null}
-                    <MenuView
-                      actions={optionsActions}
-                      onPressAction={(event) => {
-                        if (event.nativeEvent.event === "add-section")
-                          router.push({ pathname: "/section-form", params: { serverId: activeServer.id } });
-                        if (event.nativeEvent.event === "add-agent") router.push("/add-agent");
-                        if (event.nativeEvent.event === "add-channel")
-                          router.push({ pathname: "/add-channel", params: { serverId: activeServer.id } });
-                        if (event.nativeEvent.event === "hidden-chats") router.push("/hidden-chats");
-                        if (event.nativeEvent.event === "deleted-chats")
-                          router.push({ pathname: "/deleted-chats", params: { serverId: activeServer.id } });
-                        if (event.nativeEvent.event === "mark-all-read") markAllChatsRead();
-                      }}
-                      style={{ height: 48, width: 48 }}
-                    >
-                      <View
-                        accessibilityLabel={t("mobile.agent.home.chatOptions")}
-                        accessibilityRole="button"
-                        accessible
-                        className="size-12 items-center justify-center"
+      {pane ? null : (
+        <Stack.Screen
+          options={{
+            // The first-run flow is a whole screen with its own back and skip actions.
+            headerShown: !onboarding.active,
+            headerLeft:
+              isAndroid && headerActions && !search.open
+                ? () => (
+                    <View className="flex-row items-center gap-2">
+                      <HeaderIconButton
+                        accessibilityLabel={t("mobile.agent.home.openServers")}
+                        glass={buttonGlass}
+                        onPress={openDrawer}
+                      >
+                        <Layers3 color={iconColor} size={22} strokeWidth={2} />
+                      </HeaderIconButton>
+                      <ConnectionHeaderStatus server={hasSelectedServer ? activeServer : undefined} />
+                    </View>
+                  )
+                : undefined,
+            headerRight:
+              isAndroid && headerActions && !search.open
+                ? () => (
+                    <View className="flex-row items-center gap-1">
+                      {showsPlanLimits ? (
+                        <PlanLimitsHeaderButton
+                          serverId={activeServer.id}
+                          rows={planLimits.rows}
+                          accounts={planLimits.accounts}
+                          disabled={!planLimits.online}
+                          androidGlass={buttonGlass}
+                        />
+                      ) : null}
+                      <MenuView
+                        actions={optionsActions}
+                        onPressAction={(event) => runOptionsAction(event.nativeEvent.event)}
+                        style={{ height: 48, width: 48 }}
                       >
                         <View
-                          className="size-10 items-center justify-center overflow-hidden rounded-full"
-                          style={buttonGlass}
+                          accessibilityLabel={t("mobile.agent.home.chatOptions")}
+                          accessibilityRole="button"
+                          accessible
+                          className="size-12 items-center justify-center"
                         >
-                          <ChromeGlassSheen />
-                          <EllipsisVertical color={iconColor} size={22} strokeWidth={2} />
+                          <View
+                            className="size-10 items-center justify-center overflow-hidden rounded-full"
+                            style={buttonGlass}
+                          >
+                            <ChromeGlassSheen />
+                            <EllipsisVertical color={iconColor} size={22} strokeWidth={2} />
+                          </View>
                         </View>
-                      </View>
-                    </MenuView>
-                  </View>
-                )
-              : undefined,
-          headerTintColor: foreground,
-          headerTransparent: true,
-          scrollEdgeEffects: { top: "hidden" },
-          title: "",
-        }}
-      />
+                      </MenuView>
+                    </View>
+                  )
+                : undefined,
+            headerTintColor: foreground,
+            headerTransparent: true,
+            scrollEdgeEffects: { top: "hidden" },
+            title: "",
+          }}
+        />
+      )}
 
-      {isIOS && headerActions ? (
+      {isIOS && !pane && headerActions ? (
         <>
           <Stack.Toolbar placement="left">
             {/* The search takes the screen, so the bar buttons go while it is open. */}

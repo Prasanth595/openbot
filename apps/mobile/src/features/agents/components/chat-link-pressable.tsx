@@ -2,6 +2,8 @@ import { useNavigation, useRoute } from "expo-router/react-navigation";
 import { type ComponentProps, createContext, useContext, useEffect, useRef } from "react";
 import { type GestureResponderEvent, Pressable } from "react-native";
 import type { createChatNavigationGate } from "@/features/agents/model/chat-navigation-gate";
+import { useTwoPane } from "@/features/tablet/context/two-pane-context";
+import { collapseDetailPane } from "@/features/tablet/model/detail-pane";
 import { haptics } from "@/shared/lib/haptics";
 
 export const ChatNavigationGateContext = createContext<ReturnType<typeof createChatNavigationGate> | null>(null);
@@ -23,6 +25,7 @@ export function ChatLinkPressable({
   chatId?: string;
 }) {
   const gate = useContext(ChatNavigationGateContext);
+  const twoPane = useTwoPane();
   const route = useRoute();
   const navigation = useNavigation();
   const mounted = useRef(true);
@@ -49,7 +52,11 @@ export function ChatLinkPressable({
         void haptics.impact("soft");
         event.persist();
         const navigate = () => {
-          if (mounted.current) onPress?.(event);
+          if (!mounted.current) return;
+          // Beside the list, the chat the user picks is a new selection and not a step deeper, so
+          // it takes the place of the one in the detail pane instead of stacking on it.
+          if (twoPane) collapseDetailPane();
+          onPress?.(event);
         };
         if (gate && route.name === "connected") gate.request(navigate, navigation.isFocused);
         else navigate();

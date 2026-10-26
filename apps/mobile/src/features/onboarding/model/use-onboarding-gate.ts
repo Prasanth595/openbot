@@ -7,17 +7,26 @@ import { devReplayOnboarding } from "@/shared/lib/dev-feature-overrides";
 
 type Decision = "show" | "hide";
 
+export interface OnboardingGate {
+  active: boolean;
+  finish: () => void;
+}
+
 /**
- * Whether the home screen shows the first-run flow. It shows once per account on this phone, when
- * the account has no server, or when the selected server is connected and has no agent: the flow
- * creates the first agent there. Other servers of the account do not count, because a server that
- * is asleep or that someone shared must not keep the flow away. Until the selected server reports,
- * it decides nothing and the home screen shows its usual loading state.
+ * Whether the home screen shows the first-run flow. Read it through `useOnboardingGate`, which
+ * holds one decision for the app: a second reader would keep a second decision, and finishing the
+ * flow in one would leave the other showing it.
+ *
+ * The flow shows once per account on this phone, when the account has no server, or when the
+ * selected server is connected and has no agent: the flow creates the first agent there. Other
+ * servers of the account do not count, because a server that is asleep or that someone shared must
+ * not keep the flow away. Until the selected server reports, it decides nothing and the home screen
+ * shows its usual loading state.
  *
  * The decision holds for the life of the screen: an agent that the flow creates must not end the
  * flow, and an agent that a slow server reports later must not start it over a list.
  */
-export function useOnboardingGate(): { active: boolean; finish: () => void } {
+export function useOnboardingGateState(): OnboardingGate {
   const { session } = useMobileSession();
   // Home holds this gate under every screen, so it reads only the values that decide.
   const agents = useMobileWorkspaceSelector((current) => current.agents);
