@@ -240,6 +240,7 @@ import { OnePasswordConnectorService } from "./onepassword-connector-service";
 import { OnePasswordConnectorStore } from "./onepassword-connector-store";
 import { PromptCacheTtlPreferenceStore } from "./prompt-cache-ttl-preference-store";
 import { ProviderAccountsHost } from "./provider-accounts-host";
+import { createProviderCliAppVersionStore } from "./provider-cli-app-version-store";
 import { ProviderCredentialStore } from "./provider-credential-store";
 import { createProviderDetection, type ProviderDetection } from "./provider-detection";
 import { PROVIDER_DETECTION_SETTINGS_FILE, ProviderDetectionSettingsStore } from "./provider-detection-settings-store";
@@ -338,6 +339,7 @@ const UPDATE_PREFERENCE_FILE = "openbot-update-preference-v1.json";
 const NOTIFICATION_PREFERENCE_FILE = "openbot-notification-preference-v1.json";
 const PUSH_NOTIFICATION_FILE = "openbot-push-notifications-v1.json";
 const BUSY_MESSAGE_MODE_PREFERENCE_FILE = "openbot-busy-message-mode-v1.json";
+const PROVIDER_CLI_APP_VERSION_FILE = "openbot-provider-cli-app-version-v1.json";
 const AGENT_DEFAULTS_PREFERENCE_FILE = "openbot-agent-defaults-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
@@ -1211,6 +1213,10 @@ export async function createApplicationServices({
     join(app.getPath("userData"), "provider-accounts"),
   );
   await runCauseEffect(providerAccounts.load());
+  const providerCliAppVersion = createProviderCliAppVersionStore(
+    join(app.getPath("userData"), PROVIDER_CLI_APP_VERSION_FILE),
+  );
+  await runCauseEffect(providerCliAppVersion.load());
   const providerRuntimes = new ProviderRuntimeManager({
     isProviderOn: (provider) => !providerUse.off().includes(provider),
     root: providerRuntimeRoot({
@@ -1945,7 +1951,12 @@ export async function createApplicationServices({
   });
   providerRuntimes.on("status", forwardProviderRuntimeStatus);
   // After the status forward, so the offer a check finds reaches the renderer.
-  providerRuntimes.startUpdateChecks();
+  const appUpgraded = providerCliAppVersion.get().appVersion !== app.getVersion();
+  providerRuntimes.startUpdateChecks({ updateInstalled: appUpgraded });
+  if (appUpgraded)
+    void runCauseEffect(providerCliAppVersion.set({ appVersion: app.getVersion() })).catch((error) =>
+      logger.warn("The provider CLI app version did not save.", toLogValue(error)),
+    );
   // A tool runtime that becomes ready changes what the MCP servers resolve to, for every
   // provider: sessions that dropped their stdio servers before it finished downloading are
   // marked for refresh, and the deferred mechanism spends the mark before each agent's next
