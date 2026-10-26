@@ -83,7 +83,11 @@ function nodeCpus(preload: boolean, module: boolean): string {
 async function outside(): Promise<void> {
   await mkdir(reportRoot, { recursive: true });
   const host = nodeCpus(false, false);
-  check("without the module, os.cpus() lists the CPUs of the host", host !== "2", `os.cpus().length = ${host}`);
+  check(
+    "without the module, os.cpus() lists the CPUs of the host",
+    /^\d+$/.test(host) && Number(host) > 2,
+    `os.cpus().length = ${host}`,
+  );
   const required = nodeCpus(true, false);
   check("require: os.cpus() follows --cpus 2", required === "2", `os.cpus().length = ${required}`);
   const imported = nodeCpus(true, true);
