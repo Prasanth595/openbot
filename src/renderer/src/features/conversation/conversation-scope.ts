@@ -1294,9 +1294,11 @@ export function createConversationViewScope(props: ConversationProps) {
       activeBrowserTabId: props.activeBrowserTabId,
       onActivateBrowserTab: activateBrowserTab,
       suspended: props.browserVisibilitySuspended,
+      // Read here, not in the callback: the prop can be a compiled memo, and the callback has no owner.
+      browserDisabled: untrack(() => props.browserEnabled === false),
     }),
-    ({ activeTab, screenOpen, activeBrowserTabId, onActivateBrowserTab, suspended }) => {
-      if (untrack(() => props.browserEnabled === false) || suspended) return;
+    ({ activeTab, screenOpen, activeBrowserTabId, onActivateBrowserTab, suspended, browserDisabled }) => {
+      if (browserDisabled || suspended) return;
       setBrowserAddress(activeTab?.url ?? "https://www.google.com");
       if (screenOpen && activeTab && activeTab.id !== activeBrowserTabId) {
         onActivateBrowserTab(activeTab.id);
