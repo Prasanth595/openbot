@@ -162,6 +162,8 @@ export function MobileChatView({
     fetchHistory();
     return () => {
       request.current += 1;
+      // A run that ends after this cleanup does not clear the flag.
+      setCatchingUp(false);
     };
   }, [fetchHistory]);
   const detached = conversation?.detached ?? false;
