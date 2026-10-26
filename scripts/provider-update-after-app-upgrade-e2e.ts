@@ -39,13 +39,22 @@ interface Report {
 const root = await mkdtemp(join(tmpdir(), "openbot-provider-update-after-app-upgrade-e2e-"));
 const report: Report = { passed: false };
 
-/** Waits for a condition that another fiber changes, and fails after `WAIT_MS`. */
-async function waitFor(label: string, check: () => boolean): Promise<void> {
-  const deadline = Date.now() + WAIT_MS;
-  while (!check()) {
-    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${label}.`);
-    await new Promise((resume) => setTimeout(resume, 20));
-  }
+/** The first status that `check` accepts, or a failure after `WAIT_MS`. */
+function nextStatus(
+  manager: ProviderRuntimeManager,
+  label: string,
+  check: (snapshot: ProviderRuntimeSnapshot) => boolean,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Timed out waiting for ${label}.`)), WAIT_MS);
+    const listener = (snapshot: ProviderRuntimeSnapshot) => {
+      if (!check(snapshot)) return;
+      clearTimeout(timer);
+      manager.off("status", listener);
+      resolve();
+    };
+    manager.on("status", listener);
+  });
 }
 
 /** A manager with no network and an older copy of each named provider in its store. */
@@ -100,12 +109,18 @@ try {
   upgrade.manager.setSystemVersion(SYSTEM, OLD_VERSION);
   // Main forwards status to the renderer only from here, as `application-services.ts` does.
   upgrade.snapshots.length = 0;
-  upgrade.manager.startUpdateChecks({ updateInstalled: true });
-  await runCauseEffect(upgrade.manager.checkForUpdates()).catch(() => undefined);
-  await waitFor(
+  const updateEnded = nextStatus(
+    upgrade.manager,
     "the managed update to end",
-    () => upgrade.manager.getStatus().providers[MANAGED].phase === "download-error",
+    (snapshot) => snapshot.providers[MANAGED].phase === "download-error",
   );
+  upgrade.manager.startUpdateChecks({ updateInstalled: true });
+  // The release check is still on its way: only the CLI that it will update has no offer.
+  const duringCheck = upgrade.manager.getStatus().providers;
+  assert.equal(duringCheck[MANAGED].availableVersion ?? null, null, "the CLI to update is not offered");
+  assert.notEqual(duringCheck[SYSTEM].availableVersion ?? null, null, "a CLI the user installed stays offered");
+  await runCauseEffect(upgrade.manager.checkForUpdates()).catch(() => undefined);
+  await updateEnded;
   const firstDownload = upgrade.snapshots.findIndex((snapshot) => snapshot.providers[MANAGED].phase === "downloading");
   const upgraded = {
     phases: phases(upgrade.snapshots),

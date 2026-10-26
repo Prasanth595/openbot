@@ -233,7 +233,7 @@ preload decoder. Cancellation and failure preserve the previous installation and
 After an app upgrade, main updates the managed CLIs with no offer (#3164).
 `openbot-provider-cli-app-version-v1.json` in `userData` keeps the app version that last started the
 update checks. A different or missing version calls `startUpdateChecks({ updateInstalled: true })`.
-Until the first check starts the downloads, `getStatus` offers nothing. That check then starts the
+Until the first check starts the downloads, `getStatus` does not offer the CLIs that it will update. That check then starts the
 download of each managed CLI that has a newer version, before it sends its status, so the renderer
 announces no offer. A CLI the user installed, an explicit path and an off provider keep the normal
 offer path. The renderer shows a notification for such an update only when it fails, with a Retry.

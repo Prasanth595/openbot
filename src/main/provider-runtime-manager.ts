@@ -276,15 +276,16 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
     // Split rather than widened: `providers` means "a provider CLI" to every renderer that draws a
     // card from it, and Bun must not become one.
     const { bun, ...providers } = structuredClone(this.#statuses);
-    // After an app upgrade the first check updates the installed CLIs itself, so nothing is offered
-    // until it has started them.
-    if (this.#target && !this.#updateInstalled) {
+    if (this.#target) {
       for (const provider of PROVIDERS) {
         const version = this.#targetSpec(provider, this.#target).version;
         // Agent status names a system fallback until the managed candidate is activated.
         const installed = this.#systemVersions.get(provider) ?? providers[provider].version;
         const offer = installed !== null && installed !== undefined && olderVersion(installed, version);
-        providers[provider].availableVersion = offer && !configuredCliPath(provider) ? version : null;
+        // After an app upgrade the first check updates an installed CLI itself, so it is not offered
+        // until that check has started its download.
+        const automatic = this.#updateInstalled && this.#updatesInstalled(provider, this.#target);
+        providers[provider].availableVersion = offer && !configuredCliPath(provider) && !automatic ? version : null;
       }
     }
     return { revision: this.#revision, providers, toolRuntimes: { bun } };
@@ -392,7 +393,7 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
         // Before offers show again, so the renderer sees these updates already downloading and
         // announces no offer for them. A download reports its own failure in its status.
         yield* Effect.forEach(
-          this.#stopping ? [] : this.#installedUpdates(target),
+          this.#stopping ? [] : PROVIDERS.filter((provider) => this.#updatesInstalled(provider, target)),
           (provider) => Effect.ignore(this.#startDownload(provider, target)),
           { discard: true },
         );
@@ -419,22 +420,21 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   }
 
   /**
-   * The provider CLIs that OpenBot installed and that have a newer version. A CLI the user
-   * installed or pointed OpenBot at, and a provider that is off, are left alone.
+   * Whether the update check after an app upgrade updates this provider CLI: OpenBot installed it
+   * and a newer version exists. A CLI the user installed or pointed OpenBot at, and a provider that
+   * is off, are left alone.
    */
-  #installedUpdates(target: RuntimeTarget): ManagedProviderId[] {
-    return PROVIDERS.filter((provider) => {
-      const { phase, version } = this.#statuses[provider];
-      // A copy older than this build's pin reads as not downloaded, with its version.
-      return (
-        (phase === "ready" || phase === "not-downloaded") &&
-        version !== null &&
-        olderVersion(version, this.#targetSpec(provider, target).version) &&
-        !this.#systemVersions.has(provider) &&
-        !configuredCliPath(provider) &&
-        this.#isProviderOn(provider)
-      );
-    });
+  #updatesInstalled(provider: ManagedProviderId, target: RuntimeTarget): boolean {
+    const { phase, version } = this.#statuses[provider];
+    // A copy older than this build's pin reads as not downloaded, with its version.
+    return (
+      (phase === "ready" || phase === "not-downloaded") &&
+      version !== null &&
+      olderVersion(version, this.#targetSpec(provider, target).version) &&
+      !this.#systemVersions.has(provider) &&
+      !configuredCliPath(provider) &&
+      this.#isProviderOn(provider)
+    );
   }
 
   /**
