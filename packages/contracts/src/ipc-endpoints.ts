@@ -67,6 +67,7 @@ import type {
   CreateAgentMemoryInput,
   DeleteAgentMemoryInput,
   HostAgentMemoryLimit,
+  MemoryCapturePreference,
   MemoryEntry,
   SetAgentMemoryInclusionInput,
   SetUserMemoryInclusionInput,
@@ -1344,8 +1345,9 @@ export const IPC_ENDPOINTS = {
     deleteMemory: scopedRequest<DeleteAgentMemoryInput, void>()("agent:delete-memory"),
     clearMemories: scopedRequest<string, void>()("agent:clear-memories"),
   },
-  // What every agent knows about the user. Local only: these stay on this computer, and no Team API
-  // carries them. A change sends the `user-memories-changed` agent event.
+  // What every agent knows about the user, and whether OpenBot saves facts before a handoff. Local only:
+  // these stay on this computer, and no Team API carries them. A change sends the `user-memories-changed`
+  // agent event.
   userMemories: {
     list: request<undefined, MemoryEntry[]>()("user-memories:list"),
     getSelection: request<undefined, AgentMemorySelectionState>()("user-memories:get-selection"),
@@ -1354,6 +1356,8 @@ export const IPC_ENDPOINTS = {
     update: request<UpdateUserMemoryInput, MemoryEntry>()("user-memories:update"),
     delete: request<string, void>()("user-memories:delete"),
     clear: request<undefined, void>()("user-memories:clear"),
+    getCapture: request<undefined, MemoryCapturePreference>()("user-memories:get-capture"),
+    setCapture: request<MemoryCapturePreference, MemoryCapturePreference>()("user-memories:set-capture"),
   },
   sharedTables: {
     // Shared tables are not scoped to an agent: there is no `agentId` on either call. The list is

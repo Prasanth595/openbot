@@ -4,18 +4,25 @@
 import { INPUT_LIMITS } from "@openbot/contracts/input-limits";
 import type {
   AgentMemorySelectionChange,
+  MemoryCapturePreference,
   SetUserMemoryInclusionInput,
   UpdateUserMemoryInput,
 } from "@openbot/contracts/ipc";
 import type { AgentService } from "../../backend/agent-service";
+import { runCauseEffect } from "../../backend/effect-boundary";
+import type { MemoryCapturePreferenceStore } from "../memory-capture-preference-store";
 import { handler, type IpcGroupHandlers, payloadHandler } from "./define-ipc-group";
 import { isObject, requireString, stringPayload } from "./validation";
 
 interface UserMemoryIpcDependencies {
   service: AgentService;
+  memoryCapture: MemoryCapturePreferenceStore;
 }
 
-export function userMemoryIpcHandlers({ service }: UserMemoryIpcDependencies): Pick<IpcGroupHandlers, "userMemories"> {
+export function userMemoryIpcHandlers({
+  service,
+  memoryCapture,
+}: UserMemoryIpcDependencies): Pick<IpcGroupHandlers, "userMemories"> {
   return {
     userMemories: {
       list: handler(() => service.listUserMemories()),
@@ -27,6 +34,10 @@ export function userMemoryIpcHandlers({ service }: UserMemoryIpcDependencies): P
       update: payloadHandler(parseUpdateUserMemory, (input) => service.updateUserMemory(input)),
       delete: payloadHandler(stringPayload("memoryId"), (memoryId) => service.deleteUserMemory(memoryId)),
       clear: handler(() => service.clearUserMemories()),
+      getCapture: handler(() => memoryCapture.get()),
+      setCapture: payloadHandler(parseMemoryCapturePreference, (preference) =>
+        runCauseEffect(memoryCapture.set(preference)),
+      ),
     },
   };
 }
@@ -60,4 +71,9 @@ export function parseSetUserMemoryInclusion(value: unknown): SetUserMemoryInclus
   if (new Set(changes.map((change) => change.memoryId)).size !== changes.length)
     throw new Error("Duplicate memory inclusion change.");
   return { changes };
+}
+
+export function parseMemoryCapturePreference(value: unknown): MemoryCapturePreference {
+  if (!isObject(value) || typeof value.enabled !== "boolean") throw new Error("Invalid memory capture setting.");
+  return { enabled: value.enabled };
 }

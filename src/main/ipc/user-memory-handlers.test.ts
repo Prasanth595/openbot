@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { parseSetUserMemoryInclusion, parseUpdateUserMemory } from "./user-memory-handlers";
+import {
+  parseMemoryCapturePreference,
+  parseSetUserMemoryInclusion,
+  parseUpdateUserMemory,
+} from "./user-memory-handlers";
 
 describe("user memory inputs", () => {
   it("reads an update, and refuses a missing id or a text past the limit", () => {
@@ -26,5 +30,10 @@ describe("user memory inputs", () => {
     expect(() => parseSetUserMemoryInclusion({ changes: [change, change] })).toThrow(
       "Duplicate memory inclusion change.",
     );
+  });
+
+  it("reads the capture setting only as a boolean", () => {
+    expect(parseMemoryCapturePreference({ enabled: false })).toEqual({ enabled: false });
+    expect(() => parseMemoryCapturePreference({ enabled: "no" })).toThrow("Invalid memory capture setting.");
   });
 });

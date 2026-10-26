@@ -89,6 +89,7 @@ import {
   decodeHostProviderAccountsFromMain,
   decodeMemories,
   decodeMemory,
+  decodeMemoryCapturePreference,
   decodeMemorySelection,
   decodeOptionalMemorySelection,
   decodeProviderApiKeyState,
@@ -872,6 +873,8 @@ const openbotApi: OpenBotDesktopApi = {
     update: decodeUserMemory,
     delete: decodeVoid,
     clear: decodeVoid,
+    getCapture: decodeMemoryCapturePreference,
+    setCapture: decodeMemoryCapturePreference,
   }),
   hostedServers: bridgeGroup(IPC_ENDPOINTS.hostedServers, {
     lifecycle: decodeVoid,

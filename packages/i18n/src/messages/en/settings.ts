@@ -78,6 +78,10 @@ export const messages = defineMessages("settings", {
   "settings.memory.about.count": { one: "{count} saved.", other: "{count} saved." },
   "settings.memory.about.manage": "Manage",
   "settings.memory.ownerLabel": "you",
+  "settings.memory.capture.title": "Keep facts before context is lost",
+  "settings.memory.capture.description":
+    "When an agent starts a new session, its model reads the end of the old one and saves lasting facts as searchable memories. This uses the agent’s model.",
+  "settings.memory.capture.saveFailed": "Could not save the memory setting.",
   // The Agents tab: the defaults of the agents on this computer.
   "settings.agentDefaults.title": "Defaults",
   "settings.agentDefaults.description": "Agents follow these defaults, unless you change them for an agent.",

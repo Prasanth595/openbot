@@ -3,6 +3,7 @@ import type {
   AgentEvent,
   AgentMemorySelection,
   AgentMemorySelectionState,
+  MemoryCapturePreference,
   MemoryEntry,
   OpenBotDesktopApi,
 } from "@openbot/contracts/ipc";
@@ -12,6 +13,7 @@ import { sourceText } from "@openbot/i18n/source";
 export function createMockUserMemories(emit: (event: AgentEvent) => void): OpenBotDesktopApi["userMemories"] {
   let memories: MemoryEntry[] = [];
   const selections = new Map<string, AgentMemorySelection>();
+  let capture: MemoryCapturePreference = { enabled: true };
   const changed = () => emit({ type: "user-memories-changed" });
   const essentialBytes = (list: readonly MemoryEntry[]) =>
     essentialMemoryBytes(
@@ -82,6 +84,11 @@ export function createMockUserMemories(emit: (event: AgentEvent) => void): OpenB
       memories = [];
       selections.clear();
       changed();
+    },
+    getCapture: async () => ({ ...capture }),
+    setCapture: async (preference) => {
+      capture = { enabled: preference.enabled };
+      return { ...capture };
     },
   };
 }

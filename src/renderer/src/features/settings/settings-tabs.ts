@@ -90,7 +90,10 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
     titleKey: "settings.tab.memory.title",
     descriptionKey: "settings.tab.memory.description",
     icon: Brain,
-    rows: [{ titleKey: "settings.memory.about.title", descriptionKey: "settings.memory.about.description" }],
+    rows: [
+      { titleKey: "settings.memory.about.title", descriptionKey: "settings.memory.about.description" },
+      { titleKey: "settings.memory.capture.title", descriptionKey: "settings.memory.capture.description" },
+    ],
   },
   {
     value: "profile",

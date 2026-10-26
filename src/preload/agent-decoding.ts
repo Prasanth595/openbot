@@ -4,7 +4,9 @@ import {
   type HiddenAgentsSnapshot,
   isAgentSessionSettings,
   isHiddenAgentsSnapshot,
+  isMemoryCapturePreference,
   isMemoryEntry,
+  type MemoryCapturePreference,
   type MemoryEntry,
 } from "@openbot/contracts/ipc";
 // What main answers for agents: provider status, models, the agents themselves, memories, routines,
@@ -240,6 +242,10 @@ export function decodeUserMemorySelection(value: unknown): AgentMemorySelectionS
   return value;
 }
 
+export function decodeMemoryCapturePreference(value: unknown): MemoryCapturePreference {
+  if (!isMemoryCapturePreference(value)) throw new Error("Invalid memory capture setting response.");
+  return value;
+}
 export function decodeAgentSessionSettingsFromMain(value: unknown): AgentSessionSettings {
   if (!isAgentSessionSettings(value)) throw new Error("Invalid session settings response.");
   return value;
