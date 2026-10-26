@@ -65,11 +65,12 @@ export class AtomicFileWriteError extends Schema.TaggedError<AtomicFileWriteErro
  * The waits before each new rename when Windows answers `EPERM`, `EACCES` or `EBUSY`. Windows gives
  * these when antivirus, the search indexer or a backup tool has the target file open for a moment. A failed
  * rename of the team file at sign-in leaves the host with no id, and Slack, Discord and Telegram then
- * cannot connect.
+ * cannot connect. On other systems these codes are permanent permission errors, so they fail at once.
  */
-const HELD_TARGET_WAITS_MS = [10, 50, 100, 250, 500];
+const HELD_TARGET_WAITS_MS: readonly number[] = [10, 50, 100, 250, 500];
 
 function isHeldTargetError(cause: unknown): boolean {
+  if (process.platform !== "win32") return false;
   const code = cause instanceof Error && "code" in cause ? cause.code : null;
   return code === "EPERM" || code === "EACCES" || code === "EBUSY";
 }
