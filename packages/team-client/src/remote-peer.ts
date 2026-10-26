@@ -241,6 +241,8 @@ export interface RemoteTeamDiagnostic {
     | "signal-retry"
     | "host-waiting"
     | "path-check"
+    | "event-reset"
+    | "event-gap"
     | "peer-state"
     | "route"
     | "ice-recovery"
@@ -305,7 +307,6 @@ interface PeerState {
   connection: RTCPeerConnection | null;
   channels: Partial<Record<ChannelKind, RTCDataChannel>>;
   decoders: Partial<Record<ChannelKind, TeamWebRtcPayloadDecoder>>;
-  channelLocks: Partial<Record<ChannelKind, Semaphore.Semaphore>>;
   identity: Ed25519Identity;
   clientPublicKey: string;
   clientNonce: string;
@@ -800,7 +801,6 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
         connection: null,
         channels: {},
         decoders: {},
-        channelLocks: {},
         identity,
         clientPublicKey,
         clientNonce: randomBase64Url(32),
@@ -1130,8 +1130,10 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     channel.bufferedAmountLowThreshold = 1024 * 1024;
     state.channels[kind] = channel;
     state.decoders[kind] = new TeamWebRtcPayloadDecoder();
-    const lock = Semaphore.makeUnsafe(1);
-    state.channelLocks[kind] = lock;
+    // Frames run one at a time, in the order they arrive. A semaphore does not keep that order: a
+    // frame that arrives while the permit is free between two holders runs first, and the event
+    // stream then has a gap that disconnects the peer.
+    let handled = Promise.resolve();
     channel.onopen = () => {
       if (CHANNELS.every((name) => state.channels[name]?.readyState === "open") && !state.binding) {
         diagnose(state, "channels-open");
@@ -1140,22 +1142,24 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
     };
     channel.onmessage = (event) => {
       const data = event.data;
-      void runPeerEffect(
-        lock.withPermit(
-          Effect.gen(function* () {
-            const decoded = yield* Effect.try({
-              try: () => {
-                if (!isString(data) && !(data instanceof ArrayBuffer)) {
-                  throw new Error("The host sent unsupported binary data.");
-                }
-                return state.decoders[kind]?.push(data);
-              },
-              catch: peerError,
-            });
-            if (decoded !== undefined) yield* handleChannelData(state, kind, decoded, actions);
-          }),
-        ),
-      ).catch((error) => failPeer(state, error, actions));
+      handled = handled
+        .then(() =>
+          runPeerEffect(
+            Effect.gen(function* () {
+              const decoded = yield* Effect.try({
+                try: () => {
+                  if (!isString(data) && !(data instanceof ArrayBuffer)) {
+                    throw new Error("The host sent unsupported binary data.");
+                  }
+                  return state.decoders[kind]?.push(data);
+                },
+                catch: peerError,
+              });
+              if (decoded !== undefined) yield* handleChannelData(state, kind, decoded, actions);
+            }),
+          ),
+        )
+        .catch((error) => failPeer(state, error, actions));
     };
     channel.onerror = () =>
       failPeer(
@@ -1274,6 +1278,7 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       if (kind !== "events") return;
       const frame = yield* peerDecode(() => decodeTeamProtocolV2EventFrame(data));
       if (frame.type === "event-reset") {
+        diagnose(state, "event-reset", `after ${state.lastEventSequence}, next ${frame.nextSequence}`);
         state.lastEventSequence = frame.nextSequence - 1;
         yield* RemotePeerIO.use((io) =>
           io.connectionUpdate({
@@ -1292,8 +1297,10 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
         yield* sendEventAckEffect(state);
         return;
       }
-      if (frame.sequence !== state.lastEventSequence + 1)
+      if (frame.sequence !== state.lastEventSequence + 1) {
+        diagnose(state, "event-gap", `expected ${state.lastEventSequence + 1}, got ${frame.sequence}`);
         return yield* new RemotePeerError({ message: sourceText("error.remote.eventStreamGap") });
+      }
       const channel = yield* peerDecode(() => optionalTeamEvent(frame.payload));
       const decoded = channel
         ? { status: "known" as const, event: optionalTeamEventToCurrent(channel) }
@@ -1823,7 +1830,6 @@ export function createRemoteTeamPeer(actions: ActionsRef, options: { waitForHost
       state.socket?.close();
       state.connection?.close();
       for (const decoder of Object.values(state.decoders)) decoder?.reset();
-      state.channelLocks = {};
       rejectRequests(new Error(sourceText("error.remote.serverDisconnected")));
       rejectConnection(state, new Error(sourceText("error.remote.serverDisconnected")));
       if (retainSession) {
