@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { TurboModuleRegistry } from "react-native";
 
 export interface HtmlPageProps {
   source: string;
@@ -13,8 +14,12 @@ export interface HtmlPageProps {
 }
 
 /**
- * An HTML file or a visual reply as a live page with its scripts, as desktop shows it. Only iOS has
- * one (`html-page.ios.tsx`); elsewhere this is null, and the caller shows the page with no scripts.
- * This file does not import react-native-webview: Android builds do not link its native module.
+ * An HTML file or a visual reply as a live page with its scripts, as desktop shows it. It needs
+ * the native module of react-native-webview, which throws when it loads without it. An Android
+ * build from before Android linked it has none: there this is null, and the caller shows the page
+ * with no scripts.
  */
-export const HtmlPage: ComponentType<HtmlPageProps> | null = null;
+const pageView: typeof import("./html-page-view") | null = TurboModuleRegistry.get("RNCWebViewModule")
+  ? require("./html-page-view")
+  : null;
+export const HtmlPage: ComponentType<HtmlPageProps> | null = pageView?.HtmlPageView ?? null;

@@ -80,9 +80,9 @@ export function ChatAttachmentView(props: ChatAttachmentProps) {
 }
 
 /**
- * A visual reply. On iOS the live page shows in the chat with no card, as on desktop; elsewhere it
- * is a card, as a ```html block in a reply shows. The page downloads with the chat. Until it is
- * read, its space waits; a page that cannot be read is a file card.
+ * A visual reply. The live page shows in the chat with no card, as on desktop; in a build without
+ * the web view module it is a card, as a ```html block in a reply shows. The page downloads with
+ * the chat. Until it is read, its space waits; a page that cannot be read is a file card.
  */
 function ChatVisualAttachment(props: ChatAttachmentProps) {
   const { attachment, serverId } = props;
