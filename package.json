@@ -212,6 +212,7 @@
     "test:custom-agents:login-path": "bun scripts/custom-acp-agent-login-path-e2e.ts",
     "test:claude:login-path": "bun scripts/claude-session-login-path-e2e.ts",
     "test:claude:windows-cmd": "bun scripts/claude-windows-cmd-e2e.ts",
+    "test:home-skills": "bun scripts/home-agent-skills-e2e.ts",
     "test:codex:login-path": "bun scripts/codex-login-path-e2e.ts",
     "test:claude-foreign-session": "bun scripts/claude-foreign-session-e2e.ts",
     "test:mcp-catalog": "bun scripts/mcp-catalog-smoke.ts",
