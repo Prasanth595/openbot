@@ -10,7 +10,6 @@ export const messages = {
   "agent.setup.colorAutomatic": "Otomatik ajan rengi",
   "agent.setup.colorOption": "{color} ajan rengi",
   "agent.setup.face": "Ajan yüzü",
-  "agent.setup.faceOption": "Ajan yüzü {number}",
   "agent.setup.name": "Ad",
   "agent.setup.purpose": "Bu ajan ne konuda yardımcı olmalı?",
   "agent.setup.purposePlaceholder": "Seyahat planlamak, seçenekleri karşılaştırmak veya günlük işlere yardım etmek.",

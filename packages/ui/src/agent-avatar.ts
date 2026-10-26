@@ -18,7 +18,6 @@ import type { AvatarHue } from "@openbot/contracts/ipc";
 export type AvatarMotion = "hover" | "always" | "idle";
 export {
   AVATAR_HUE_CHOICES,
-  AVATAR_HUE_OPTIONS,
   AVATAR_SHAPES,
   avatarCandidateSeeds,
   avatarHeadColor,
