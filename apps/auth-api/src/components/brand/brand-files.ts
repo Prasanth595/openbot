@@ -28,13 +28,16 @@ async function pngBlob(asset: BrandAsset): Promise<Blob | null> {
   return new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
 }
 
+/** A browser can read the file after the click returns, so the URL stays valid for a while. */
+const REVOKE_AFTER_MS = 60_000;
+
 function saveBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_AFTER_MS);
 }
 
 export function copyBrandSvg(asset: BrandAsset): Promise<void> {

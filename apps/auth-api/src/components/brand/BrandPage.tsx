@@ -65,6 +65,8 @@ function DownloadAllButton() {
     setBusy(true);
     try {
       await saveBrandZip();
+    } catch {
+      // The browser could not draw a file. Nothing is saved, and the button can try again.
     } finally {
       setBusy(false);
     }
@@ -159,7 +161,7 @@ function BrandAssetCard(props: { asset: BrandAsset }) {
             type="button"
             class="landing-button landing-button-secondary landing-button-sm"
             data-icon="download"
-            onClick={() => void saveBrandPng(props.asset)}
+            onClick={() => void saveBrandPng(props.asset).catch(() => undefined)}
           >
             PNG
           </button>
@@ -174,7 +176,12 @@ function CopySvgButton(props: { asset: BrandAsset }) {
   const [copied, setCopied] = createSignal(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
   const copy = async () => {
-    await copyBrandSvg(props.asset);
+    try {
+      await copyBrandSvg(props.asset);
+    } catch {
+      // The clipboard is not allowed. The SVG button still saves the file.
+      return;
+    }
     setCopied(true);
     clearTimeout(timer);
     timer = setTimeout(() => setCopied(false), COPIED_MS);

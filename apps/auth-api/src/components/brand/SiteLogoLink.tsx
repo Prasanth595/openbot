@@ -38,9 +38,10 @@ export function SiteLogoLink() {
     if (fromKeyboard) requestAnimationFrame(() => link?.focus());
     fromKeyboard = false;
   };
+  // A copy fails when the clipboard is not allowed. The menu has closed, so there is nothing to show.
   const run = (action: (module: BrandFiles) => Promise<void>) => {
-    if (loaded) void action(loaded);
-    else void loadFiles().then(action);
+    const done = loaded ? action(loaded) : loadFiles().then(action);
+    void done.catch(() => undefined);
   };
 
   // The menu key and Shift+F10 open the menu under the logo. When it closes, focus goes back to the link.

@@ -191,12 +191,15 @@ export function SiteNavigationMenu() {
     openTimer = setTimeout(() => open(id), OPEN_DELAY_MS);
   }
 
+  /** The pointer of the last press on a button trigger: a touch press has no hover before it. */
+  let pressPointer = "mouse";
+
   /**
-   * A press opens the panel. Hover has usually opened it already, so only Enter or Space, which
-   * report no click count, closes it again.
+   * A press opens the panel. A mouse has usually opened it already by hover, so only a touch or pen
+   * press, or Enter or Space, which report no click count, closes it again.
    */
   function handleButtonTriggerClick(event: MouseEvent, id: SectionId): void {
-    if (event.detail === 0 && current === id) {
+    if (current === id && (event.detail === 0 || pressPointer !== "mouse")) {
       close();
       return;
     }
@@ -320,6 +323,7 @@ export function SiteNavigationMenu() {
                       aria-controls={panelId(section.id)}
                       onPointerEnter={(event) => handleTriggerPointerEnter(event, section.id)}
                       onPointerLeave={() => clearTimeout(openTimer)}
+                      onPointerDown={(event) => (pressPointer = event.pointerType)}
                       onClick={(event) => handleButtonTriggerClick(event, section.id)}
                     >
                       {section.label}
