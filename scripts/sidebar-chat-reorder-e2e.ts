@@ -99,7 +99,8 @@ function shown(sectionId: string): string[] {
     ...agents.listAgents().map((agent) => agent.id),
   ];
   const orderIndex = new Map(layout.agentOrder.map((chatId, index) => [chatId, index]));
-  const rank = (chatId: string) => orderIndex.get(chatId) ?? layout.agentOrder.length + chatIds.indexOf(chatId);
+  const naturalIndex = new Map(chatIds.map((chatId, index) => [chatId, index]));
+  const rank = (chatId: string) => orderIndex.get(chatId) ?? layout.agentOrder.length + (naturalIndex.get(chatId) ?? 0);
   return chatIds
     .filter((chatId) => layout.agentAssignments[chatId] === sectionId)
     .sort((left, right) => rank(left) - rank(right))
