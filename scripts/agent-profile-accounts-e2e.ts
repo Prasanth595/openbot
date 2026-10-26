@@ -5,10 +5,11 @@
 // does, and logs the tool result that it gets.
 // The check asserts that the accounts list with their id and label and without their folders, that the
 // account and the backup models are written and read back, that an unknown account or model is a tool
-// failure that changes nothing, and that a reset returns both to their defaults.
+// failure that changes nothing, that a reset returns both to their defaults, and that a delete stops the
+// process that the agent runs on with the second account.
 // `bun scripts/agent-profile-accounts-e2e.ts`. Writes .openbot-build/agent-profile-accounts-e2e/report.json.
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -17,6 +18,7 @@ import { Effect } from "effect";
 import type { z } from "zod";
 import type { updateProfileToolSchema } from "../src/backend/agent/profile-tools";
 import type { AgentBrowserHost } from "../src/backend/agent/turn-lifecycle";
+import { isProcessAlive } from "./dev-automation/registry-files";
 
 /** The arguments the fake passes to a profile tool; list_models and read_agent take a subset. */
 type ProfileToolArgs = z.input<typeof updateProfileToolSchema>;
@@ -168,6 +170,7 @@ interface ProfileToolBody {
 const report: {
   calls: { name: string; turnId: string; success: boolean | null; text: string }[];
   stored?: Pick<AgentSummary, "providerAccountId" | "backupModels">;
+  deletedAgent?: { ownProcessStopped: boolean; workspaceRemoved: boolean };
   checks: { name: string; passed: boolean }[];
   passed: boolean;
   error?: string;
@@ -422,6 +425,31 @@ try {
       reset.body?.providerAccountId === "default" &&
       reset.body.backupModels === null,
     reset.text,
+  );
+
+  // 6. A delete stops the agent's own process. On Windows a live process in the workspace makes the
+  // folder removal fail with EBUSY until the app restarts (#3205).
+  const reassigned = await callTool("set account again", coordinator.id, "update_profile", {
+    agentId: worker.id,
+    providerAccountId: second.id,
+  });
+  pass("update_profile sets the account again", reassigned.success, reassigned.text);
+  const receipt = await runCauseEffect(agents.sendMessage({ agentId: worker.id, text: "Hello again." }));
+  const deliveryId = receipt.deliveries[0]?.id;
+  assert.ok(deliveryId, "own process turn: no delivery");
+  await waitFor("the worker's turn to end", () => mailbox.getDelivery(deliveryId)?.delivery.status === "completed");
+  // The fake names each turn `turn-<pid>-<n>`.
+  const ownPid = Number(mailbox.getDelivery(deliveryId)?.delivery.turnId?.split("-")[1]);
+  pass("The worker's turn ran on a live process of its own", Number.isInteger(ownPid) && isProcessAlive(ownPid));
+  const { workspacePath } = storedAgent(worker.id);
+  await runCauseEffect(agents.deleteAgent(worker.id));
+  // The delete waits for the stop: on Windows the folder removal after it needs the process gone.
+  const stopped = !isProcessAlive(ownPid);
+  report.deletedAgent = { ownProcessStopped: stopped, workspaceRemoved: !existsSync(workspacePath) };
+  pass("The delete stops the agent's own process", stopped);
+  pass(
+    "The delete removes the workspace and the record",
+    report.deletedAgent.workspaceRemoved && !store.list().some((candidate) => candidate.id === worker.id),
   );
   report.passed = true;
 } catch (error) {

@@ -115,6 +115,12 @@ interface StoredFinishedEdit {
   saveHash?: string;
 }
 
+export interface UsageLimitContinuation {
+  turnId: string;
+  workSteps: string;
+  previousTurnIds: string[];
+}
+
 interface StoredDelivery {
   editId?: string | undefined;
   finishedEditOutcomes?: Record<string, StoredFinishedEdit> | undefined;
@@ -130,6 +136,8 @@ interface StoredDelivery {
   steeredAt?: string;
   /** Sent to steer the running turn, and waiting in the queue instead. Shown only while queued. */
   steerFallback?: QueueSteerFallback;
+  /** The interrupted turn whose work continues after a usage-limit switch. Kept out of queue snapshots. */
+  resumeAfterUsageLimit?: UsageLimitContinuation;
 }
 
 function isActiveDelivery(delivery: StoredDelivery): boolean {
@@ -190,6 +198,8 @@ export interface MailboxStoredFile {
 export interface DeliveryContext {
   delivery: QueueDelivery;
   managedAttachments: Array<AttachmentSummary & { path: string }>;
+  resumeAfterUsageLimit?: UsageLimitContinuation;
+  channelId?: string;
 }
 
 const EMPTY_STATE: StoredState = {
@@ -1242,6 +1252,18 @@ export class MailboxStore {
     return delivery ? this.#context(delivery) : null;
   }
 
+  /** Provider history can name a continuation turn instead of the original delivery. */
+  deliveryForProviderMessage(agentId: string, messageId: string): DeliveryContext | null {
+    const delivery = this.#state.deliveries.find(
+      (candidate) =>
+        candidate.recipientAgentId === agentId &&
+        (candidate.id === messageId ||
+          (candidate.resumeAfterUsageLimit !== undefined &&
+            (candidate.turnId === messageId || candidate.resumeAfterUsageLimit.previousTurnIds.includes(messageId)))),
+    );
+    return delivery ? this.#context(delivery) : null;
+  }
+
   /** The delivery of one message to one recipient. A message reaches each recipient once. */
   deliveryForMessage(messageId: string, recipientAgentId: string): DeliveryContext | null {
     const delivery = this.#state.deliveries.find(
@@ -1472,10 +1494,21 @@ export class MailboxStore {
     turnId: string,
   ): Effect.fn.Return<void, StoredStateFailure> {
     try {
+      const continuation = this.#state.deliveries.find(
+        (candidate) => candidate.id === deliveryId,
+      )?.resumeAfterUsageLimit;
       yield* this.#updateDeliveryEffect(deliveryId, ["starting", "running"], {
         status: "running",
         turnId,
         error: null,
+        ...(continuation
+          ? {
+              resumeAfterUsageLimit: {
+                ...continuation,
+                previousTurnIds: [...new Set([...continuation.previousTurnIds, turnId])],
+              },
+            }
+          : {}),
       });
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -1946,17 +1979,19 @@ export class MailboxStore {
     }
   }, Effect.uninterruptible).bind(this);
 
-  /** A delivery whose turn the provider refused before any work, back at its place in the queue. */
+  /** A refused delivery, or unfinished work that a backup continues, back at its place in the queue. */
 
   requeueRefused = Effect.fn("MailboxStore.requeueRefused")(function* (
     this: MailboxStore,
     deliveryId: string,
+    resumeAfterUsageLimit?: UsageLimitContinuation,
   ): Effect.fn.Return<void, StoredStateFailure> {
     try {
       yield* this.#updateDeliveryEffect(deliveryId, ["starting", "running"], {
         status: "queued",
         turnId: null,
         error: null,
+        ...(resumeAfterUsageLimit ? { resumeAfterUsageLimit } : {}),
       });
     } catch (cause) {
       return yield* new StoredStateFailure({ cause });
@@ -2316,6 +2351,8 @@ export class MailboxStore {
     const message = this.#requireMessage(delivery.messageId, messages);
     return {
       delivery: this.#publicDelivery(delivery, positions, message),
+      ...(delivery.resumeAfterUsageLimit ? { resumeAfterUsageLimit: delivery.resumeAfterUsageLimit } : {}),
+      ...(message.channelId ? { channelId: message.channelId } : {}),
       managedAttachments: message.attachments.map((attachment) => ({
         ...toAttachmentSummary(attachment),
         path: attachment.path,
@@ -2341,6 +2378,7 @@ export class MailboxStore {
       finishedEditOutcomes: _finishedEditOutcomes,
       steeredAt: _steeredAt,
       steerFallback,
+      resumeAfterUsageLimit: _resumeAfterUsageLimit,
       ...publicDelivery
     } = delivery;
     return {
@@ -2736,7 +2774,13 @@ function isStoredDelivery(value: unknown): value is StoredDelivery {
     (isString(value.error) || value.error === null) &&
     isString(value.createdAt) &&
     (value.steeredAt === undefined || (isString(value.steeredAt) && Number.isFinite(Date.parse(value.steeredAt)))) &&
-    (value.steerFallback === undefined || isOneOf(QUEUE_STEER_FALLBACKS, value.steerFallback))
+    (value.steerFallback === undefined || isOneOf(QUEUE_STEER_FALLBACKS, value.steerFallback)) &&
+    (value.resumeAfterUsageLimit === undefined ||
+      (isRecord(value.resumeAfterUsageLimit) &&
+        isString(value.resumeAfterUsageLimit.turnId) &&
+        isString(value.resumeAfterUsageLimit.workSteps) &&
+        Array.isArray(value.resumeAfterUsageLimit.previousTurnIds) &&
+        value.resumeAfterUsageLimit.previousTurnIds.every(isString)))
   );
 }
 

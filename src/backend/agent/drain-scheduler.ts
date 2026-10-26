@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { AGENT_PROVIDERS, type AgentModelOption, type AgentSummary } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -59,8 +60,13 @@ export interface DrainHooks {
    * generic redaction: it does not know which values this machine's MCP servers were given.
    */
   redactMcp(text: string): string;
-  /** Gives a channel task back to its channel after a spent plan refused it; false when it cannot go back. */
-  requeueChannelDelivery(deliveryId: string): Effect.Effect<boolean>;
+  /**
+   * Gives a channel task back to its channel after a spent plan refused it; false when it cannot go
+   * back. `continueWork` keeps the assignment for a ready backup instead.
+   */
+  requeueChannelDelivery(deliveryId: string, continueWork?: boolean): Effect.Effect<boolean>;
+  /** Whether a ready automatic backup can take this agent's work after a usage limit. */
+  mayFailOver(agentId: string): boolean;
   /**
    * Starts the move of this agent to another model for a usage limit, if one is due: back to its own
    * model, or to a backup model during a hold. True when a move started; the move schedules the drain
@@ -662,21 +668,27 @@ export class DrainScheduler {
           item.sender.kind === "agent" && item.replyToMessageId ? [item.replyToMessageId] : [],
         ),
       );
-      const promptInput = (executionText: string | undefined) =>
-        combinedPromptInput(
-          batch.map((item) =>
-            deliveryPromptInput(item, {
+      const promptInput = (executionText: string | undefined) => {
+        // The deliveries of one interrupted turn share its continuation, so the prompt states it once.
+        const continued = new Set<string>();
+        return combinedPromptInput(
+          batch.map((item) => {
+            const { resumeAfterUsageLimit, ...rest } = item;
+            const repeated = resumeAfterUsageLimit !== undefined && continued.has(resumeAfterUsageLimit.turnId);
+            if (resumeAfterUsageLimit) continued.add(resumeAfterUsageLimit.turnId);
+            return deliveryPromptInput(repeated ? rest : item, {
               agentNames,
               snapshot,
               routineRun:
                 item.delivery.sender.kind === "routine" ? this.#routines.runForDelivery(item.delivery.id) : null,
               wokenWaits: item.delivery.sender.kind === "routine" ? this.#routines.wokenWaits(item.delivery.id) : [],
               ...(executionText === undefined ? {} : { executionText }),
-            }),
-          ),
+            });
+          }),
           [...requestIds].flatMap((requestId) => this.#mailbox.unansweredRecipients(requestId)),
           agentNames,
         );
+      };
       const completeInput = promptInput(execution?.text);
       // A channel packet with only unread messages goes only to the session that read the others. The
       // session can change from here to the retry below, as when the provider cannot resume it.
@@ -729,6 +741,8 @@ export class DrainScheduler {
                   this.#store.list().find((current) => current.id === agent.id) ?? agent,
                 ),
                 clientUserMessageId: delivery.id,
+                // The delivery stays the same; a continuation must not overwrite the first turn's items.
+                ...(context.resumeAfterUsageLimit && client.provider !== "codex" ? { clientTurnId: randomUUID() } : {}),
                 // A teammate message that wants no answer tells the model to write nothing, so an empty
                 // turn is the expected result and not a provider that swallowed its error.
                 answerOptional:
@@ -880,6 +894,17 @@ export class DrainScheduler {
             }
             // Before the requeue, so the channel does not assign the task to this agent again at once.
             yield* this.#usageLimits.reached(delivery.recipientAgentId, null, requestedModel);
+            // A ready backup continues earlier work in the same assignment, so the work is not lost.
+            if (
+              context.resumeAfterUsageLimit &&
+              this.#hooks.mayFailOver(delivery.recipientAgentId) &&
+              (yield* this.#hooks.requeueChannelDelivery(delivery.id, true))
+            ) {
+              yield* this.#mailbox.restoreQueued(delivery.id).pipe(toDeliveryStartFailed);
+              this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+              this.#requeuedAtLimit.add(delivery.recipientAgentId);
+              return;
+            }
             if (yield* this.#hooks.requeueChannelDelivery(delivery.id)) {
               yield* this.#mailbox.markTerminal(delivery.id, "interrupted", null).pipe(toDeliveryStartFailed);
               this.#mailboxSync.emitQueue(delivery.recipientAgentId);

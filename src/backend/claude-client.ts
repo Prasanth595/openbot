@@ -957,7 +957,8 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
     if (requestedEffort) runtime.config.effort = requestedEffort;
 
     const clientId = getString(params, "clientUserMessageId");
-    const turnId = clientId && isUuid(clientId) ? clientId : randomUUID();
+    const requestedTurnId = getString(params, "clientTurnId") ?? clientId;
+    const turnId = requestedTurnId && isUuid(requestedTurnId) ? requestedTurnId : randomUUID();
     const text = readInputText(params);
     // The CLI can start a turn of its own while the model or effort changes above.
     if (runtime.activeTurn) return yield* providerFailure(this.#turnActiveError(runtime.activeTurn));

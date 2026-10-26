@@ -504,9 +504,18 @@ at the start of the draft, so it shows as a quote chip and is saved and sent wit
 page's next context replaces it. Full screen puts the frame's
 box in the top layer with the Popover API, so the frame does not load again; it exits before the app
 opens a dialog for the page. Only the renderer's allowlist of shortcuts (`chat-visual-shortcuts.ts`)
-leaves the page, as a key event on the frame element. Mobile shows the
-page as its file and does not run it: in react-native-webview, a script in any frame can reach the
-bridge to the app. `html_preview` lets the agent look at a page before it publishes it: the main
+leaves the page, as a key event on the frame element. Mobile runs the
+page in its own react-native-webview `WebView` (`html-page-view.native.tsx`), in the chat at the agent's
+height with no touches, and on the preview screen. It gets the base styles and the app theme from
+`chatVisualDocument` with `bootstrap: false`, from a string at `about:blank`, and a
+`form-action 'none'` policy. The view has no `onMessage` and injects no script, so
+react-native-webview adds no message handler or JavaScript interface, and the page cannot reach the
+app; never run a page in an Expo DOM component, which has a bridge to the app. A
+tapped web link opens in the browser, and the page goes to no other address. A link opens only
+within a second of a touch: Android WebView asks the app only about main-frame GET loads and gives
+no cause, and WebKit calls a script `click()` on a link a click. iOS keeps the page storage in memory (`incognito`); Android turns off DOM storage
+and third-party cookies, because its `incognito` clears every web view of the app. An Android build
+without the native module shows the page with no scripts. `html_preview` lets the agent look at a page before it publishes it: the main
 process draws it in a hidden window with its own in-memory session (`ChatVisualPreviewer`)
 and returns a PNG, the content height and the console lines. The file preview shows an HTML file in
 the same frame. On desktop, a shared or workspace HTML file preview gives the client a temporary

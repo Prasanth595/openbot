@@ -435,8 +435,10 @@ does not record message text, files, request bodies or headers, and it masks tok
 addresses. The app never sends the log. **Settings → Support** shows it and lets you save the file or
 clear it.
 
-Mobile chat uses a local symbol beside links. It does not fetch website icons or Markdown images
-when displaying a conversation. Link destinations are contacted only when you choose to open them.
+Mobile chat, like desktop and web chat, shows the icon of the linked site beside a web link. To get
+it, the phone requests `/favicon.ico` from the site of the link when it shows the message. The request
+contains no conversation text. When the site has no icon, a local symbol shows. Mobile chat does not
+fetch Markdown images when displaying a conversation.
 
 Mobile chat can send selected files to the conversation's desktop host through the existing encrypted
 team connection. Text pasted into the input is processed only after the user pastes it. A text paste
@@ -774,8 +776,10 @@ Network traffic can also occur when:
   files. `html_preview` draws the page in a hidden window that has its own
   session in memory. The web client gets the page through the host connection and runs it in a
   sandboxed `srcdoc` frame with an opaque origin, so the page cannot read the web client's storage
-  or its host keys; the browser sends no referrer for its requests. The mobile app does not run the
-  page: it shows the page as its file;
+  or its host keys; the browser sends no referrer for its requests. The mobile app runs the
+  page in a web view, so the server gets the network address of the phone. On iPhone and iPad the
+  web view keeps cookies and storage in memory only; on Android it has no page storage and no
+  cookies for the files that the page loads. The page cannot call the app or read its files;
 - a user opens an explicitly labeled external support or setup link;
 - a Slack workspace is connected. See [Slack connections](#slack-connections);
 - a Discord server is connected. See [Discord connections](#discord-connections);
