@@ -61,3 +61,31 @@
 .provider-settings-progress {
   max-width: 320px;
 }
+
+/* A provider can serve hundreds of models, so the model list scrolls inside its card. */
+.provider-settings-models {
+  display: grid;
+  gap: var(--openbot-space-3);
+  max-height: 360px;
+  overflow-y: auto;
+  padding: var(--openbot-space-3) var(--openbot-space-4);
+}
+
+.provider-settings-model-group {
+  display: grid;
+  gap: var(--openbot-space-1);
+}
+
+.provider-settings-model-row {
+  display: flex;
+  align-items: center;
+  gap: var(--openbot-space-2);
+  min-height: 28px;
+  cursor: pointer;
+}
+
+.provider-settings-model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

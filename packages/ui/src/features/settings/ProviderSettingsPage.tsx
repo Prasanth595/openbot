@@ -7,6 +7,7 @@
 import { ProviderLogo } from "@openbot/brand";
 import {
   type AgentProviderId,
+  type ClientAgentModelOption,
   type CustomProviderSummary,
   DEFAULT_PROVIDER_ACCOUNT_ID,
   MAX_PROVIDER_ACCOUNTS,
@@ -22,6 +23,7 @@ import {
   Button,
   badgeVariants,
   buttonVariants,
+  Checkbox,
   ChevronRight,
   ConfirmDialog,
   Copy,
@@ -60,10 +62,18 @@ import {
   X,
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
-import { createEffect, createMemo, createSignal, createStore, For, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, createStore, createUniqueId, For, onCleanup, Show } from "solid-js";
 import { ProviderAccountRenameField } from "../../components/ProviderAccountList";
 import type { ProviderPickerOption } from "../../components/ProviderPicker";
 import { isApiKeyAccount, type ProviderPickerAccount, providerAccountName } from "../../components/provider-accounts";
+import {
+  customProviderIds,
+  groupPickerModels,
+  isCustomModel,
+  isModelHidden,
+  modelVisibilityKey,
+  pickerModels,
+} from "../../components/provider-model-options";
 import {
   createProviderRow,
   PROVIDER_ACTION_LABEL,
@@ -97,6 +107,15 @@ export interface ProviderPromptCache {
   /** A load or a save that failed. */
   error: string | null;
   onChange: (ttl: PromptCacheTtl) => void;
+}
+
+/** Which models the model pickers show. The choice is of this device; the host keeps every model. */
+export interface ProviderModelVisibility {
+  /** Every model of the host, the hidden ones too. */
+  options: readonly ClientAgentModelOption[];
+  /** The `modelVisibilityKey` of each hidden model. */
+  hidden: ReadonlySet<string>;
+  onSetHidden: (keys: readonly string[], hidden: boolean) => void;
 }
 
 export interface ProviderSettingsPageProps extends ProviderRowHost {
@@ -133,6 +152,8 @@ export interface ProviderSettingsPageProps extends ProviderRowHost {
   promptCache?: ProviderPromptCache | undefined;
   /** Below the list: what the host found, and the other agents the user can add. */
   footer?: JSX.Element;
+  /** Without it the pages have no model list. */
+  models?: ProviderModelVisibility | undefined;
 }
 
 type PageId = AgentProviderId | "custom";
@@ -509,6 +530,18 @@ function ProviderPage(props: PageProps) {
         <RuntimeSection {...props} row={row} />
         <Show when={props.option.id === "claude" && props.promptCache}>
           {(cache) => <PromptCacheSection cache={cache()} disabled={props.disabled} menuMount={props.menuMount} />}
+        </Show>
+        <Show when={props.models}>
+          {(models) => (
+            <ModelsSection
+              models={models()}
+              options={models().options.filter(
+                (model) =>
+                  model.provider === props.option.id &&
+                  !isCustomModel(model, customProviderIds(props.customProviders ?? [])),
+              )}
+            />
+          )}
         </Show>
       </Show>
       <UseSection {...props} row={row} />
@@ -1552,6 +1585,16 @@ function CustomEndpointsPage(props: ProviderSettingsPageProps) {
           </Show>
         </ItemGroup>
       </SettingsSection>
+      <Show when={props.models}>
+        {(models) => (
+          <ModelsSection
+            models={models()}
+            options={models().options.filter((model) =>
+              isCustomModel(model, customProviderIds(props.customProviders ?? [])),
+            )}
+          />
+        )}
+      </Show>
       <ConfirmDialog
         open={confirming() !== null}
         tone="destructive"
@@ -1566,5 +1609,121 @@ function CustomEndpointsPage(props: ProviderSettingsPageProps) {
         }}
       />
     </>
+  );
+}
+
+/* ------------------------------------------------------------------ Models */
+
+/** More models than this get a search field. */
+const MODEL_SEARCH_MIN = 8;
+
+/** A check box for each model of one page, in the groups of the model picker. */
+function ModelsSection(props: { models: ProviderModelVisibility; options: ClientAgentModelOption[] }) {
+  const { t } = useText();
+  const listId = createUniqueId();
+  const [query, setQuery] = createSignal("");
+  const models = createMemo(() => pickerModels(props.options));
+  const groups = createMemo(() => groupPickerModels(models(), query()));
+  const shownModels = () => groups().flatMap((group) => group.models);
+  const visibleCount = () => models().filter((model) => !isModelHidden(model, props.models.hidden)).length;
+  /** Show all and Hide all act on the models that the search leaves. */
+  const setAll = (hidden: boolean) =>
+    props.models.onSetHidden(
+      shownModels().map((model) => modelVisibilityKey(model)),
+      hidden,
+    );
+  return (
+    <Show when={models().length > 0}>
+      <SettingsSection
+        title={t("provider.settings.models")}
+        description={t("provider.settings.modelsDescription")}
+        actions={
+          <Show when={models().length > MODEL_SEARCH_MIN}>
+            <label class="server-settings-search">
+              <Search aria-hidden="true" />
+              <span class="sr-only">{t("provider.settings.modelsSearch")}</span>
+              <Input
+                size="sm"
+                type="search"
+                placeholder={t("provider.settings.modelsSearch")}
+                value={query()}
+                onValueChange={setQuery}
+              />
+            </label>
+          </Show>
+        }
+      >
+        <ItemGroup class="settings-modal-card">
+          <Item class="settings-modal-row">
+            <ItemContent>
+              <ItemDescription role="status">
+                {t("provider.settings.modelsShown", { shown: visibleCount(), total: models().length })}
+              </ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={shownModels().length === 0}
+                onClick={() => setAll(false)}
+              >
+                {t("provider.settings.modelsShowAll")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={shownModels().length === 0}
+                onClick={() => setAll(true)}
+              >
+                {t("provider.settings.modelsHideAll")}
+              </Button>
+            </ItemActions>
+          </Item>
+          <div class="provider-settings-models">
+            <Show
+              when={groups().length > 0}
+              fallback={
+                <Item class="server-settings-empty-row">
+                  <ItemContent>
+                    <ItemDescription>
+                      {query().trim()
+                        ? t("provider.settings.modelsNoMatch", { query: query().trim() })
+                        : t("provider.settings.modelsNone")}
+                    </ItemDescription>
+                  </ItemContent>
+                </Item>
+              }
+            >
+              <For each={groups()} keyed={(group) => group.name}>
+                {(group) => (
+                  <div class="provider-settings-model-group">
+                    <Show when={group().name}>
+                      <ItemDescription class="provider-settings-model-group-name">{group().name}</ItemDescription>
+                    </Show>
+                    <For each={group().models} keyed={(model) => modelVisibilityKey(model)}>
+                      {(model) => (
+                        <label class="provider-settings-model-row" for={`${listId}-${modelVisibilityKey(model())}`}>
+                          <Checkbox
+                            id={`${listId}-${modelVisibilityKey(model())}`}
+                            checked={!isModelHidden(model(), props.models.hidden)}
+                            aria-label={t("provider.settings.modelShow", { name: model().name })}
+                            onChange={(event) =>
+                              props.models.onSetHidden([modelVisibilityKey(model())], !event.currentTarget.checked)
+                            }
+                          />
+                          <span class="provider-settings-model-name">{model().name}</span>
+                        </label>
+                      )}
+                    </For>
+                  </div>
+                )}
+              </For>
+            </Show>
+          </div>
+        </ItemGroup>
+      </SettingsSection>
+    </Show>
   );
 }

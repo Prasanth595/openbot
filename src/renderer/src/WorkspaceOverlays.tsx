@@ -50,6 +50,7 @@ import { desktopVaultCalls } from "./features/vault/vault-port";
 import { useWindowPage } from "./features/window/window-page-context";
 import { useGlobalSearchSources } from "./global-search-sources";
 import { RemoteDesktopWorkspace, SettingsModal } from "./lazy-views";
+import { setModelsHidden, useHiddenModels } from "./model-visibility-preference";
 import { useNavigation } from "./navigation";
 import { usePlatform } from "./platform";
 import { useProviders } from "./providers";
@@ -319,7 +320,8 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
   const { selectAgent, selectGlobalSearchMessage } = useNavigation();
   const { selectServer } = useServerSelection();
   const { setPendingAgentSelection } = useServerSwitch();
-  const { agentList, agentStatus } = useAgents();
+  const { agentList, agentStatus, allModelOptions } = useAgents();
+  const hiddenModels = useHiddenModels();
   const { setupState, saveSetup } = useSetup();
   const {
     toolRuntimeStatuses,
@@ -544,6 +546,16 @@ function ServerSettings(props: { connectors: ConnectorRegistry }) {
       // The readings are of the active server, which is the only server with a Providers tab.
       get usage() {
         return usageRows();
+      },
+      // The models are of the active server too. The hidden list is of this device.
+      models: {
+        get options() {
+          return allModelOptions();
+        },
+        get hidden() {
+          return hiddenModels();
+        },
+        onSetHidden: setModelsHidden,
       },
       onRestartProvider: local ? restartProvider : undefined,
       onCancelProviderRestart: local ? cancelProviderRestart : undefined,
