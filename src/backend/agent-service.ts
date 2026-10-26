@@ -162,6 +162,7 @@ import { MailboxSync } from "./agent/mailbox-sync";
 import { type GitHubConnectorSource, McpGateway, type TestMcpServerOptions } from "./agent/mcp-gateway";
 import { mcpServersFromGateway } from "./agent/mcp-tools";
 import { MemoryHold } from "./agent/memory-hold";
+import { MemoryRecall } from "./agent/memory-recall";
 import {
   creationModel,
   developmentDefaultsApply,
@@ -1149,6 +1150,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     this.#drain = new DrainScheduler({
       channels: this.channels,
       messaging: this.messaging,
+      recall: new MemoryRecall(this.#memories),
       store,
       mailbox,
       mailboxSync: this.#mailboxSync,

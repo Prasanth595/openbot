@@ -167,6 +167,24 @@ export class AgentMemories {
     return this.#withInclusion("user", USER_MEMORY_OWNER, "essential");
   }
 
+  /**
+   * Committed searchable (not essential) matches of a literal word search, best first: the memories
+   * that are not in the prompt already. A query with no word finds nothing.
+   */
+  recall(scope: MemoryScope, ownerId: string, query: string, limit: number): AgentMemory[] {
+    const store = this.#store(scope);
+    const essential = new Set(this.#withInclusion(scope, ownerId, "essential").map((memory) => memory.id));
+    try {
+      return store
+        .search(ownerId, query, Math.min(10, limit + essential.size))
+        .memories.filter((memory) => memory.inclusion === "searchable")
+        .slice(0, limit);
+    } catch (error) {
+      if (error instanceof AgentMemorySelectionError) return [];
+      throw error;
+    }
+  }
+
   userSelectionState(): AgentMemorySelectionState {
     return this.#userMemories.selectionState(USER_MEMORY_OWNER);
   }
