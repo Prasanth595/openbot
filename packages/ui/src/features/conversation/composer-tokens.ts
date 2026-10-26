@@ -2,7 +2,7 @@ import { type ChatTagKind, chatTagReferences } from "@openbot/contracts/chat-tag
 import type { DraftAttachment } from "@openbot/contracts/ipc";
 import { referenceChipClasses } from "@openbot/ui/reference-chip";
 import { usesTouchLayout } from "@openbot/ui/utils";
-import { createStaticAvatarSvg } from "../../bloub-avatar";
+import { createStaticAvatarSvg } from "../../agent-avatar";
 import type { ComposerAgent, ComposerMcpServer, ComposerSkill } from "../../data";
 import { currentText } from "../../text";
 import { appendAttachmentReferenceVisual } from "./AttachmentReference";

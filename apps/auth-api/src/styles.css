@@ -8677,7 +8677,7 @@ a {
   filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.35));
 }
 
-/* The Bloub sits low in its drawing, so it is lifted by the share of its size the app uses. */
+/* The avatar sits low in its drawing, so it is lifted by the share of its size the app uses. */
 .agent-share-hero .agent-share-avatar > svg {
   display: block;
   width: 128%;

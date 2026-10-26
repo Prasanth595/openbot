@@ -1,7 +1,7 @@
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import { buttonVariants, Check, DropdownMenu } from "@openbot/ui";
 import { For, Show } from "solid-js";
-import { AVATAR_HUE_CHOICES, avatarHueSwatch } from "../../bloub-avatar";
+import { AVATAR_HUE_CHOICES, avatarHueSwatch } from "../../agent-avatar";
 import { useText } from "../../text";
 import { AVATAR_HUE_LABEL } from "../agents/avatar-hue-label";
 

@@ -1,4 +1,4 @@
-import type { AvatarMood } from "@openbot/brand/bloub-avatar-motion";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import type { AgentApproval, QueueSnapshot } from "@openbot/contracts/ipc";
 import { isAgentWorking } from "@openbot/ui/features/sidebar/sidebar-agent-states";
 

@@ -1,4 +1,4 @@
-import { avatarHeadColor } from "@openbot/brand/bloub-avatar";
+import { avatarHeadColor } from "@openbot/brand/agent-avatar";
 import type { AgentRuntimeSnapshot } from "@openbot/contracts/ipc";
 import { LIVE_ACTIVITY_SEALED_LIMIT, type LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
 import type { LiveActivityPushRegistration } from "@openbot/contracts/team-protocol/live-activity-push-v1";

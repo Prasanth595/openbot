@@ -8,7 +8,7 @@ import type {
   TeamPresenceMember,
 } from "@openbot/contracts/ipc";
 import type { JSX } from "@solidjs/web";
-import type { AvatarMood } from "../../bloub-avatar";
+import type { AvatarMood } from "../../agent-avatar";
 import type { AgentProfile } from "../../data";
 import type { ServerMenuProps } from "../servers/ServerMenu";
 import type { SidebarPinnedItem } from "./sidebar-pins";

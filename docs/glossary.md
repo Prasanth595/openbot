@@ -20,8 +20,8 @@ table, IPC channel or product string, or when a term in the code disagrees with 
 - **bot**: do not use for new product code. Keep released names: Team API v1-v3
   `bot`/`botId`/`bots-changed` (`current-agent-keys.ts` translates), `bots.json`, `mailbox.json`,
   `legacy-import:bots:v1`, and readable `~/OpenBot/Bots` path prefixes. Accept `bot-<uuid>` IDs from
-  databases that did not run migration v13. `"first-bot"` is an avatar seed; `BloubBot` and the
-  lucide `Bot` icon are library names.
+  databases that did not run migration v13. `"first-bot"` is an avatar seed; the mobile `BloubBot`
+  and the lucide `Bot` icon are library names.
 - **channel**: the shared multi-agent chat (`ChannelStore`, `ChannelSummary`, `projection_channels`,
   `channel-chats-v1`). **group** is not a product term: it means a sidebar section
   (`SidebarPinnedGroup`, `create_section`), an IPC endpoint group (`IpcEndpointGroup`,

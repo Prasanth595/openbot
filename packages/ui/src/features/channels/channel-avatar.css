@@ -19,7 +19,7 @@
 /*
  * The cluster holds the members in the square an agent avatar occupies, so a channel row keeps the
  * shape of the agent rows around it. Two measurements set the geometry: the cell pitch, which is
- * how far apart the face centres sit, and the face box. A bloub is drawn about 1.16 times its own
+ * how far apart the face centres sit, and the face box. An avatar is drawn about 1.16 times its own
  * box wide, so a face box of 0.48 draws 0.56 of the square: the faces overlap by the difference
  * from the 0.44 pitch, and the pair still ends inside the square. The overflow count takes the
  * last cell.
@@ -38,7 +38,7 @@
   height: var(--channel-avatar-size);
 }
 .channel-avatar-cluster .agent-avatar {
-  /* The bloub is drawn low in its own box; the lift is the measured share of the box it drops by. */
+  /* The avatar is drawn low in its own box; the lift is the measured share of the box it drops by. */
   --agent-avatar-optical-offset: calc(var(--channel-avatar-face) * -0.14);
 
   width: var(--channel-avatar-face);

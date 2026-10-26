@@ -18,8 +18,8 @@
   font-size: var(--openbot-text-md);
 }
 
-/* The Bloub overflows its box. An auto grid track grows to the Bloub and starts at the box's top,
-   and its percentage height then resolves against that track, so the Bloub grows taller than wide
+/* The avatar overflows its box. An auto grid track grows to the avatar and starts at the box's top,
+   and its percentage height then resolves against that track, so the avatar grows taller than wide
    and sits low. One track the size of the box keeps every avatar here centred on its line. */
 .diagram-view .agent-avatar {
   grid-template: 100% / 100%;

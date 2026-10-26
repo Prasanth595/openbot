@@ -1,4 +1,4 @@
-import { avatarHueSwatch } from "@openbot/brand/bloub-avatar";
+import { avatarHueSwatch } from "@openbot/brand/agent-avatar";
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import type { MobileTextKey } from "@openbot/i18n/mobile";
 

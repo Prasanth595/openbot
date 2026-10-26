@@ -10,7 +10,6 @@ export const messages = {
   "agent.setup.colorAutomatic": "自动助手颜色",
   "agent.setup.colorOption": "{color}助手颜色",
   "agent.setup.face": "助手形象",
-  "agent.setup.faceOption": "助手形象 {number}",
   "agent.setup.name": "名称",
   "agent.setup.purpose": "这个助手要帮你做什么？",
   "agent.setup.purposePlaceholder": "规划行程、比较方案，或者处理日常工作。",

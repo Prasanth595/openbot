@@ -10,7 +10,6 @@ export const messages = {
   "agent.setup.colorAutomatic": "Couleur automatique de l’agent",
   "agent.setup.colorOption": "Couleur de l’agent : {color}",
   "agent.setup.face": "Visage de l’agent",
-  "agent.setup.faceOption": "Visage de l’agent {number}",
   "agent.setup.name": "Nom",
   "agent.setup.purpose": "En quoi cet agent doit-il vous aider ?",
   "agent.setup.purposePlaceholder": "Planifier des voyages, comparer des options ou aider au travail quotidien.",

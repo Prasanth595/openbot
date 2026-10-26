@@ -7,7 +7,7 @@
 
 import { Button, Check, Clock3, Minus, Play, Spinner, TriangleAlert, Webhook, X } from "@openbot/ui";
 import { For, Match, Show, Switch } from "solid-js";
-import type { AvatarMood } from "../../bloub-avatar";
+import type { AvatarMood } from "../../agent-avatar";
 import type { AgentProfile } from "../../data";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";

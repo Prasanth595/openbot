@@ -61,7 +61,7 @@ export const CustomImage: IndicatorStory = {
 
 /**
  * An avatar the renderer cannot resolve — a revoked file, a stale `?v=` version.
- * The Bloub takes over rather than leaving a broken image in the transcript.
+ * The avatar takes over rather than leaving a broken image in the transcript.
  */
 export const CustomImageUnavailable: IndicatorStory = {
   args: {

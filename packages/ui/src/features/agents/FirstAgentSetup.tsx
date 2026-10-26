@@ -14,11 +14,21 @@ import type {
 import type { AppTextKey, AppTranslate } from "@openbot/i18n";
 import { Button, Field, Input, Textarea } from "@openbot/ui";
 import { createSignal, For, onSettled, Show } from "solid-js";
-import { AVATAR_HUE_CHOICES, avatarCandidateSeeds, avatarHeadColor, avatarHueSwatch } from "../../bloub-avatar";
+import {
+  AVATAR_HUE_CHOICES,
+  AVATAR_SHAPES,
+  avatarCandidateSeeds,
+  avatarHeadColor,
+  avatarHueSwatch,
+  avatarProfile,
+  RESTING_EXPRESSIONS,
+  withAvatarChoice,
+} from "../../agent-avatar";
 import { ProviderModelPicker } from "../../components/ProviderModelPicker";
 import { currentText, useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
 import { AgentAvatar } from "./AgentAvatar";
+import { AVATAR_EXPRESSION_LABEL, AVATAR_SHAPE_LABEL } from "./avatar-choice-label";
 import { AVATAR_HUE_LABEL } from "./avatar-hue-label";
 import { InstructionsLimit, instructionsTooLong } from "./InstructionsLimit";
 
@@ -423,25 +433,54 @@ export function FirstAgentSetup(props: FirstAgentSetupProps) {
           </fieldset>
 
           <fieldset class="first-agent-avatar-fieldset first-agent-face-fieldset" disabled={props.submitting}>
-            <legend class="sr-only">{t("agent.setup.face")}</legend>
+            <legend class="sr-only">{t("agent.setup.shape")}</legend>
             <div class="first-agent-face-options">
-              <For each={FIRST_AGENT_AVATAR_SEEDS}>
-                {(seed, index) => (
+              <For each={AVATAR_SHAPES}>
+                {(shape) => (
                   <Button
                     variant="ghost"
                     type="button"
                     size="sm"
                     class="first-agent-face-choice"
-                    aria-label={t("agent.setup.faceOption", { number: index() + 1 })}
-                    aria-pressed={props.value.avatarSeed === seed ? "true" : "false"}
+                    aria-label={t(AVATAR_SHAPE_LABEL[shape])}
+                    aria-pressed={avatarProfile(props.value.avatarSeed, null).shape === shape ? "true" : "false"}
                     data-cuelume-tap="select"
-                    onClick={() => updateDraft({ avatarSeed: seed })}
+                    onClick={() => updateDraft({ avatarSeed: withAvatarChoice(props.value.avatarSeed, { shape }) })}
                   >
                     <AgentAvatar
-                      seed={seed}
+                      seed={withAvatarChoice(props.value.avatarSeed, { shape })}
                       hue={props.value.avatarHue}
                       motion="idle"
-                      animationOffset={index() * 0.16}
+                    />
+                  </Button>
+                )}
+              </For>
+            </div>
+          </fieldset>
+
+          <fieldset class="first-agent-avatar-fieldset first-agent-face-fieldset" disabled={props.submitting}>
+            <legend class="sr-only">{t("agent.setup.face")}</legend>
+            <div class="first-agent-face-options">
+              <For each={RESTING_EXPRESSIONS}>
+                {(expression) => (
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    size="sm"
+                    class="first-agent-face-choice"
+                    aria-label={t(AVATAR_EXPRESSION_LABEL[expression])}
+                    aria-pressed={
+                      avatarProfile(props.value.avatarSeed, null).expression === expression ? "true" : "false"
+                    }
+                    data-cuelume-tap="select"
+                    onClick={() =>
+                      updateDraft({ avatarSeed: withAvatarChoice(props.value.avatarSeed, { expression }) })
+                    }
+                  >
+                    <AgentAvatar
+                      seed={withAvatarChoice(props.value.avatarSeed, { expression })}
+                      hue={props.value.avatarHue}
+                      motion="idle"
                     />
                   </Button>
                 )}

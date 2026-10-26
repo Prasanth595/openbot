@@ -10,7 +10,6 @@ export const messages = {
   "agent.setup.colorAutomatic": "에이전트 색상 자동",
   "agent.setup.colorOption": "{color} 에이전트 색상",
   "agent.setup.face": "에이전트 얼굴",
-  "agent.setup.faceOption": "에이전트 얼굴 {number}",
   "agent.setup.name": "이름",
   "agent.setup.purpose": "이 에이전트가 무엇을 도와야 하나요?",
   "agent.setup.purposePlaceholder": "여행 계획, 옵션 비교, 일상 업무 지원 등을 맡길 수 있어요.",

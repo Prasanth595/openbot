@@ -1,4 +1,4 @@
-import { AVATAR_HUE_CHOICES, avatarHueSwatch } from "@openbot/brand/bloub-avatar";
+import { AVATAR_HUE_CHOICES, avatarHueSwatch } from "@openbot/brand/agent-avatar";
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import { Typography } from "heroui-native";
 import { useThemeColor } from "heroui-native/hooks";

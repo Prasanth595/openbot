@@ -1,4 +1,4 @@
-import type { AvatarMood } from "@openbot/brand/bloub-avatar-motion";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import { type ColorValue, View } from "react-native";
 import Animated, { Easing, ReduceMotion, withTiming } from "react-native-reanimated";
 import { BloubAvatarPreview } from "@/features/agents/components/bloub-avatar";

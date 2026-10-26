@@ -2410,27 +2410,8 @@ textarea {
   border-radius: var(--openbot-radius-pill);
 }
 
-/* Breathing, as a scale on the whole avatar. It is deliberately not a silhouette
-   edit: the shape an agent is recognised by has to survive every mood, so the
-   only thing allowed to move here is the box the shape is drawn in. The amplitude
-   comes from the mood table, and 0 - every mood but `working` - holds still. */
-.agent-avatar[data-breathe] {
-  animation: agent-avatar-breathe 2.6s ease-in-out infinite;
-}
-
-@keyframes agent-avatar-breathe {
-  0%,
-  100% {
-    scale: calc(1 - var(--agent-avatar-breathe, 0));
-  }
-
-  50% {
-    scale: calc(1 + var(--agent-avatar-breathe, 0));
-  }
-}
-
 /* The mood glow. It reads before the face does at sidebar sizes, and it never
-   touches the Bloub's own colour, which is identity and comes from the seed. */
+   touches the avatar's own colour, which is identity and comes from the seed. */
 .agent-avatar[data-mood="waiting"] {
   filter: drop-shadow(0 0 3px var(--openbot-accent));
 }
@@ -2443,22 +2424,79 @@ textarea {
   opacity: 0.6;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .agent-avatar[data-breathe] {
-    animation: none;
+/* Resting life (see `avatar-resting-life.ts`): one visible resting avatar at a time
+   gets one of these classes, plays it once, and loses it. The blink and the look act
+   on the eyes and live with the avatar drawing (`agent-avatar.css`); the moves shift
+   only the box the shape is drawn in, never the silhouette. */
+.agent-avatar-life-hop {
+  animation: agent-avatar-hop 520ms cubic-bezier(0.3, 0, 0.3, 1);
+}
+
+.agent-avatar-life-sway {
+  animation: agent-avatar-sway 760ms ease-in-out;
+}
+
+.agent-avatar-life-stretch {
+  animation: agent-avatar-stretch 600ms cubic-bezier(0.3, 0, 0.3, 1);
+}
+
+@keyframes agent-avatar-hop {
+  0%,
+  100% {
+    translate: 0 0;
+    scale: 1 1;
+  }
+
+  20% {
+    translate: 0 0;
+    scale: 1.06 0.94;
+  }
+
+  50% {
+    translate: 0 -14%;
+    scale: 0.97 1.03;
+  }
+
+  80% {
+    translate: 0 0;
+    scale: 1.03 0.97;
   }
 }
 
-/* The rings reach 1.4 ball radii, which is the margin the Bloub viewBox carries
-   past its body: 316 units drawn over the 200 the image fills, so the layer is
-   158% of the avatar box and sits (158% - 100%) / 2 outside it on each side. */
-.agent-avatar > .agent-avatar-arcs {
-  position: absolute;
-  inset: -29%;
-  width: auto;
-  height: auto;
-  overflow: visible;
-  translate: none;
+@keyframes agent-avatar-sway {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+
+  30% {
+    rotate: -7deg;
+  }
+
+  70% {
+    rotate: 6deg;
+  }
+}
+
+@keyframes agent-avatar-stretch {
+  0%,
+  100% {
+    scale: 1 1;
+  }
+
+  45% {
+    scale: 0.94 1.08;
+  }
+
+  75% {
+    scale: 1.02 0.98;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-avatar:is(.agent-avatar-life-hop, .agent-avatar-life-sway, .agent-avatar-life-stretch) {
+    animation: none;
+  }
 }
 
 .agent-row .agent-avatar {
@@ -2476,10 +2514,12 @@ textarea {
 .avatar-editor {
   position: relative;
   z-index: var(--openbot-layer-popover);
-  width: min(284px, calc(var(--settings-panel-width, 360px) - 30px));
+  width: min(312px, calc(var(--settings-panel-width, 360px) - 30px));
   max-width: calc(100vw - 24px);
+  max-height: min(680px, calc(var(--kb-popper-content-available-height, 100vh) - 12px));
   margin: 0;
-  overflow: hidden;
+  overflow: hidden auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--openbot-border);
   border-radius: var(--openbot-radius-lg);
   background: var(--openbot-bg-overlay);
@@ -2646,14 +2686,14 @@ textarea {
   scale: 0.96;
 }
 
-.avatar-face-grid {
+.avatar-choice-grid {
   display: grid;
   min-width: 0;
   margin: 0;
   border: 0;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  padding: 7px 10px 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px 10px 12px;
 }
 
 .avatar-face-choice,
@@ -2671,7 +2711,25 @@ textarea {
 
 .avatar-face-choice {
   width: 100%;
-  height: 48px;
+  height: auto;
+  min-height: 62px;
+  align-content: center;
+  gap: 3px;
+  padding: 6px 2px 5px;
+}
+
+.avatar-choice-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--openbot-text-secondary);
+  font-size: var(--openbot-text-sm);
+  line-height: var(--openbot-leading-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-choice-selected .avatar-choice-name {
+  color: var(--openbot-text-primary);
 }
 
 .avatar-face-choice:hover,
@@ -2687,8 +2745,8 @@ textarea {
 }
 
 .avatar-face-choice .agent-avatar {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
 }
 
 .avatar-color-grid {
@@ -2696,7 +2754,7 @@ textarea {
   min-width: 0;
   margin: 0;
   border: 0;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
   padding: 4px 10px 12px;
 }

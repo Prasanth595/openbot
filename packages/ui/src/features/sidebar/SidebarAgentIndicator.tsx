@@ -1,6 +1,6 @@
 import { Clock3, MessageCircleQuestionMark, MousePointer2, ShieldCheck, X } from "@openbot/ui";
 import { createEffect, createSignal, Show } from "solid-js";
-import type { AvatarMood } from "../../bloub-avatar";
+import type { AvatarMood } from "../../agent-avatar";
 import { TypingDots } from "../../components/TypingDots";
 import type { AgentProfile } from "../../data";
 import { useText } from "../../text";

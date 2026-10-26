@@ -22,7 +22,7 @@ import {
 import type { JSX } from "@solidjs/web";
 import { Dynamic } from "@solidjs/web";
 import { createSignal, createUniqueId, For, Show, untrack } from "solid-js";
-import { avatarHeadColor } from "../../bloub-avatar";
+import { avatarHeadColor } from "../../agent-avatar";
 import type {
   AgentMessageMarkerModel,
   AgentProfile,
