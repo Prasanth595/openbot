@@ -983,8 +983,9 @@ export async function createApplicationServices({
   performance.mark("openbot:services.pre-store");
   await runCauseEffect(store.initialize());
   performance.mark("openbot:services.store");
-  // Closing copies the write-ahead log into the database file and removes it.
-  teardown.push(TEARDOWN_ORDER.database, "the database", () => store.database.close());
+  // Closing copies the write-ahead log into the database file and removes it. A step that passed its
+  // limit, such as a slow agent stop, still writes, so the close waits a short time for it.
+  teardown.push(TEARDOWN_ORDER.database, "the database", () => store.database.close(), { afterAbandonedSteps: true });
   const managedSkills = new ManagedSkillService(
     app.isPackaged
       ? join(process.resourcesPath, "managed-skills", "openbot-site-hosting", "SKILL.md")

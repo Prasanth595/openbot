@@ -103,6 +103,7 @@ import {
   configureApplicationMenu,
   createMainWindowController,
   createMainWindowHolder,
+  hideWindowsForQuit,
   showMainWindow,
 } from "./main-window";
 import { ensureMacApplicationPresence, secondLaunchResponse } from "./main-window-state";
@@ -1487,11 +1488,11 @@ async function prepareForUpdateInstall(): Promise<void> {
 }
 
 /**
- * The four steps ahead of `teardown.runAll()` are pinned here rather than registered: the notch
- * windows and the haptic process have to disappear the moment the user asks to quit, not behind a
- * remote host that can take seconds to stop. The two service calls among them are registered as
- * well, for the case where the quit arrives before those services exist; both are idempotent, so
- * running twice costs nothing.
+ * The five steps ahead of `teardown.runAll()` are pinned here rather than registered: the windows,
+ * the notch windows and the haptic process have to disappear the moment the user asks to quit, not
+ * behind a remote host that can take seconds to stop. The two service calls among them are
+ * registered as well, for the case where the quit arrives before those services exist; both are
+ * idempotent, so running twice costs nothing.
  */
 async function prepareForShutdown(): Promise<void> {
   if (shutdownStarted) return;
@@ -1504,6 +1505,8 @@ async function prepareForShutdown(): Promise<void> {
   await runCauseEffect(windows.flushMainWindowBounds()).catch((error) =>
     logger.error("Unable to save the main window position:", toLogValue(error)),
   );
+  // After the bounds are saved.
+  hideWindowsForQuit();
   services?.dynamicIsland.destroy();
   macHapticFeedback.destroy();
   await teardown.runAll();
