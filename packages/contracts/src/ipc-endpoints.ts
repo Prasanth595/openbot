@@ -355,6 +355,7 @@ import type {
   DetectedModelServer,
   DiscoverModelsInput,
   DiscoverModelsResult,
+  MagpieGatewaySettings,
   ProviderDetectionSettings,
 } from "./ipc-provider-detection";
 import type {
@@ -887,6 +888,9 @@ export const IPC_ENDPOINTS = {
     setSettings: request<ProviderDetectionSettings, ProviderDetectionSettings>()("provider-detection:set-settings"),
     // Looks for known agent command names only. It starts no file.
     scanAgents: request<undefined, DetectedAcpAgent[]>()("provider-detection:scan-agents"),
+    // The Magpie gateway on this computer, and whether OpenBot starts it.
+    getMagpie: request<undefined, MagpieGatewaySettings>()("provider-detection:get-magpie"),
+    setMagpieAutoStart: request<boolean, MagpieGatewaySettings>()("provider-detection:set-magpie-auto-start"),
   },
   // The user's own ACP agents, on this computer only: no Team API route and no `providerAdmin` entry.
   // Environment values travel only towards main.
