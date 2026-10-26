@@ -71,7 +71,6 @@ export function AgentEventBridge() {
     clearRecentReply,
   } = useConversation();
   const {
-    activeTurns,
     setActiveTurns,
     setTurnProgress,
     setTurnStepLines,
@@ -225,16 +224,15 @@ export function AgentEventBridge() {
             ? { ...current, [event.agentId]: event.turnId }
             : withoutAgent(current, event.agentId),
         );
-        // A steer refusal is about the chat turn that ended. Kept, it shows below the turn's last reply (#3206).
-        if (activeTurns()[event.agentId] === event.turnId)
-          setUiErrors((current) => {
-            const key = agentConversationKey(activeServerId(), event.agentId);
-            const steerStatus = currentText().t("app.errorStatus.steer");
-            const errors = current[key];
-            if (!errors?.some((error) => error.status === steerStatus)) return current;
-            return { ...current, [key]: errors.filter((error) => error.status !== steerStatus) };
-          });
         setActiveTurns((current) => ({ ...current, [event.agentId]: null }));
+        // A steer refusal is about the turn that ended. Kept, it shows below the turn's last reply (#3206).
+        setUiErrors((current) => {
+          const key = agentConversationKey(activeServerId(), event.agentId);
+          const steerStatus = currentText().t("app.errorStatus.steer");
+          const errors = current[key];
+          if (!errors?.some((error) => error.status === steerStatus)) return current;
+          return { ...current, [key]: errors.filter((error) => error.status !== steerStatus) };
+        });
         setQueues((current) => {
           const snapshot = current[event.agentId];
           if (!snapshot) return current;
