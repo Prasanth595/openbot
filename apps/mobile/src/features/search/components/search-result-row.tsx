@@ -34,6 +34,8 @@ import {
   mobileSearchMatchParts,
   mobileSearchSnippet,
 } from "@/features/search/model/mobile-search";
+import { useTwoPane } from "@/features/tablet/context/two-pane-context";
+import { collapseDetailPane } from "@/features/tablet/model/detail-pane";
 import type { MobileAgent } from "@/features/workspace/context/mobile-workspace-context";
 import { formatUpdatedAt } from "@/shared/lib/format-updated-at";
 import { haptics } from "@/shared/lib/haptics";
@@ -217,10 +219,12 @@ export function MobileSearchResultRow({
 }) {
   const { t, format } = useText();
   const gate = useContext(ChatNavigationGateContext);
+  const twoPane = useTwoPane();
   // A chat opened through its home row zooms back into the row when it closes. A chat opened at a
   // message slides in.
   const openChat = (agentId: string, messageId?: string) => {
     onLeave();
+    if (twoPane) collapseDetailPane();
     if (messageId) router.push({ pathname: "/chat/[agentId]", params: { agentId, messageId } });
     else if (!gate?.openFromHome(agentId)) router.push({ pathname: "/chat/[agentId]", params: { agentId } });
   };
@@ -255,6 +259,7 @@ export function MobileSearchResultRow({
           query={query}
           onPress={() => {
             onLeave();
+            if (twoPane) collapseDetailPane();
             if (!gate?.openFromHome(channel.id))
               router.push({ pathname: "/channel/[channelId]", params: { channelId: channel.id, serverId } });
           }}

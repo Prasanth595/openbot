@@ -526,6 +526,8 @@ export const messages = {
   "mobile.agent.home.noAgentsBody": "Füge einen Agenten hinzu, um von deinem Telefon aus zu arbeiten.",
   "mobile.agent.home.chatOptions": "Chatoptionen",
   "mobile.agent.home.markAllRead": "Alle als gelesen markieren",
+  "mobile.agent.home.detailEmpty": "Kein Chat geöffnet",
+  "mobile.agent.home.detailEmptyBody": "Wähle in der Liste einen Agenten oder Kanal, um ihn hier zu lesen.",
   "mobile.agent.route.appearance": "Aussehen",
   "mobile.agent.route.cropPhoto": "Bewegen und skalieren",
   "mobile.agent.info.memory.inclusion.label": "Verwendung der Erinnerung",

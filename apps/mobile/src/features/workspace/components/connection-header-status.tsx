@@ -78,10 +78,20 @@ function StatusText({ server: shown }: { server: MobileServer }) {
   );
 }
 
-export function ConnectionHeaderStatus({ server }: { server: MobileServer | undefined }) {
+export function ConnectionHeaderStatus({
+  server,
+  fill = false,
+}: {
+  server: MobileServer | undefined;
+  /** Takes the room left in the bar instead of a toolbar slot, for the tablet chat list pane. */
+  fill?: boolean;
+}) {
   return (
-    // Keep this native toolbar slot mounted: removing it would cut off the exit animation.
-    <View className="justify-center" style={{ width: 164, height: 44 }}>
+    // Keep this slot mounted: removing it would cut off the exit animation.
+    <View
+      className={fill ? "min-w-0 flex-1 justify-center" : "justify-center"}
+      style={{ height: 44, width: fill ? undefined : 164 }}
+    >
       <ConnectionStatusReveal
         value={server && !server.initialConnectionPending && !showsOnline(server) ? server : null}
       >

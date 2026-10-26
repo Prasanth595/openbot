@@ -516,6 +516,8 @@ export const messages = {
   "mobile.agent.home.noAgentsBody": "Añade un agente para empezar a trabajar desde tu teléfono.",
   "mobile.agent.home.chatOptions": "Opciones del chat",
   "mobile.agent.home.markAllRead": "Marcar todo como leído",
+  "mobile.agent.home.detailEmpty": "Ningún chat abierto",
+  "mobile.agent.home.detailEmptyBody": "Elige un agente o un canal en la lista para leerlo aquí.",
   "mobile.agent.route.appearance": "Apariencia",
   "mobile.agent.route.cropPhoto": "Mover y ajustar tamaño",
   "mobile.agent.info.memory.inclusion.label": "Uso del recuerdo",

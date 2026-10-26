@@ -24,7 +24,8 @@ const TITLE_EASE = cubicBezier(0.23, 1, 0.32, 1);
 const TITLE_BOTTOM_PADDING = isAndroid ? 16 : 10;
 /** The distance over which the big title fades out under the bar. */
 const TITLE_FADE = 24;
-const IOS_BAR_HEIGHT = 44;
+/** The iOS bar under the status bar, which a pane draws itself because it has no native header. */
+export const BAR_HEIGHT = 44;
 /** The side room of the small title: the glass bar button, 16 pt from the edge, and a 16 pt gap. */
 const BAR_TITLE_INSET = 78;
 /** The Material 3 small top app bar puts its title on the 72 dp line, after the navigation button. */
@@ -38,6 +39,8 @@ export interface LargeTitleScroll {
   scrolled: SharedValue<number>;
   titleHeight: SharedValue<number>;
   headerHeight: number;
+  /** The native header insets the content. False for a pane, whose content pads itself instead. */
+  nativeInset: boolean;
 }
 
 /**
@@ -45,18 +48,25 @@ export interface LargeTitleScroll {
  * the custom scroll edge effect on iOS 27, and Android has none, so the screens draw their own: the
  * title scrolls with the content, and a small title shows in the transparent native bar. Android
  * draws it as a Material 3 medium top app bar that collapses into the small bar.
+ *
+ * `paneHeaderHeight` is for the chat list beside the chat on a tablet. A pane is not a navigation
+ * screen, so it draws a bar of that height itself in place of the native header.
  */
-export function useLargeTitleScroll(): LargeTitleScroll {
-  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+export function useLargeTitleScroll(paneHeaderHeight?: number): LargeTitleScroll {
+  const nativeHeaderHeight = useContext(HeaderHeightContext) ?? 0;
+  // A pane is not a navigation screen, so it has no native header to take the height from and no
+  // native inset under it: its content pads itself and rests at zero, as Android does.
+  const nativeInset = isIOS && paneHeaderHeight === undefined;
+  const headerHeight = paneHeaderHeight ?? nativeHeaderHeight;
   const scrolled = useSharedValue(0);
   const titleHeight = useSharedValue(0);
   // iOS insets the content under the transparent header, so the content rests at minus the header
   // height. Android pads the content by the header height and rests at zero.
-  const rest = isIOS ? -headerHeight : 0;
+  const rest = nativeInset ? -headerHeight : 0;
   const onScroll = useAnimatedScrollHandler((event) => {
     scrolled.set(event.contentOffset.y - rest);
   });
-  return { onScroll, scrolled, titleHeight, headerHeight };
+  return { onScroll, scrolled, titleHeight, headerHeight, nativeInset };
 }
 
 /** The first item of the scroll content: an optional caption above the big title. */
@@ -214,7 +224,7 @@ export function LargeTitleBar({
               position: "absolute",
               top: insets.top,
               // iOS centers its bar buttons in the 44 pt under the status bar; the header can be taller.
-              height: isIOS ? IOS_BAR_HEIGHT : Math.max(0, scroll.headerHeight - insets.top),
+              height: isIOS ? BAR_HEIGHT : Math.max(0, scroll.headerHeight - insets.top),
               left: insetLeft,
               right: insetRight,
               justifyContent: "center",

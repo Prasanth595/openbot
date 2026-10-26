@@ -553,6 +553,8 @@ export const messages = {
   "mobile.agent.home.noAgentsBody": "Добавьте агента, чтобы начать работать с телефона.",
   "mobile.agent.home.chatOptions": "Параметры чата",
   "mobile.agent.home.markAllRead": "Отметить все прочитанными",
+  "mobile.agent.home.detailEmpty": "Чат не открыт",
+  "mobile.agent.home.detailEmptyBody": "Выберите агента или канал в списке, чтобы открыть его здесь.",
   "mobile.agent.route.appearance": "Внешний вид",
   "mobile.agent.route.cropPhoto": "Перемещение и масштаб",
   "mobile.agent.info.memory.inclusion.label": "Использование памяти",

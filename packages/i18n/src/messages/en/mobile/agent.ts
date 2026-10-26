@@ -504,6 +504,8 @@ export const messages = defineMessages("mobile.agent", {
   "mobile.agent.home.noAgentsBody": "Add an agent to start working from your phone.",
   "mobile.agent.home.chatOptions": "Chat options",
   "mobile.agent.home.markAllRead": "Mark all as read",
+  "mobile.agent.home.detailEmpty": "No chat open",
+  "mobile.agent.home.detailEmptyBody": "Pick an agent or a channel in the list to read it here.",
   "mobile.agent.route.appearance": "Appearance",
   "mobile.agent.route.cropPhoto": "Move and Scale",
   "mobile.agent.info.memory.inclusion.label": "Memory use",

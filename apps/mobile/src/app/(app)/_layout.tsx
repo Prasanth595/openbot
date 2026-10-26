@@ -14,6 +14,7 @@ import { MermaidRendererHost } from "@/features/chat/components/mermaid-renderer
 import { OutboxProvider } from "@/features/chat/context/outbox-context";
 import { QueuedMessagesProvider } from "@/features/chat/context/queued-messages-context";
 import { setLiveActivityNavigator } from "@/features/live-activity/model/live-activity-link";
+import { OnboardingGateProvider } from "@/features/onboarding/context/onboarding-gate-context";
 import type { NotificationTarget } from "@/features/push-notifications/push-notifications-native.types";
 import { useNotificationTaps } from "@/features/push-notifications/use-notification-taps";
 import type { QuickActionTarget } from "@/features/quick-actions/model/quick-action-items";
@@ -21,6 +22,8 @@ import { setQuickActionNavigator } from "@/features/quick-actions/quick-actions-
 import { requestHomeSearch } from "@/features/search/model/home-search-request";
 import { AppDrawerShell, useAppDrawer } from "@/features/servers/components/app-drawer-shell";
 import { setShareSheetOpener } from "@/features/share/model/share-sheet-opener";
+import { TwoPaneShell } from "@/features/tablet/components/two-pane-shell";
+import { TwoPaneProvider, useTwoPane } from "@/features/tablet/context/two-pane-context";
 import {
   MobileWorkspaceProvider,
   useMobileWorkspaceReader,
@@ -42,6 +45,9 @@ function AuthenticatedStack() {
   const segments = useSegments();
   // Reduced motion, from the device or from Settings, replaces the full-screen slide with a cross-fade.
   const pushAnimation = useReducedMotion() ? "fade" : "slide_from_right";
+  // A chat beside the list takes the detail pane, and the next one takes its place there, so a
+  // slide across the pane would read as a step deeper instead of a new selection.
+  const detailAnimation = useTwoPane() ? "none" : pushAnimation;
   const { t } = useText();
   const background = useThemeColor("background");
   const sheetBackground = String(useCSSVariable("--openbot-bg-sheet") ?? background);
@@ -175,7 +181,7 @@ function AuthenticatedStack() {
         <Stack.Screen
           name="chat/[agentId]"
           options={{
-            animation: pushAnimation,
+            animation: detailAnimation,
             contentStyle: { backgroundColor: background },
             fullScreenGestureEnabled: false,
             gestureEnabled: true,
@@ -232,7 +238,7 @@ function AuthenticatedStack() {
         <Stack.Screen
           name="channel/[channelId]"
           options={{
-            animation: pushAnimation,
+            animation: detailAnimation,
             contentStyle: { backgroundColor: background },
             fullScreenGestureEnabled: false,
             gestureEnabled: true,
@@ -506,17 +512,23 @@ export default function AuthenticatedLayout() {
 
   return (
     <MobileWorkspaceProvider key={workspaceKey}>
-      <OutboxProvider>
-        <AgentPinTransitionProvider>
-          <AppDrawerShell>
-            <QueuedMessagesProvider>
-              <AuthenticatedStack />
-              <MermaidRendererHost />
-              <AudioWaveformHost />
-            </QueuedMessagesProvider>
-          </AppDrawerShell>
-        </AgentPinTransitionProvider>
-      </OutboxProvider>
+      <TwoPaneProvider>
+        <OnboardingGateProvider>
+          <OutboxProvider>
+            <AgentPinTransitionProvider>
+              <AppDrawerShell>
+                <QueuedMessagesProvider>
+                  <TwoPaneShell>
+                    <AuthenticatedStack />
+                  </TwoPaneShell>
+                  <MermaidRendererHost />
+                  <AudioWaveformHost />
+                </QueuedMessagesProvider>
+              </AppDrawerShell>
+            </AgentPinTransitionProvider>
+          </OutboxProvider>
+        </OnboardingGateProvider>
+      </TwoPaneProvider>
     </MobileWorkspaceProvider>
   );
 }

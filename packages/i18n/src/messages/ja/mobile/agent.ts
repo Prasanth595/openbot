@@ -515,6 +515,8 @@ export const messages = {
   "mobile.agent.home.noAgentsBody": "エージェントを追加すると、スマートフォンから作業を始められます。",
   "mobile.agent.home.chatOptions": "チャットのオプション",
   "mobile.agent.home.markAllRead": "すべて既読にする",
+  "mobile.agent.home.detailEmpty": "開いているチャットはありません",
+  "mobile.agent.home.detailEmptyBody": "リストでエージェントかチャンネルを選ぶと、ここに表示されます。",
   "mobile.agent.route.appearance": "外観",
   "mobile.agent.route.cropPhoto": "移動と拡大縮小",
   "mobile.agent.info.memory.inclusion.label": "メモリーの使い方",

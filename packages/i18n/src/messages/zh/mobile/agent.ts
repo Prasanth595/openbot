@@ -493,6 +493,8 @@ export const messages = {
   "mobile.agent.home.noAgentsBody": "添加一个助手，即可在手机上开始工作。",
   "mobile.agent.home.chatOptions": "对话选项",
   "mobile.agent.home.markAllRead": "全部标为已读",
+  "mobile.agent.home.detailEmpty": "没有打开的对话",
+  "mobile.agent.home.detailEmptyBody": "在列表中选择一个助手或频道，在这里查看。",
   "mobile.agent.route.appearance": "外观",
   "mobile.agent.route.cropPhoto": "移动与缩放",
   "mobile.agent.info.memory.inclusion.label": "记忆使用方式",

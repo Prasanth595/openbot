@@ -507,6 +507,8 @@ export const messages = {
   "mobile.agent.home.noAgentsBody": "에이전트를 추가해서 휴대폰으로 작업을 시작해 보세요.",
   "mobile.agent.home.chatOptions": "채팅 옵션",
   "mobile.agent.home.markAllRead": "모두 읽음으로 표시",
+  "mobile.agent.home.detailEmpty": "열린 채팅 없음",
+  "mobile.agent.home.detailEmptyBody": "목록에서 에이전트나 채널을 선택하면 여기에 표시됩니다.",
   "mobile.agent.route.appearance": "외형",
   "mobile.agent.route.cropPhoto": "이동 및 크기 조절",
   "mobile.agent.info.memory.inclusion.label": "메모리 사용",
