@@ -1380,17 +1380,28 @@ export class ChannelService {
    * new revision and the assignment ends, so nothing holds the agent's resources while it waits: the
    * pump assigns the task again once the agent takes turns. False when there is no active assignment
    * to give back, or when a transfer is pending on it. A task whose routine drops late work is
-   * cancelled instead.
+   * cancelled instead. `continueWork` keeps the assignment for a ready backup to continue now.
    */
   readonly requeueForLimit = Effect.fn("ChannelService.requeueForLimit")(function* (
     this: ChannelService,
     deliveryId: string,
+    continueWork = false,
   ) {
     const assignment = this.store.assignmentForDelivery(deliveryId);
     if (!assignment || !activeAssignment(assignment) || assignment.pendingRevision !== null) return false;
     const task = this.store.tasks(assignment.channelId).find((item) => item.id === assignment.taskId);
     const current = task?.revision === assignment.taskRevision && (task.state === "queued" || task.state === "running");
     const skipped = task && current && this.hooks.skipAtLimit?.(task) ? this.#skippedTasks(task) : null;
+    if (continueWork) {
+      if (!task || !current || skipped) return false;
+      // The ready backup keeps this assignment and its delivery, including the interrupted work.
+      this.store.update(this.store.get(assignment.channelId), {
+        assignments: [{ ...assignment, state: "queued", turnId: null }],
+        tasks: [{ ...task, state: "queued", error: null }],
+      });
+      this.publish(assignment.channelId);
+      return true;
+    }
     this.store.update(this.store.get(assignment.channelId), {
       assignments: [{ ...assignment, state: "interrupted" }],
       tasks:

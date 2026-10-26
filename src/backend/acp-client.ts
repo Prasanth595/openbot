@@ -1708,7 +1708,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       if (available && option?.currentValue !== value) yield* this.#configuration.set(thread, configId, value);
     }
     this.#publishSessionSettings(thread);
-    const turnId = getString(params, "clientUserMessageId") ?? randomUUID();
+    const turnId = getString(params, "clientTurnId") ?? getString(params, "clientUserMessageId") ?? randomUUID();
     const blocks = yield* promptBlocksEffect(params);
     yield* providerSync(() => this.#requireServedModel(thread));
     // The session keeps the instructions in its context, so a prompt carries them only when the

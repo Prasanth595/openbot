@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { AGENT_PROVIDERS, type AgentModelOption, type AgentSummary } from "@openbot/contracts/ipc";
 import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
@@ -729,6 +730,8 @@ export class DrainScheduler {
                   this.#store.list().find((current) => current.id === agent.id) ?? agent,
                 ),
                 clientUserMessageId: delivery.id,
+                // The delivery stays the same; a continuation must not overwrite the first turn's items.
+                ...(context.resumeAfterUsageLimit && client.provider !== "codex" ? { clientTurnId: randomUUID() } : {}),
                 // A teammate message that wants no answer tells the model to write nothing, so an empty
                 // turn is the expected result and not a provider that swallowed its error.
                 answerOptional:

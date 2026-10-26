@@ -570,7 +570,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     const prompt = yield* piPrompt(params);
     const active = thread.turn;
     const turn: PiTurn = active ?? {
-      id: getString(params, "clientUserMessageId") ?? randomUUID(),
+      id: getString(params, "clientTurnId") ?? getString(params, "clientUserMessageId") ?? randomUUID(),
       startedAt: Date.now() / 1_000,
       messageIndex: 0,
       items: new Map(),
