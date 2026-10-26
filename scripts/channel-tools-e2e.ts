@@ -264,6 +264,10 @@ try {
       .map((message) => message.message.text),
   };
   assert.deepEqual(report.result.answers, ["PELICAN"], "The turn shows more than its result as a reply.");
+  assert.ok(
+    report.result.folded.some((text) => /^yes\.?$/i.test(text.trim())),
+    "The text after the result is not in the steps.",
+  );
 
   report.passed = true;
 } finally {

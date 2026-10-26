@@ -1906,17 +1906,23 @@ export class ChannelService {
       const task = tasks.get(assignment.taskId);
       const result = existing(`channel-result-${assignment.id}-revision-${assignment.taskRevision}`);
       if (result?.message.text === message.text) continue;
-      // The result is the answer of the turn. Other answer text of that turn, such as a "Yes." after
-      // the tool call, folds into its steps. Before, it showed as a second reply from the same member.
+      const original = existing(message.id);
+      // The result is the answer of the turn. Answer text that the running turn writes after it, such
+      // as a "Yes.", folds into its steps. Before, it showed as a second reply from the same member.
+      // Text from before the result has a row with a lower sequence and stays as it is, and so do the
+      // rows of older turns.
       if (
-        result?.message.turnId === message.turnId &&
+        result &&
+        result.message.turnId === message.turnId &&
         message.author === "assistant" &&
         !message.questionPrompt &&
         !message.attachments?.length &&
-        (!message.itemType || message.itemType === "agentMessage")
+        (!message.itemType || message.itemType === "agentMessage" || message.itemType === "final_answer") &&
+        (original
+          ? original.message.itemType === "commentary" && original.sequence > result.sequence
+          : activeAssignment(assignment))
       )
         message = { ...message, itemType: "commentary" };
-      const original = existing(message.id);
       const messageId =
         original?.superseded && task?.revision === assignment.taskRevision
           ? `${message.id}-revision-${task.revision}`
@@ -2170,15 +2176,6 @@ export class ChannelService {
       message.message.author = "assistant";
       message.message.turnId = turnId;
       yield* channelSync(() => this.store.update(channel, { messages: [message] }, operationId));
-      // Answer text that the turn wrote before this call folds now, not only at the next delta.
-      yield* channelSync(() => {
-        const { threadId } = this.store.context(channelId, agentId);
-        const loaded = this.hooks.loadedSnapshot?.(threadId);
-        this.capture(
-          loaded?.agentId === agentId ? loaded : this.store.database.readConversation(agentId, threadId),
-          turnId,
-        );
-      });
       this.publish(channelId);
       return { accepted: true, instruction: "The result is in the shared chat. End this turn without repeating it." };
     }
