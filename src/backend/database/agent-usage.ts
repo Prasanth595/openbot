@@ -144,7 +144,7 @@ export class AgentUsage {
         // A session that has records but no cost checkpoint ran before its costs were kept. Its
         // first cost report also counts that earlier use, so the report is only the start.
         const costStartUnknown =
-          sample.costCounterId && typeof previousCost !== "number"
+          sample.costCounterId && sample.reportedCost != null && typeof previousCost !== "number"
             ? databaseRow(
                 db
                   .prepare("SELECT 1 FROM agent_usage_records WHERE agent_id = ? AND session_id = ? LIMIT 1")

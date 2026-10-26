@@ -316,9 +316,8 @@ try {
 
   // A session from before costs were kept: it has records but no cost checkpoint. Its first total
   // also counts the earlier turns, so that turn has no cost and the next one books the difference.
-  const sessionId = String(
-    sqlite().prepare("SELECT id FROM projection_provider_sessions WHERE thread_id = ?").get(threadId)?.id,
-  );
+  const sessionId = store.activeProviderSession(agent.id)?.id;
+  assert.ok(sessionId, "the agent has an active provider session");
   sqlite()
     .prepare("DELETE FROM agent_usage_checkpoints WHERE agent_id = ? AND counter_id = ?")
     .run(agent.id, `${sessionId}:opencode:cost`);
