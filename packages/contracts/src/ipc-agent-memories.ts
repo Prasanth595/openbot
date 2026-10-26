@@ -144,7 +144,8 @@ export function isAgentMemorySelection(value: unknown): value is AgentMemorySele
   );
 }
 
-export function isAgentMemorySelectionState(value: unknown): value is AgentMemorySelectionState {
+/** `budgetBytes` is fixed per owner: 8192 for an agent, 3072 for the user memories that every agent shares. */
+export function isAgentMemorySelectionState(value: unknown, budgetBytes = 8192): value is AgentMemorySelectionState {
   return (
     isDynamicRecord(value) &&
     Array.isArray(value.selections) &&
@@ -153,7 +154,30 @@ export function isAgentMemorySelectionState(value: unknown): value is AgentMemor
     typeof value.usedBytes === "number" &&
     Number.isSafeInteger(value.usedBytes) &&
     value.usedBytes >= 0 &&
-    value.budgetBytes === 8192 &&
+    value.budgetBytes === budgetBytes &&
     value.usedBytes <= value.budgetBytes
   );
+}
+
+/** A user memory: what every agent knows about the user. The settings page edits them on this computer. */
+export interface UpdateUserMemoryInput {
+  memoryId: string;
+  text: string;
+}
+
+export interface SetUserMemoryInclusionInput {
+  changes: AgentMemorySelectionChange[];
+}
+
+/**
+ * Whether OpenBot keeps durable facts from a conversation before a provider session hands it off,
+ * as automatic, searchable memories. On by default. Local only: the setting and the user memories
+ * stay on this computer.
+ */
+export interface MemoryCapturePreference {
+  enabled: boolean;
+}
+
+export function isMemoryCapturePreference(value: unknown): value is MemoryCapturePreference {
+  return isDynamicRecord(value) && typeof value.enabled === "boolean";
 }
