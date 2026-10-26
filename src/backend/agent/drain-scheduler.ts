@@ -663,21 +663,27 @@ export class DrainScheduler {
           item.sender.kind === "agent" && item.replyToMessageId ? [item.replyToMessageId] : [],
         ),
       );
-      const promptInput = (executionText: string | undefined) =>
-        combinedPromptInput(
-          batch.map((item) =>
-            deliveryPromptInput(item, {
+      const promptInput = (executionText: string | undefined) => {
+        // The deliveries of one interrupted turn share its continuation, so the prompt states it once.
+        const continued = new Set<string>();
+        return combinedPromptInput(
+          batch.map((item) => {
+            const { resumeAfterUsageLimit, ...rest } = item;
+            const repeated = resumeAfterUsageLimit !== undefined && continued.has(resumeAfterUsageLimit.turnId);
+            if (resumeAfterUsageLimit) continued.add(resumeAfterUsageLimit.turnId);
+            return deliveryPromptInput(repeated ? rest : item, {
               agentNames,
               snapshot,
               routineRun:
                 item.delivery.sender.kind === "routine" ? this.#routines.runForDelivery(item.delivery.id) : null,
               wokenWaits: item.delivery.sender.kind === "routine" ? this.#routines.wokenWaits(item.delivery.id) : [],
               ...(executionText === undefined ? {} : { executionText }),
-            }),
-          ),
+            });
+          }),
           [...requestIds].flatMap((requestId) => this.#mailbox.unansweredRecipients(requestId)),
           agentNames,
         );
+      };
       const completeInput = promptInput(execution?.text);
       // A channel packet with only unread messages goes only to the session that read the others. The
       // session can change from here to the retry below, as when the provider cannot resume it.

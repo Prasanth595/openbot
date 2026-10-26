@@ -951,13 +951,15 @@ export class TurnLifecycle {
             : "";
         if (continuing && trace) this.#attachTrace(snapshot.messages, agentId, turnId, trace);
         const traceSteps =
-          trace?.steps
-            .filter((step) => step.kind === "tool")
-            .map(
-              (step) =>
-                `${step.command ?? step.text ?? "tool"} (${step.endedAt === null ? "interrupted" : step.failed ? "failed" : "completed"})`,
-            )
-            .join("\n") ?? "";
+          continuing && trace
+            ? trace.steps
+                .filter((step) => step.kind === "tool")
+                .map(
+                  (step) =>
+                    `${step.command ?? step.text ?? "tool"} (${step.endedAt === null ? "interrupted" : step.failed ? "failed" : "completed"})`,
+                )
+                .join("\n")
+            : "";
         yield* this.#requeueTurn(
           agentId,
           threadId,

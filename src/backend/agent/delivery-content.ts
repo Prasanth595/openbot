@@ -256,7 +256,8 @@ export function deliveryPromptInput(context: DeliveryContext, sources: DeliveryP
       snapshot.messages
         .filter(
           (message) =>
-            message.turnId === continuationState.turnId &&
+            message.turnId !== undefined &&
+            continuationState.previousTurnIds.includes(message.turnId) &&
             message.author === "assistant" &&
             message.itemType !== "commentary",
         )
