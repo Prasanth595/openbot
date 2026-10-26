@@ -147,6 +147,7 @@ import { ContextCompaction } from "./agent/context-compaction";
 import { ConversationReader } from "./agent/conversation-reader";
 import { ConversationRuntime } from "./agent/conversation-runtime";
 import { CustomEndpoints, toEndpointChangeFailed } from "./agent/custom-endpoints";
+import { DelegationContexts } from "./agent/delegation-context";
 import { agentNamesById, displayMessageReferences } from "./agent/delivery-content";
 import { DeltaBuffer } from "./agent/delta-buffer";
 import type { SectionTeammates } from "./agent/developer-instructions";
@@ -425,6 +426,8 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #memoryHold: MemoryHold;
   readonly #usageLimits: UsageLimitGate;
   readonly #drain: DrainScheduler;
+  /** The delegator excerpts that `create_agent` and `send_message` leave for the drain. */
+  readonly #delegationContexts = new DelegationContexts();
   readonly #sessionSettings: SessionSettings;
   readonly #queue: QueueControls;
   readonly #attachments: AttachmentGateway;
@@ -1143,6 +1146,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
     });
     this.#drain = new DrainScheduler({
+      delegationContexts: this.#delegationContexts,
       channels: this.channels,
       messaging: this.messaging,
       store,
@@ -1230,6 +1234,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       this.#emit({ type: "browser-control-changed", state });
     });
     this.#queue = new QueueControls({
+      delegationContexts: this.#delegationContexts,
       store,
       mailbox,
       mailboxSync: this.#mailboxSync,
@@ -1318,6 +1323,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
     });
     this.#tools = new OpenBotToolRouter({
+      delegationContexts: this.#delegationContexts,
       capturedSteps: (session) => this.#threads.capturedWorkSteps(session).pipe(toToolOperationFailed),
       store,
       mailbox,

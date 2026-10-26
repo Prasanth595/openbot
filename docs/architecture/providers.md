@@ -810,6 +810,14 @@ models, with bare ids such as `deepseek-v4-pro`. The Pi client loads no key exte
 the user's own `deepseek` models, for example from `DEEPSEEK_API_KEY` in Pi's environment.
 DeepSeek is local-only, as Inception is.
 
+## Delegator context
+
+`create_agent` gives the new agent a short excerpt (6,000 characters) of the caller's recent
+conversation (`includeContext`, default true; `send_message` sends one only when the caller asks).
+`deliveryPromptInput` puts it in front of the request in a block that says it is untrusted
+collaborator data, and `teammatePrompts` skips the block. The excerpts stay in memory
+(`DelegationContexts`), so a delivery that starts after a restart goes without one.
+
 ## Muse
 
 Muse uses the official `@muse-code/sdk` to run `muse serve` over MSP. The SDK is pinned to `1.4.2`;
