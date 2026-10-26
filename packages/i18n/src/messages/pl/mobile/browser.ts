@@ -12,6 +12,10 @@ export const messages = {
   "mobile.browser.reload": "Odśwież stronę",
   "mobile.browser.previousPage": "Poprzednia strona",
   "mobile.browser.nextPage": "Następna strona",
+  "mobile.browser.share": "Udostępnij",
+  "mobile.browser.address.field": "Adres",
+  "mobile.browser.address.placeholder": "Szukaj lub wpisz adres",
+  "mobile.browser.address.clear": "Wyczyść adres",
   "mobile.browser.tabs.button": {
     one: "{count} karta",
     few: "{count} karty",
@@ -20,6 +24,7 @@ export const messages = {
   },
   "mobile.browser.tabs.new": "Nowa karta",
   "mobile.browser.tabs.close": "Zamknij kartę",
+  "mobile.browser.tabs.closeNamed": "Zamknij {title}",
   "mobile.browser.tabs.untitled": "Bez tytułu",
   "mobile.browser.tabs.openedInBackground": "Otwarto nową kartę",
   "mobile.browser.menu.openLink": "Otwórz link w nowej karcie",
