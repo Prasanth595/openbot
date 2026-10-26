@@ -32,6 +32,8 @@ const config: KnipConfig = {
     "ldd",
     // Stops a stuck packaged app during Windows package verification.
     "taskkill.exe",
+    // Finds the parent process of the stand-in CLI in the Windows Claude `.cmd` E2E script.
+    "tasklist",
     // Tunnels Slack to the local Signal and account API in `bun run dev:slack`.
     "cloudflared",
     // Speaks the English samples of the macOS dictation smoke test.
