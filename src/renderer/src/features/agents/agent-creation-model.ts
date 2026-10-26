@@ -3,6 +3,7 @@ import {
   type AgentModelId,
   type AgentProviderId,
   type AgentReasoningEffort,
+  type AgentStatus,
   type AppSetupState,
   type ClientAgentModelOption,
   defaultProviderModel,
@@ -35,6 +36,11 @@ export interface DevelopmentCreation {
  * catalog still lists it, else that provider's default when listed, else its first listed model,
  * else the first provider in picker order with any model. `null` while the catalog is empty.
  *
+ * Codex and Claude list built-in models before their CLI answers, signed in or not. So, as the
+ * backend's `startingChoice` does, a provider other than the saved one is a start only while
+ * `status` reports it available. When none is, the form still needs a pair: the first listed one.
+ * A status without provider rows does not filter.
+ *
  * Seeding from the saved choice matters because the form always submits a pair: a hard-coded
  * default would bypass the backend's saved-provider default and fail outright after onboarding
  * with a provider the default does not cover.
@@ -46,6 +52,7 @@ export interface DevelopmentCreation {
 export function resolveCreationModel(
   setup: CreationPreference | null,
   modelOptions: ClientAgentModelOption[],
+  status: AgentStatus | null | undefined,
   development: DevelopmentCreation | null = null,
 ): CreationModelChoice | null {
   const preferred = setup?.preferredProvider ?? null;
@@ -60,16 +67,23 @@ export function resolveCreationModel(
   const ordered: AgentProviderId[] = preferred
     ? [preferred, ...PICKER_PROVIDERS.filter((provider) => provider !== preferred)]
     : [...PICKER_PROVIDERS];
-  for (const provider of ordered) {
-    if (developmentStart && !development?.providerAvailable(provider)) continue;
-    const options = modelOptions.filter((option) => option.provider === provider);
-    if (options.length === 0) continue;
-    if (provider === preferred && setup?.preferredModel) {
-      const kept = options.find((option) => option.id === setup.preferredModel);
-      if (kept) return { provider, model: kept.id };
+  const rows = status?.providers ?? [];
+  const available = (provider: AgentProviderId) =>
+    rows.length === 0 || provider === preferred || rows.some((row) => row.id === provider && row.state === "available");
+  const choose = (usable: (provider: AgentProviderId) => boolean): CreationModelChoice | null => {
+    for (const provider of ordered) {
+      if (developmentStart && !development?.providerAvailable(provider)) continue;
+      if (!usable(provider)) continue;
+      const options = modelOptions.filter((option) => option.provider === provider);
+      if (options.length === 0) continue;
+      if (provider === preferred && setup?.preferredModel) {
+        const kept = options.find((option) => option.id === setup.preferredModel);
+        if (kept) return { provider, model: kept.id };
+      }
+      const fallback = options.find((option) => option.id === defaultProviderModel(provider)) ?? options[0];
+      if (fallback) return { provider, model: fallback.id };
     }
-    const fallback = options.find((option) => option.id === defaultProviderModel(provider)) ?? options[0];
-    if (fallback) return { provider, model: fallback.id };
-  }
-  return null;
+    return null;
+  };
+  return choose(available) ?? choose(() => true);
 }
