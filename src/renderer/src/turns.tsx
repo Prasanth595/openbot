@@ -361,6 +361,8 @@ const Turns = createSimpleContext({
         .then(() => analytics.track("queue_action", { action: "steer", result: "succeeded" }))
         .catch((error) => {
           analytics.track("queue_action", { action: "steer", result: "failed", failure_code: "steer_failed" });
+          // After the turn ended, the message runs as the next turn. The refusal is old news (#3206).
+          if (activeTurns()[agent.id] !== turnId) return;
           appendUiError(agent.id, error, currentText().t("app.errorStatus.steer"), serverId);
         });
     }

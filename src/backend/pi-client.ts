@@ -283,7 +283,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
       case "turn/steer": {
         const id = yield* providerSync(() => requiredString(params, "threadId"));
         const thread = yield* this.#thread(id, params);
-        response = yield* thread.gate.withPermit(this.#prompt(thread, params, method === "turn/steer"));
+        response = yield* thread.gate.withPermit(
+          method === "turn/steer" ? this.#steer(thread, params) : this.#prompt(thread, params),
+        );
         break;
       }
       case "turn/interrupt": {
@@ -563,9 +565,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     this: PiAgentClient,
     thread: PiThread,
     params: unknown,
-    steer: boolean,
   ) {
-    if (steer) return yield* this.#steer(thread, params);
     if (thread.turn) return yield* providerFailure(new Error(sourceText("error.provider.piSessionBusy")));
     yield* this.#configure(thread, params);
     const prompt = yield* piPrompt(params);
@@ -611,8 +611,9 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     // Pi's `steer` also queues the message while Pi compacts, which `prompt` refuses. A refusal
     // fails only this steer, not the running turn, so the message waits in the queue (#3206).
     yield* thread.rpc.request({ type: "steer", ...prompt }, this.options.requestTimeoutMs);
-    if (thread.turn !== turn || turn.finishing) {
-      // Pi had settled, so its next run would take the message. Remove it, as it stays queued here.
+    if (thread.turn !== turn || turn.finishing || turn.stopped) {
+      // Pi had settled or was stopped, so its next run would take the message, or the stop removed it.
+      // Remove it, as it stays queued here.
       yield* thread.rpc.request({ type: "clear_queue" }).pipe(Effect.ignore);
       return yield* providerFailure(new Error(sourceText("error.backend.steerTurnChanged")));
     }
