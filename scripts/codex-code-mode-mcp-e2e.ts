@@ -4,8 +4,9 @@
 // namespaces as direct-only, beside its own. The payload is the one `codexDisabledServers`,
 // `codexMcpServers`, `codexThreadMcpServers` and `codexMcpNamespaces` build for a thread. A local
 // server that speaks the Responses API stands in for the model: it records the top-level namespaces
-// and calls the MCP tool when Codex offers it, so no account or key is used. Codex applies the list
-// on `thread/resume` too, so a thread started before the fix gets it without a new session.
+// and calls the MCP tool when Codex offers it, so no account or key is used. A thread started with
+// the list keeps it on `thread/resume`. Codex 0.164 does not add the list to a thread started
+// without it, so `CODEX_MCP_ADAPTER_VERSION` 8 replaces those sessions.
 // `bun scripts/codex-code-mode-mcp-e2e.ts`. Writes .openbot-build/codex-code-mode-mcp-e2e/report.json.
 import assert from "node:assert/strict";
 import { mkdir, rm, writeFile } from "node:fs/promises";
@@ -232,7 +233,7 @@ interface Case {
   rows: McpServerConfig[];
   /** True sends the direct-only list as it was before the fix: OpenBot's own namespace alone. */
   legacy?: boolean;
-  /** True starts the thread as before the fix, then resumes it in a new app-server with the fix. */
+  /** True starts the thread with the fix, then resumes it in a new app-server. */
   resume?: boolean;
 }
 
@@ -325,7 +326,7 @@ async function run(test: Case): Promise<Outcome> {
       dynamicTools: VISIBLE_DYNAMIC_TOOLS,
     });
     const started = await runCauseEffect(
-      session.client.request("thread/start", params(test.legacy || test.resume ? legacy : fixed), decodeRecordResponse),
+      session.client.request("thread/start", params(test.legacy ? legacy : fixed), decodeRecordResponse),
     );
     const threadId = getString(getRecord(started, "thread"), "id");
     assert(threadId, "thread/start returned no thread id");
@@ -402,13 +403,10 @@ try {
     },
   );
   await step(
-    "a thread started before the fix gets the namespace when it resumes",
+    "a thread started with the fix keeps the namespace when it resumes",
     { name: "resumed", rows: [row("composio")], resume: true },
-    (o) => {
-      assert.deepEqual(o.offered, ["mcp__composio"]);
-      assert.deepEqual(o.calls, [TOOL]);
-      assert.equal(o.resultReturned, true, "the model did not get the MCP result");
-    },
+    // The call is in the first turn; the history holds it, so the fake model does not call again.
+    (o) => assert.deepEqual(o.offered, ["mcp__composio"]),
   );
   await step(
     "a user stdio composio renames the row: the renamed namespace is direct-only",

@@ -77,9 +77,11 @@ const logger = createOpenBotLogger("thread-lifecycle");
  * the payload, 3 is the sweep that turns off the servers `~/.codex/config.toml` declares, and 4 is
  * the managed tool runtimes joining the fingerprint, so a session started before Bun finished
  * downloading is replaced once its servers can actually start, 5 is the plan tool below, and 6 is
- * server names in the form Codex accepts. Version 7 keeps approvals for custom MCP servers.
+ * server names in the form Codex accepts. Version 7 keeps approvals for custom MCP servers. Version 8
+ * is the MCP namespaces in `features.code_mode.direct_only_tool_namespaces`: Codex 0.164 does not
+ * add them on resume to a thread started without them, so a code-mode-only model saw no MCP tools.
  */
-const CODEX_MCP_ADAPTER_VERSION = 7;
+const CODEX_MCP_ADAPTER_VERSION = 8;
 
 /** What a provider other than Codex, or a Codex with no file to read, has in its own files. */
 const NO_CODEX_OWN_SERVERS: CodexOwnServers = { disabled: {}, transports: {} };
