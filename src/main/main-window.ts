@@ -715,7 +715,21 @@ export function sendComputerUseHighlightPlacement(
   sendToRenderer(window, IPC_ENDPOINTS.computerUse.highlightPlacement, placement);
 }
 
+/** Set by `hideWindowsForQuit` and never cleared: the process ends after it. */
+let windowsHiddenForQuit = false;
+
+/**
+ * The renderer keeps reading while the services stop, and a read that the closing services fail
+ * must not show its error to the user (#3166). The Dock, the tray, a deep link or a notification
+ * then does not show the window again.
+ */
+export function hideWindowsForQuit(): void {
+  windowsHiddenForQuit = true;
+  for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.hide();
+}
+
 export function showMainWindow(window: BrowserWindow): void {
+  if (windowsHiddenForQuit) return;
   presentMainWindow(window, process.platform, () => app.show());
 }
 

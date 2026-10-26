@@ -103,6 +103,7 @@ import {
   configureApplicationMenu,
   createMainWindowController,
   createMainWindowHolder,
+  hideWindowsForQuit,
   showMainWindow,
 } from "./main-window";
 import { ensureMacApplicationPresence, secondLaunchResponse } from "./main-window-state";
@@ -1504,9 +1505,8 @@ async function prepareForShutdown(): Promise<void> {
   await runCauseEffect(windows.flushMainWindowBounds()).catch((error) =>
     logger.error("Unable to save the main window position:", toLogValue(error)),
   );
-  // After the bounds are saved. The renderer keeps reading while the services stop, and a read that
-  // the closing services fail must not show its error to the user (#3166).
-  for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.hide();
+  // After the bounds are saved.
+  hideWindowsForQuit();
   services?.dynamicIsland.destroy();
   macHapticFeedback.destroy();
   await teardown.runAll();

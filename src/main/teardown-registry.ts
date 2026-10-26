@@ -2,7 +2,7 @@
  * The named shutdown steps `createApplicationServices` accumulates while it builds, so a quit that
  * arrives mid-startup tears down exactly what exists rather than nothing at all.
  *
- * Two things it does that the hand-written shutdown sequence it replaces did not:
+ * Three things it does that the hand-written shutdown sequence it replaces did not:
  *
  * - **Every step is caught.** A rejecting `remoteServers.stop()` used to skip the host, the WebRTC
  *   bridge and the agent service below it, leaving provider CLIs running after the app had quit.
