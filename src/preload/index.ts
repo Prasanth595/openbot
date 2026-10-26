@@ -1102,6 +1102,7 @@ const openbotApi: OpenBotDesktopApi = {
       addTemplateAgent: decodeAddedAgent,
     }),
     ...bridgeGroup(IPC_ENDPOINTS.agentAttachments, {
+      importAttachmentData: decodeAttachments,
       chooseAttachments: decodeAttachments,
       discardDraftAttachment: decodeVoid,
       downloadAttachments: decodeVoid,

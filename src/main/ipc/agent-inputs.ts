@@ -734,6 +734,12 @@ export function parseImportAttachments(value: unknown): ImportAttachmentsInput {
   return { paths: value.paths, data };
 }
 
+/** A renderer can provide file bytes, but it cannot ask main to read a disk path. */
+export function parseAttachmentData(value: unknown): ImportAttachmentsInput["data"] {
+  if (!Array.isArray(value)) throw new Error("Invalid attachment data.");
+  return parseImportAttachments({ paths: [], data: value }).data;
+}
+
 export function parseChooseAttachments(value: unknown): ChooseAttachmentsInput {
   if (!isObject(value) || (value.filter !== "all" && value.filter !== "images")) {
     throw new Error("Invalid attachment picker filter.");

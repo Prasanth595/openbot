@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react-native";
 import ArrowUpDown from "lucide-react-native/icons/arrow-up-down";
 import Calendar from "lucide-react-native/icons/calendar";
 import ChartColumn from "lucide-react-native/icons/chart-column";
+import Circle from "lucide-react-native/icons/circle";
 import CircleCheck from "lucide-react-native/icons/circle-check";
 import CircleStop from "lucide-react-native/icons/circle-stop";
 import ClipboardPaste from "lucide-react-native/icons/clipboard-paste";
@@ -16,6 +17,7 @@ import Eye from "lucide-react-native/icons/eye";
 import EyeOff from "lucide-react-native/icons/eye-off";
 import File from "lucide-react-native/icons/file";
 import Folder from "lucide-react-native/icons/folder";
+import Globe from "lucide-react-native/icons/globe";
 import Info from "lucide-react-native/icons/info";
 import LayoutGrid from "lucide-react-native/icons/layout-grid";
 import ListChecks from "lucide-react-native/icons/list-checks";
@@ -52,6 +54,7 @@ const ICONS: Partial<Record<string, LucideIcon>> = {
   calendar: Calendar,
   "chart.bar": ChartColumn,
   "checkmark.circle": CircleCheck,
+  "circlebadge.fill": Circle,
   checklist: ListChecks,
   "chevron.left.forwardslash.chevron.right": Code,
   "cursorarrow.motionlines": MousePointerClick,
@@ -64,6 +67,7 @@ const ICONS: Partial<Record<string, LucideIcon>> = {
   eye: Eye,
   "eye.slash": EyeOff,
   folder: Folder,
+  globe: Globe,
   gearshape: Settings,
   "info.circle": Info,
   "person.2": Users,
@@ -121,10 +125,13 @@ function groups(actions: MenuAction[]): MenuAction[][] {
 }
 
 function MenuItem({ action, colors, onPressAction }: ItemProps) {
-  const { subactions, state, attributes, title, titleColor, image } = action;
+  const { subactions, state, attributes, title, titleColor, image, imageColor } = action;
   const color = attributes?.destructive ? colors.danger : colors.text;
   const Icon = typeof image === "string" ? ICONS[image] : undefined;
-  const icon = Icon ? <Icon size={18} strokeWidth={2} color={color} /> : null;
+  const iconColor = imageColor ? String(imageColor) : color;
+  // A `.fill` symbol is a solid shape, so its Lucide icon is filled too.
+  const fill = typeof image === "string" && image.endsWith(".fill") ? iconColor : "none";
+  const icon = Icon ? <Icon size={18} strokeWidth={2} color={iconColor} fill={fill} /> : null;
   if (subactions?.length) {
     return (
       <SubMenu isDisabled={attributes?.disabled}>
@@ -152,9 +159,8 @@ function MenuItem({ action, colors, onPressAction }: ItemProps) {
       onPress={() => onPressAction?.({ nativeEvent: { event: actionId(action) } })}
     >
       {icon}
-      <Menu.ItemTitle numberOfLines={1} style={{ color: titleColor ?? color }}>
-        {title}
-      </Menu.ItemTitle>
+      {/* A long title wraps, as in the iOS menu, so a model name shows in full. */}
+      <Menu.ItemTitle style={{ color: titleColor ?? color }}>{title}</Menu.ItemTitle>
       {state ? <Menu.ItemIndicator iconProps={{ color: colors.text }} /> : null}
     </Menu.Item>
   );

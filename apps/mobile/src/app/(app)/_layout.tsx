@@ -218,6 +218,18 @@ function AuthenticatedStack() {
           }}
         />
         <Stack.Screen
+          name="browser-tabs/[agentId]"
+          // No header: the address bar is the sheet's first row, and the page shows above it.
+          options={{
+            contentStyle: { backgroundColor: sheetBackground },
+            headerShown: false,
+            scrollEdgeEffects: { top: "hidden", bottom: "soft" },
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.6],
+            sheetGrabberVisible: true,
+          }}
+        />
+        <Stack.Screen
           name="browser-help"
           // The header comes from the route's `_layout.tsx`: Android draws no header on a formSheet route.
           options={{

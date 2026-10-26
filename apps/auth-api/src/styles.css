@@ -7250,6 +7250,18 @@ a {
   font-size: 16px;
 }
 
+.landing-faq-body .compare-faq-answer a {
+  color: var(--openbot-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--openbot-duration-normal) ease;
+}
+
+.landing-faq-body .compare-faq-answer a:hover,
+.landing-faq-body .compare-faq-answer a:focus-visible {
+  color: var(--openbot-logo-production);
+}
+
 .compare-sources-note {
   max-width: 68ch;
   margin: 14px 0 0;

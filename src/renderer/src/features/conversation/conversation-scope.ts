@@ -601,6 +601,8 @@ export function createConversationViewScope(props: ConversationProps) {
   const actions = createComposerActions({
     props,
     attachmentBusy,
+    setAttachmentBusy,
+    attachmentImports: resources.importTargetAgents,
     agentReady: () => agentReady() && !providerUpdateRequired(),
     drafts,
     setDrafts,
@@ -677,6 +679,8 @@ export function createConversationViewScope(props: ConversationProps) {
   const {
     updateTeamTyping,
     addAttachments,
+    pasteFiles,
+    releaseCutAttachments,
     openAttachmentPicker,
     openAttachmentPickerFromKey,
     editQueuedMessage,
@@ -1687,6 +1691,8 @@ export function createConversationViewScope(props: ConversationProps) {
     composerHasContent,
     copiedMessageId,
     copyMessage,
+    pasteFiles,
+    releaseCutAttachments,
     clearSubmittedDraft,
     currentDraft,
     currentTarget,
