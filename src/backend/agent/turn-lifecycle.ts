@@ -942,7 +942,7 @@ export class TurnLifecycle {
       if (requeue) {
         const workSteps =
           continuing && running
-            ? yield* readCapturedSteps(running.client, threadId).pipe(
+            ? yield* readCapturedSteps(running.client, threadId, turnId).pipe(
                 Effect.timeout("2 seconds"),
                 Effect.map((steps) => steps.get(turnId) ?? ""),
                 Effect.catch((error) =>
