@@ -47,6 +47,7 @@ import type { RemoteServerManager } from "../remote-server-manager";
 import { remoteCall, remoteDecode } from "../remote-service-effects";
 import {
   agentRequest,
+  parseAttachmentData,
   parseAttachmentId,
   parseChooseAttachments,
   parseDownloadAttachments,
@@ -134,6 +135,10 @@ export function attachmentIpcHandlers({
       }),
     },
     agentAttachments: {
+      importAttachmentData: scopedHandler(parseAttachmentData, {
+        local: (data) => runCauseEffect(service.prepareImportedAttachments([], data)),
+        remote: (data, serverId) => runCauseEffect(uploadRemoteImports(remoteServers, serverId, { paths: [], data })),
+      }),
       releaseFilePreview: payloadHandler(parseFilePreviewPageUrl, (pageUrl) => filePreviewPages.release(pageUrl)),
       chooseAttachments: payloadHandler(agentRequest(parseChooseAttachments), async (parsed) => {
         const mainWindow = getMainWindow();

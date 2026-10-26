@@ -2324,6 +2324,16 @@ export function createMockOpenBot(options: MockOpenBotOptions = {}): MockOpenBot
         return clone(state);
       },
       chooseAttachments: async (_input) => [],
+      importAttachmentData: async (data) =>
+        data.map((file) => ({
+          id: crypto.randomUUID(),
+          name: file.name,
+          mimeType: file.mimeType,
+          size: file.bytes.byteLength,
+          kind: file.mimeType.startsWith("image/") ? ("image" as const) : ("file" as const),
+          previewKind: file.mimeType.startsWith("image/") ? ("image" as const) : ("none" as const),
+          previewUrl: URL.createObjectURL(new Blob([new Uint8Array(file.bytes)], { type: file.mimeType })),
+        })),
       onAttachmentImport: (listener) => {
         attachmentListeners.add(listener);
         return () => attachmentListeners.delete(listener);

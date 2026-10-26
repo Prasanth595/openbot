@@ -185,12 +185,15 @@ export interface MobileBrowserViewSupport {
   contextMenu: boolean;
   /** `browser-view-viewport`: the host holds the page at the size the phone asks for. */
   viewport: boolean;
+  /** `browser-navigation`: the host loads an address in a tab that is open. */
+  navigation: boolean;
 }
 
 /** What the phone does to a host browser tab, through the released `browser-control` routes. */
 type MobileBrowserTabAction =
   | { type: "navigate"; tabId: string; direction: "back" | "forward" }
   | { type: "reload"; tabId: string }
+  | { type: "load"; tabId: string; url: string }
   | { type: "open"; url: string; ownerAgentId: string; ownerThreadId: string | null }
   | { type: "close"; tabId: string };
 

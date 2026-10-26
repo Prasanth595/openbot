@@ -14,9 +14,10 @@
  * On a very wide screen the chat stops at a column and centers in the pane, so a reply and the
  * user's message stay near each other. A laptop window is narrower than the column and shows the
  * chat at full width. The scroll area and the composer keep the pane width, so the scroll bar stays
- * at the pane edge.
+ * at the pane edge. The live content under the messages, such as the working row and a pending
+ * question, stays in the same column.
  */
-.conversation-panel > .conversation-scroll > .virtual-chat-list {
+.conversation-panel > .conversation-scroll > :is(.virtual-chat-list, .conversation-live) {
   max-width: var(--conversation-column-width);
   margin-inline: auto;
 }

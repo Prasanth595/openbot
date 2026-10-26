@@ -77,6 +77,7 @@ import { SheetScrollEdgeEffect } from "@/shared/components/sheet-scroll-edge-eff
 import { haptics } from "@/shared/lib/haptics";
 import { useReducedMotion, useTransitionMode } from "@/shared/lib/motion";
 import { isAndroid } from "@/shared/lib/platform";
+import { selectionColorProps } from "@/shared/lib/selection-color";
 import { currentText, useText } from "@/shared/lib/text";
 import { typeScale } from "@/shared/lib/type-scale";
 import { useLiquidGlass } from "@/shared/lib/use-liquid-glass";
@@ -780,7 +781,7 @@ export function HomeSearchBar({
                 placeholderTextColor={muted}
                 returnKeyType={target ? "send" : "search"}
                 submitBehavior="submit"
-                selectionColor={foreground}
+                {...selectionColorProps(foreground)}
                 style={{
                   fontSize: 16,
                   lineHeight: 20,
