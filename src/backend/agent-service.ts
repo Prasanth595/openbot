@@ -727,6 +727,17 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       // endpoint can refuse the prompt itself, after the waits every caller above it makes.
       credentials: {
         ...credentials,
+        // The server variables reach Claude and the ACP providers with the agent environment. The
+        // thread lifecycle below gets the agent environment without them, so the fingerprint of a
+        // Codex session stays the same; Codex reads them from the spawn environment of its app-server.
+        ...(credentials.serverEnvironment
+          ? {
+              agentEnvironment: (inherited) => ({
+                ...credentials.serverEnvironment,
+                ...credentials.agentEnvironment?.(inherited),
+              }),
+            }
+          : {}),
         history: (provider) => {
           const history = credentials.history
             ? credentials.history(provider)
