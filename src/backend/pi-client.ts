@@ -8,7 +8,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { redactText } from "@openbot/logging";
 import { Effect, Exit, Schema, Scope, Semaphore } from "effect";
 import { secretElicitationField } from "./agent/prompts";
-import type { AgentClient, DiagnosticOrigin } from "./agent-client";
+import { type AgentClient, type DiagnosticOrigin, RequestTimeoutError } from "./agent-client";
 import { type AgentCliInfo, cliPathEnvironment, cliSpawnTarget } from "./cli";
 import { runCauseEffect } from "./effect-boundary";
 import { type DynamicToolNamespace, LocalMcpBridge, type LocalMcpSession } from "./local-mcp-bridge";
@@ -610,7 +610,15 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     const prompt = yield* piPrompt(params);
     // Pi's `steer` also queues the message while Pi compacts, which `prompt` refuses. A refusal
     // fails only this steer, not the running turn, so the message waits in the queue (#3206).
-    yield* thread.rpc.request({ type: "steer", ...prompt }, this.options.requestTimeoutMs);
+    yield* thread.rpc.request({ type: "steer", ...prompt }, this.options.requestTimeoutMs).pipe(
+      // Pi can still queue a steer that timed out, and the queue would then send the message again.
+      // A refusal queues nothing, so other steers of the turn stay in Pi's queue.
+      Effect.tapError((failure) =>
+        failure.cause instanceof RequestTimeoutError
+          ? thread.rpc.request({ type: "clear_queue" }).pipe(Effect.ignore)
+          : Effect.void,
+      ),
+    );
     if (thread.turn !== turn || turn.finishing || turn.stopped) {
       // Pi had settled or was stopped, so its next run would take the message, or the stop removed it.
       // Remove it, as it stays queued here.

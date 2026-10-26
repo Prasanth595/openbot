@@ -1,7 +1,8 @@
 // The Pi of `pi-steer-e2e.ts`, on Pi's JSONL RPC (`pi --mode rpc`). A `work` prompt stays open until
 // a `steer` arrives, then answers with the steer's text and settles, as Pi reads a queued steer before
 // it settles. A steer whose text starts with `refuse` is refused, as Pi refuses an extension command,
-// and the run goes on. Each request is logged to `FAKE_LOG`.
+// and the run goes on. A steer whose text starts with `slow` gets no answer. Each request is logged
+// to `FAKE_LOG`.
 import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -50,6 +51,8 @@ const handlers: Record<string, (command: RpcRecord) => void> = {
     const text = String(command.message);
     log({ event: "steer", text, images: Array.isArray(command.images) ? command.images.length : 0 });
     if (text.startsWith("refuse")) return refuse(command, `Pi refused the steer: ${text}`);
+    // A busy Pi answers after the client stopped waiting.
+    if (text.startsWith("slow")) return;
     answer(command, { disposition: "queued" });
     // Pi reads the steer in a model call of its own, so it never settles in the steer's answer chunk.
     if (streaming) setTimeout(() => settle(`steered: ${text}`), 50);

@@ -29,6 +29,7 @@ interface Report {
   passed: boolean;
   steered?: { turnId: string; reply: string; status: string | null; steer: LogEntry };
   refused?: { refused: string; completedBeforeNextSteer: boolean; status: string | null; reply: string };
+  timedOut?: { refused: string; queueCleared: boolean; status: string | null; reply: string };
   wrongTurn?: { refused: string; steers: number };
   afterTurn?: { refused: string; steers: number; prompts: number };
   failure?: string;
@@ -44,7 +45,8 @@ async function open(): Promise<{ client: AgentClient; log: string }> {
   await installFakeAgent(executable, "pi-steer", { FAKE_LOG: log, FAKE_DIR: root });
   const client = requireProviderDriver("deepseek").createClient(
     { executable, version: "1.4.0", source: "managed" },
-    10_000,
+    // Short, so that the steer that Pi does not answer times out soon. The fake answers the rest at once.
+    2_000,
     { apiKey: () => null, customProviders: () => [], mcpServers: () => [] },
   );
   clients.push(client);
@@ -171,6 +173,20 @@ try {
     status: secondFinished.status,
     reply: secondFinished.reply,
   };
+
+  // Pi does not answer a steer in time. Pi could still queue it, so the client clears Pi's queue, as
+  // the message also waits in OpenBot's queue. The turn goes on.
+  const slow = await startWork(client, thread, log);
+  const cleared = await count(log, "clear_queue");
+  assert.equal(cleared, 0, "A refused steer queues nothing, so it must not clear Pi's queue.");
+  const timedOut = await refusal(steer(client, thread, slow.id, "slow steer"));
+  await waitForCount(log, "clear_queue", cleared + 1);
+  assert.equal(slow.completed(), false, "A timed-out steer must not end the running turn.");
+  assert.equal(await steer(client, thread, slow.id, "after the timeout"), slow.id);
+  const slowFinished = await slow.done;
+  assert.equal(slowFinished.status, "completed");
+  assert.match(slowFinished.reply, /steered: after the timeout/u);
+  report.timedOut = { refused: timedOut, queueCleared: true, status: slowFinished.status, reply: slowFinished.reply };
 
   // A steer for a turn that is not the running one is refused before it reaches Pi.
   const third = await startWork(client, thread, log);
