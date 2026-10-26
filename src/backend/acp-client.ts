@@ -291,6 +291,8 @@ export interface AcpProviderOptions {
   additionalModels?: () => Effect.Effect<AcpModel[]>;
   /** The name to show for a listed model, from its id and the name that the agent sent. */
   modelName?: (id: string, name: string) => string;
+  /** The name to show for the provider of a model, when it is not this agent's own (a custom endpoint). */
+  providerName?: (modelId: string | null) => string | null;
   /**
    * Values to mask in every diagnostic and error this client emits, read at each use: the custom
    * agent's environment values, which have no secret name that `redactText` could know them by.
@@ -2078,7 +2080,9 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
         thread,
         turn,
         "failed",
-        sourceText("error.agent.turnStalled", { provider: this.#label }),
+        sourceText("error.agent.turnStalled", {
+          provider: this.options.providerName?.(thread.currentModelId) ?? this.#label,
+        }),
       );
     }
   });
