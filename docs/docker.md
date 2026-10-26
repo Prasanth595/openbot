@@ -143,7 +143,8 @@ only to `tmpfs` folders that count toward the memory limit: `/tmp` (8 GiB), `/va
 `--cpus` is a CPU time limit. The container still sees every CPU of the host in `/proc/cpuinfo` and
 `/proc/stat`, so a program that sizes itself from the CPU count starts too many workers: `next build`
 started 63 on a 64-CPU host that gives the instance 8, and two builds filled 32 GiB. `setup`
-installs LXCFS with `--enable-cfs` (`lxcfs-openbot.conf`). When LXCFS runs, `openbot-instance` adds
+installs LXCFS with `--enable-cfs` (`lxcfs-openbot.conf`) as its last step; when that fails, it
+prints a warning and the rest of the setup stays done. When LXCFS runs, `openbot-instance` adds
 `lxcfs.yaml`: the container then reads its own CPU and memory limits in `/proc/cpuinfo`, `/proc/stat`,
 `/proc/meminfo` and `/proc/swaps`. Without LXCFS, an instance still starts (an
 update from the app must not fail), and `ready` prints a warning. OpenBot then limits only the Node
