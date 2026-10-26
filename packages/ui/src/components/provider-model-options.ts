@@ -19,6 +19,9 @@ const EFFORT_LABELS: Partial<Record<string, AppTextKey>> = {
   max: "provider.effort.max",
 };
 
+/** An OpenCode reasoning variant: `<base model id>/<effort>`. */
+const OPENCODE_VARIANT_ID = /^(.*)\/(none|minimal|low|medium|high|xhigh|max|ultra)$/;
+
 export interface PickerModel {
   id: string;
   /** The wire provider: the Custom tab holds both `opencode` endpoints and `acp` agents. */
@@ -80,7 +83,7 @@ export function pickerModels(options: ClientAgentModelOption[]): PickerModel[] {
   const variantIds = new Set<string>();
   for (const model of options) {
     if (model.provider !== "opencode") continue;
-    const match = /^(.*)\/(none|minimal|low|medium|high|xhigh|max|ultra)$/.exec(model.id);
+    const match = OPENCODE_VARIANT_ID.exec(model.id);
     const [, baseId, effort] = match ?? [];
     const base = baseId === undefined ? undefined : byId.get(baseId);
     if (!base || effort === undefined || model.name !== `${base.name} (${effort})`) continue;
@@ -166,4 +169,21 @@ export function customProviderIds(providers: readonly CustomProviderSummary[]): 
 /** A model of the Custom tab: a custom endpoint's, which OpenCode serves, or a custom agent's. */
 export function isCustomModel(model: ClientAgentModelOption, customIds: ReadonlySet<string>): boolean {
   return model.provider === "acp" || (model.provider === "opencode" && isCustomProviderModelId(model.id, customIds));
+}
+
+/** The key of a model in the list of hidden models. A provider id has no colon. */
+export function modelVisibilityKey(model: { provider: string; id: string }): string {
+  return `${model.provider}:${model.id}`;
+}
+
+/** The base model of an OpenCode reasoning variant, or the model itself. */
+export function modelVisibilityBase(model: { provider: string; id: string }): { provider: string; id: string } {
+  if (model.provider !== "opencode") return model;
+  const base = OPENCODE_VARIANT_ID.exec(model.id)?.[1];
+  return base === undefined ? model : { provider: model.provider, id: base };
+}
+
+/** An OpenCode reasoning variant follows its base model: the picker folds the two together. */
+export function isModelHidden(model: { provider: string; id: string }, hidden: ReadonlySet<string>): boolean {
+  return hidden.has(modelVisibilityKey(model)) || hidden.has(modelVisibilityKey(modelVisibilityBase(model)));
 }

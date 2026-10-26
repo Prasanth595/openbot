@@ -8,6 +8,7 @@ import type {
   UpdateAgentInput,
 } from "@openbot/contracts/ipc";
 import { PROVIDER_ACCOUNTS_CAPABILITY } from "@openbot/contracts/team-protocol/provider-accounts-v1";
+import { isModelHidden, modelVisibilityBase, modelVisibilityKey } from "@openbot/ui/components/provider-model-options";
 import type { AgentProfile } from "@openbot/ui/data";
 import { createFirstAgentDraft, type FirstAgentDraft } from "@openbot/ui/features/agents/FirstAgentSetup";
 import { currentText } from "@openbot/ui/text";
@@ -16,6 +17,7 @@ import { desktopAnalytics } from "../../analytics";
 import { FALLBACK_STATUS } from "../../app-defaults";
 import { agentProfilesEqual, toAgentProfile } from "../../app-message-projection";
 import { createStoredProfile, updateStored } from "../../app-stored-values";
+import { useHiddenModels } from "../../model-visibility-preference";
 import { usePlatform } from "../../platform";
 import { createScopeGuard } from "../../scope-lifetime";
 import { createSimpleContext } from "../../simple-context";
@@ -83,7 +85,23 @@ const Agents = createSimpleContext({
     /** The first roster read of this scope succeeded. */
     const [agentListSettled, setAgentListSettled] = createSignal(false);
     const [duplicatingAgentIds, setDuplicatingAgentIds] = createSignal<Set<string>>(new Set());
-    const [modelOptions, setModelOptions] = createSignal<ClientAgentModelOption[]>([]);
+    const [allModelOptions, setModelOptions] = createSignal<ClientAgentModelOption[]>([]);
+    const hiddenModels = useHiddenModels();
+    /**
+     * The models that the pickers offer: the ones that the user did not hide in Settings > Providers,
+     * and every model that an agent uses, so its settings still name it. `allModelOptions` is for
+     * the Settings list.
+     */
+    const modelOptions = createMemo(() => {
+      if (hiddenModels().size === 0) return allModelOptions();
+      const hidden = new Set(hiddenModels());
+      for (const agent of agentList()) {
+        const model = { provider: agent.provider, id: agent.model };
+        hidden.delete(modelVisibilityKey(model));
+        hidden.delete(modelVisibilityKey(modelVisibilityBase(model)));
+      }
+      return allModelOptions().filter((model) => !isModelHidden(model, hidden));
+    });
     const selectionServerId = untrack(activeServerId);
     const scopeIsCurrent = createScopeGuard();
     // A chat window shows its one agent, and keeps the choice of the main window as it is.
@@ -371,6 +389,7 @@ const Agents = createSimpleContext({
       duplicatingAgentIds,
       setDuplicatingAgentIds,
       modelOptions,
+      allModelOptions,
       setModelOptions,
       activeAgentId,
       setActiveAgentId,
