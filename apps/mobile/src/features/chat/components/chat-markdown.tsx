@@ -110,6 +110,7 @@ interface TextPresentation {
   mentionOffset: number;
   fontScale: number;
   t: MobileTranslate;
+  linkFavicons: boolean;
 }
 
 /** The HeroUI font size of each text type, in points, which inline math is sized against. */
@@ -450,7 +451,12 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
         <Text key={offset} style={presentation.style} accessibilityRole="link" accessibilityHint={url} onPress={open}>
           {tokenIs(token, "link") ? (
             <>
-              <ChatLinkIcon url={url} color={presentation.style.color} compact={presentation.type === "body-sm"} />
+              <ChatLinkIcon
+                url={url}
+                favicon={presentation.linkFavicons}
+                color={presentation.style.color}
+                compact={presentation.type === "body-sm"}
+              />
               {NO_BREAK_SPACE}
             </>
           ) : null}
@@ -591,6 +597,7 @@ function selectableInline(tokens: Token[], presentation: TextPresentation, segme
           <ChatLinkIcon
             key="icon"
             url={url}
+            favicon={presentation.linkFavicons}
             color={presentation.style.color}
             compact={presentation.type === "body-sm"}
           />,
@@ -917,6 +924,7 @@ export const ChatMarkdown = memo(function ChatMarkdown({
   agents = NO_AGENTS,
   nativeSelection,
   finished = false,
+  linkFavicons = true,
 }: {
   body: string;
   color: ColorValue | undefined;
@@ -933,6 +941,11 @@ export const ChatMarkdown = memo(function ChatMarkdown({
    * or an empty string when the selection ends. A new `generation` ends a selection from outside.
    */
   nativeSelection?: { generation: number; onSelect: (selected: string) => void };
+  /**
+   * False shows only the link symbol, so that no linked site is asked for its favicon. Use it for
+   * text that another person wrote, such as the instructions of a marketplace skill.
+   */
+  linkFavicons?: boolean;
 }) {
   const textReveal = useMotionPreference("textReveal");
   const { fontScale } = useWindowDimensions();
@@ -994,8 +1007,10 @@ export const ChatMarkdown = memo(function ChatMarkdown({
       finished,
       animateTail,
       nativeSelection: nativeSelectionTarget,
+      linkFavicons,
     }),
     [
+      linkFavicons,
       selectable,
       compact,
       color,

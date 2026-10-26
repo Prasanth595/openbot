@@ -14,15 +14,18 @@ function faviconUrl(url: string): string | null {
 /** The linked site's favicon, as on desktop and web. The link symbol shows until it loads, and when it does not. */
 export const ChatLinkIcon = memo(function ChatLinkIcon({
   url,
+  favicon: showFavicon,
   color,
   compact,
 }: {
   url: string;
+  /** False keeps the request for the linked site's favicon from being made. */
+  favicon: boolean;
   color: ColorValue | undefined;
   compact: boolean;
 }) {
   const size = compact ? 12 : 14;
-  const favicon = faviconUrl(url);
+  const favicon = showFavicon ? faviconUrl(url) : null;
   const [loaded, setLoaded] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const shown = favicon !== null && favicon !== failed && !missingFavicons.has(favicon);
