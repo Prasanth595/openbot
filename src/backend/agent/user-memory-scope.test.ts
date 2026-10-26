@@ -101,6 +101,36 @@ describe("user memory scope", () => {
     const { memories } = await setup();
     expect(memories.handleTool(tool("remember", { text: "x", scope: "team" }), "chief")?.success).toBe(false);
   });
+
+  it("saves captured facts once, in their scope, as searchable", async () => {
+    const { memories } = await setup();
+    memories.createUser("Kevin likes oolong tea.");
+    const saved = memories.saveCaptured(
+      "chief",
+      [
+        { scope: "user", text: "Kevin likes oolong tea." },
+        { scope: "user", text: "Kevin runs on Sundays." },
+        { scope: "agent", text: "The release branch is cut on Fridays." },
+        { scope: "agent", text: "The release branch is cut on Fridays." },
+      ],
+      "capture-1",
+    );
+    expect(saved).toBe(2);
+    // Two saves in one millisecond have no fixed order.
+    expect(
+      memories
+        .listUser()
+        .map((memory) => [memory.text, memory.origin])
+        .sort(),
+    ).toEqual([
+      ["Kevin likes oolong tea.", "manual"],
+      ["Kevin runs on Sundays.", "automatic"],
+    ]);
+    expect(memories.listFor("chief").map((memory) => memory.text)).toEqual(["The release branch is cut on Fridays."]);
+    expect(memories.recall("user", "user", "Plans for Sundays", 5).map((memory) => memory.text)).toEqual([
+      "Kevin runs on Sundays.",
+    ]);
+  });
 });
 
 describe("user memories in the prompt", () => {

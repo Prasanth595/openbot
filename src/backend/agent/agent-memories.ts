@@ -218,6 +218,40 @@ export class AgentMemories {
     if (this.#userMemories.clear(USER_MEMORY_OWNER) > 0) this.userStateChanged();
   }
 
+  /**
+   * Saves facts that OpenBot drew from a conversation before its context was lost, as automatic,
+   * searchable memories. A fact already saved, in either scope, is skipped, and a full owner saves no
+   * more. Answers how many it saved.
+   */
+  saveCaptured(agentId: string, facts: readonly { scope: MemoryScope; text: string }[], sourceTurnId: string): number {
+    let saved = 0;
+    const touched = new Set<MemoryScope>();
+    const known = new Set(
+      [...this.#memories.list(agentId), ...this.#userMemories.list(USER_MEMORY_OWNER)].map((memory) =>
+        normalizeMemoryText(memory.text),
+      ),
+    );
+    for (const fact of facts) {
+      const text = fact.text.trim();
+      if (!text || text.length > INPUT_LIMITS.agentMemoryText || known.has(normalizeMemoryText(text))) continue;
+      const ownerId = fact.scope === "user" ? USER_MEMORY_OWNER : agentId;
+      const store = this.#store(fact.scope);
+      if (store.count(ownerId) >= store.limit()) continue;
+      try {
+        if (!store.saveAutomatic({ agentId: ownerId, text, sourceTurnId })) continue;
+      } catch (error) {
+        this.#emitError("memory_capture_failed", error, agentId);
+        continue;
+      }
+      known.add(normalizeMemoryText(text));
+      touched.add(fact.scope);
+      saved += 1;
+    }
+    if (touched.has("agent")) this.stateChanged(agentId);
+    if (touched.has("user")) this.userStateChanged();
+    return saved;
+  }
+
   selectionState(agentId: string): AgentMemorySelectionState {
     this.#conversation.requireKnownAgent(agentId);
     return this.#memories.selectionState(agentId);

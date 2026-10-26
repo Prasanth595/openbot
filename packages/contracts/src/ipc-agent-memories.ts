@@ -168,3 +168,16 @@ export interface UpdateUserMemoryInput {
 export interface SetUserMemoryInclusionInput {
   changes: AgentMemorySelectionChange[];
 }
+
+/**
+ * Whether OpenBot keeps durable facts from a conversation before a provider session hands it off,
+ * as automatic, searchable memories. On by default. Local only: the setting and the user memories
+ * stay on this computer.
+ */
+export interface MemoryCapturePreference {
+  enabled: boolean;
+}
+
+export function isMemoryCapturePreference(value: unknown): value is MemoryCapturePreference {
+  return isDynamicRecord(value) && typeof value.enabled === "boolean";
+}
