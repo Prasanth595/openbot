@@ -1952,7 +1952,7 @@ export class HostedServerService {
         .run(),
     );
     if (started.meta.changes !== 1) return;
-    yield* this.#wake(yield* this.#requireRow(row.server_id), "schedule");
+    yield* this.#wakeFromCron(row, "schedule");
   });
 
   /** The start counts as use, so with no client the idle stop comes after 15 minutes and saves the disk. */
@@ -1972,22 +1972,36 @@ export class HostedServerService {
         .run(),
     );
     if (started.meta.changes !== 1) return;
-    const woken = yield* Effect.result(this.#wake(yield* this.#requireRow(row.server_id), "retention"));
+    yield* this.#wakeFromCron(row, "retention");
+  });
+
+  /**
+   * Starts an idle server for the cron. No client comes to start it again, and no cron path starts a
+   * server in `error`. After a refused start (a boat fault, or a 4xx such as `billing_required`) the
+   * server sleeps with its last use, so the retention wake tries again before boat deletes the disk.
+   * A 409 or 429 leaves the server `waking`, not `error`. A 404 keeps the error: the sandbox is gone.
+   */
+  readonly #wakeFromCron = Effect.fn("HostedServerService.wakeFromCron")(function* (
+    this: HostedServerService,
+    row: HostedServerRow,
+    reason: "schedule" | "retention",
+  ): Effect.fn.Return<void, HostedFailure, HostedServerDependencies> {
+    const dependencies = yield* HostedServerDependencies;
+    const woken = yield* Effect.result(this.#wake(yield* this.#requireRow(row.server_id), reason));
     if (Result.isSuccess(woken)) return;
     const error = woken.failure;
-    // No client comes to start it again, and no cron path starts a server in `error`. After a refused
-    // start (a boat fault, or a 4xx such as `billing_required`) the server sleeps with its last use, so a
-    // later tick tries again before the disk is gone. A 409 or 429 leaves the server `waking`, not `error`.
-    yield* hostedCall(() =>
-      dependencies.database
-        .prepare(
-          `UPDATE hosted_servers SET desired_state = 'idle', observed_state = 'stopped', observed_error = NULL,
-           last_active_at = ?, updated_at = ?
-         WHERE server_id = ? AND desired_state = 'running' AND observed_state = 'error'`,
-        )
-        .bind(row.last_active_at, dependencies.now(), row.server_id)
-        .run(),
-    );
+    if (!(error instanceof BoatApiError && error.status === 404)) {
+      yield* hostedCall(() =>
+        dependencies.database
+          .prepare(
+            `UPDATE hosted_servers SET desired_state = 'idle', observed_state = 'stopped', observed_error = NULL,
+             last_active_at = ?, updated_at = ?
+           WHERE server_id = ? AND desired_state = 'running' AND observed_state = 'error'`,
+          )
+          .bind(row.last_active_at, dependencies.now(), row.server_id)
+          .run(),
+      );
+    }
     return yield* error;
   });
 

@@ -2,7 +2,8 @@
 // that starts and stops sandboxes. boat deletes the disk of a sandbox 14 days after its stop, so the
 // cron must start an idle server with no use for 10 days, and the idle rule must stop it again when no
 // client connects. One start goes in each 10 minutes of cron time, and a start that boat failed or
-// refused goes again later. A server with less sleep, a disk that boat deleted, a due deletion, or a plan that
+// refused goes again later, also after a refused start for a routine run. A sandbox that boat deleted
+// keeps its error. A server with less sleep, a disk that boat deleted, a due deletion, or a plan that
 // ended must not start.
 //
 // Run: bun run test:hosted-retention-wake
@@ -84,10 +85,11 @@ async function run() {
         flakyFaults -= 1;
         return Response.json({ ok: false, code: "internal_error" }, { status: 500 });
       }
-      if (sandboxId === "bx_refused" && refusals > 0) {
+      if ((sandboxId === "bx_refused" || sandboxId === "bx_routine") && refusals > 0) {
         refusals -= 1;
         return Response.json({ ok: false, code: "billing_required" }, { status: 402 });
       }
+      if (sandboxId === "bx_gone") return Response.json({ ok: false, code: "sandbox_not_found" }, { status: 404 });
       running.add(sandboxId);
       return Response.json({ ok: true, status: "resuming" });
     }
@@ -236,6 +238,31 @@ async function run() {
   );
   for (let slot = 1; slot <= 3; slot += 1) await tick(refusedAt + slot * 10 * MINUTE);
   check("a later slot starts the server again after the boat refusal", resumes("refused") === 2, calls);
+
+  // The start for a routine run has the same rule. The oldest change goes first, so `gone` takes the slot.
+  const routineAt = refusedAt + 40 * MINUTE;
+  server("routine", "idle", routineAt - 3 * DAY, { nextRunAt: routineAt + 5 * MINUTE });
+  server("gone", "idle", routineAt - 11 * DAY);
+  refusals = 1;
+  await tick(routineAt);
+  const routine = row("routine");
+  check(
+    "after a refused start for a routine run the server sleeps again with its last use",
+    resumes("routine") === 1 &&
+      routine?.desired_state === "idle" &&
+      routine.observed_state === "stopped" &&
+      routine.observed_error === null &&
+      routine.last_active_at === routineAt - 3 * DAY,
+    { calls, row: routine },
+  );
+  const gone = row("gone");
+  check(
+    "a sandbox that boat deleted keeps its error and is not started again",
+    resumes("gone") === 1 && gone?.observed_state === "error" && gone.observed_error === "provider_error",
+    { calls, row: gone },
+  );
+  await tick(routineAt + 10 * MINUTE);
+  check("the next slot does not start the deleted sandbox", resumes("gone") === 1, calls);
   database.close();
 }
 
