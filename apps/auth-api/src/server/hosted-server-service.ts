@@ -1975,20 +1975,19 @@ export class HostedServerService {
     const woken = yield* Effect.result(this.#wake(yield* this.#requireRow(row.server_id), "retention"));
     if (Result.isSuccess(woken)) return;
     const error = woken.failure;
-    // No client comes to start it again. After a boat fault the server sleeps with its last use, so a
-    // later tick tries again before the disk is gone.
-    if (error instanceof BoatApiError && error.status >= 500) {
-      yield* hostedCall(() =>
-        dependencies.database
-          .prepare(
-            `UPDATE hosted_servers SET desired_state = 'idle', observed_state = 'stopped', observed_error = NULL,
-             last_active_at = ?, updated_at = ?
-           WHERE server_id = ? AND desired_state = 'running' AND observed_state = 'error'`,
-          )
-          .bind(row.last_active_at, dependencies.now(), row.server_id)
-          .run(),
-      );
-    }
+    // No client comes to start it again, and no cron path starts a server in `error`. After a refused
+    // start (a boat fault, or a 4xx such as `billing_required`) the server sleeps with its last use, so a
+    // later tick tries again before the disk is gone. A 409 or 429 leaves the server `waking`, not `error`.
+    yield* hostedCall(() =>
+      dependencies.database
+        .prepare(
+          `UPDATE hosted_servers SET desired_state = 'idle', observed_state = 'stopped', observed_error = NULL,
+           last_active_at = ?, updated_at = ?
+         WHERE server_id = ? AND desired_state = 'running' AND observed_state = 'error'`,
+        )
+        .bind(row.last_active_at, dependencies.now(), row.server_id)
+        .run(),
+    );
     return yield* error;
   });
 
