@@ -287,6 +287,10 @@ const AgentActions = createSimpleContext({
       }
 
       function forgetDeletedAgent(): void {
+        analytics.track("agent_action", { action: "delete", result: "succeeded", ...(properties ?? {}) });
+        if (marketplaceAgent) {
+          analytics.track("marketplace_action", { entity: "agent", action: "uninstall", result: "succeeded" });
+        }
         if (!scopeIsCurrent()) return;
         forgetHiddenAgent(agentId);
         removeConversation(agentId);
@@ -304,10 +308,6 @@ const AgentActions = createSimpleContext({
         removePinnedSidebarItemEverywhere({ kind: "agent", id: agentId });
         try {
           await agentsPort().agent.deleteAgent(agentId, serverId);
-          analytics.track("agent_action", { action: "delete", result: "succeeded", ...(properties ?? {}) });
-          if (marketplaceAgent) {
-            analytics.track("marketplace_action", { entity: "agent", action: "uninstall", result: "succeeded" });
-          }
           forgetDeletedAgent();
         } catch (error) {
           // A step after the delete can fail, such as the sidebar write. Main then no longer has the

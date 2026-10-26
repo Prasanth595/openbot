@@ -18,6 +18,7 @@ import { Effect } from "effect";
 import type { z } from "zod";
 import type { updateProfileToolSchema } from "../src/backend/agent/profile-tools";
 import type { AgentBrowserHost } from "../src/backend/agent/turn-lifecycle";
+import { isProcessAlive } from "./dev-automation/registry-files";
 
 /** The arguments the fake passes to a profile tool; list_models and read_agent take a subset. */
 type ProfileToolArgs = z.input<typeof updateProfileToolSchema>;
@@ -439,18 +440,11 @@ try {
   await waitFor("the worker's turn to end", () => mailbox.getDelivery(deliveryId)?.delivery.status === "completed");
   // The fake names each turn `turn-<pid>-<n>`.
   const ownPid = Number(mailbox.getDelivery(deliveryId)?.delivery.turnId?.split("-")[1]);
-  const alive = (pid: number) => {
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  pass("The worker's turn ran on a live process of its own", Number.isInteger(ownPid) && alive(ownPid));
+  pass("The worker's turn ran on a live process of its own", Number.isInteger(ownPid) && isProcessAlive(ownPid));
   const { workspacePath } = storedAgent(worker.id);
   await runCauseEffect(agents.deleteAgent(worker.id));
-  const stopped = await waitFor("the own process to stop", () => !alive(ownPid), 10_000).catch(() => false);
+  // The delete waits for the stop: on Windows the folder removal after it needs the process gone.
+  const stopped = !isProcessAlive(ownPid);
   report.deletedAgent = { ownProcessStopped: stopped, workspaceRemoved: !existsSync(workspacePath) };
   pass("The delete stops the agent's own process", stopped);
   pass(

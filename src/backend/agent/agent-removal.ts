@@ -169,10 +169,8 @@ export class AgentRemoval {
     );
     // Keep provider session records until their private files have been removed.
     yield* this.#threads.releaseAgentSessions(agent.id);
-    let stage = "provider-process";
+    let stage = "provider-files";
     yield* Effect.gen({ self: this }, function* () {
-      yield* this.#hooks.stopAgentProcess(agent.id);
-      stage = "provider-files";
       for (const session of providerSessions)
         yield* this.#threads
           .deleteProviderSessionFiles(session.externalSessionId, session.id)
@@ -187,6 +185,11 @@ export class AgentRemoval {
         .pipe(toAgentRemovalFailed);
       stage = "api-keys";
       if (this.#apiKeys) yield* this.#apiKeys.removeAgent(agent.id).pipe(toAgentRemovalFailed);
+      // Just before the files go, so that no later stage can start the process again. A failed stop is
+      // logged: the removal reports whether the files could go.
+      const stopped = yield* Effect.result(this.#hooks.stopAgentProcess(agent.id));
+      if (Result.isFailure(stopped))
+        this.#logger.warn("Could not stop a deleted agent's provider process.", removalErrorCode(stopped.failure));
       stage = "agent-files-and-record";
       yield* this.#store.deleteAgent(agent.id).pipe(toAgentRemovalFailed);
     }).pipe(

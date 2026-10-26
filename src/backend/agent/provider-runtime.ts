@@ -2088,13 +2088,21 @@ export class ProviderRuntime implements ProviderPort {
     this: ProviderRuntime,
     agentId: string,
   ) {
+    yield* this.#awaitConfinedStart(agentId);
+    const confined = this.#confined.get(agentId);
+    if (confined) yield* this.#stopConfined(agentId, confined);
+  }, Effect.uninterruptible).bind(this);
+
+  /** Waits until no start of the agent's own process is running. */
+  readonly #awaitConfinedStart = Effect.fn("ProviderRuntime.awaitConfinedStart")(function* (
+    this: ProviderRuntime,
+    agentId: string,
+  ) {
     for (let pending = this.#confinedStarts.get(agentId); pending; pending = this.#confinedStarts.get(agentId)) {
       const currentStart = pending;
       yield* Deferred.await(currentStart).pipe(Effect.ignore);
     }
-    const confined = this.#confined.get(agentId);
-    if (confined) yield* this.#stopConfined(agentId, confined);
-  }, Effect.uninterruptible).bind(this);
+  });
 
   /**
    * Like `requireReadyClient`, for the process that runs this agent's turns. An agent's own process
@@ -2132,10 +2140,7 @@ export class ProviderRuntime implements ProviderPort {
   ) {
     const provider = providerForAgent(agent);
     yield* this.ensureProvider(provider);
-    for (let pending = this.#confinedStarts.get(agent.id); pending; pending = this.#confinedStarts.get(agent.id)) {
-      const currentStart = pending;
-      yield* Deferred.await(currentStart).pipe(Effect.ignore);
-    }
+    yield* this.#awaitConfinedStart(agent.id);
     if (provider === "acp" && this.#removingCustomRuntime)
       return yield* new ProviderOperationFailed({ cause: new Error(sourceText("error.provider.registryRemoveBusy")) });
     const own = this.#ownProcessFor(agent);
