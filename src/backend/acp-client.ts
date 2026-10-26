@@ -154,6 +154,8 @@ interface AcpTurn {
   waitingOnUser: number;
   /** OpenBot ended the turn because the agent did not. Its open tool calls get no more updates. */
   abandoned: boolean;
+  /** The session's total cost in USD at this turn's last `usage_update`, when the agent sends one. */
+  reportedCost: number | null;
 }
 
 interface AcpThread {
@@ -1755,6 +1757,7 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       lastActivityAt: Date.now(),
       waitingOnUser: 0,
       abandoned: false,
+      reportedCost: null,
     };
     thread.activeTurn = turn;
     this.#threads.holdForTurn(thread);
@@ -1793,7 +1796,13 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
       if (response.usage)
         this.emit("notification", {
           method: "openbot/usage",
-          params: { threadId: thread.id, turnId: turn.id, promptId: randomUUID(), usage: response.usage },
+          params: {
+            threadId: thread.id,
+            turnId: turn.id,
+            promptId: randomUUID(),
+            usage: response.usage,
+            ...(turn.reportedCost === null ? {} : { cost: turn.reportedCost }),
+          },
         });
       // A flavor can fail a turn that ended with no answer (OpenCode). A turn told not to answer ends
       // empty on purpose, and an error there costs no answer the user waits for.
@@ -1855,12 +1864,15 @@ export class AcpAgentClient extends EventEmitter<ClientEvents> {
     }
     // A compaction replaces the prompt that carried the instructions with a summary. The context
     // shrinks, so a large drop counts as one when the agent sends no compaction update.
-    // The update is also the context fill, not billing. Antigravity sends the last one after a turn
-    // that OpenBot already ended.
+    // The update is also the context fill. Its cost is the session's total, which OpenCode sends
+    // before the prompt result. Antigravity sends the last one after a turn that OpenBot already ended.
     if (update.sessionUpdate === "usage_update") {
       if (thread.contextUsed !== null && update.used < thread.contextUsed * ACP_COMPACTION_CONTEXT_RATIO)
         thread.instructionsSent = null;
       thread.contextUsed = update.used;
+      const cost = update.cost;
+      if (thread.activeTurn && cost?.currency === "USD" && Number.isFinite(cost.amount) && cost.amount >= 0)
+        thread.activeTurn.reportedCost = cost.amount;
       if (Number.isFinite(update.used) && update.used >= 0 && Number.isFinite(update.size) && update.size > 0)
         this.emit("notification", {
           method: "thread/tokenUsage/updated",
