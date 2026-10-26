@@ -1,6 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { type DynamicRecord, isNumber, isString } from "@openbot/contracts/runtime-values";
+import { sourceText } from "@openbot/i18n/source";
 import { Effect, Fiber } from "effect";
 import { type AgentProvider, RequestTimeoutError } from "./agent-client";
 import { cliSpawnTarget } from "./cli";
@@ -64,6 +65,9 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
   #ending: Fiber.Fiber<void> | null = null;
   #nextId = 1;
   #stopping = false;
+  /** Messages read from the process. A request got no answer from a silent process when this is unchanged. */
+  #received = 0;
+  #probing = false;
 
   /** Added to the inherited environment, such as the `CODEX_HOME` of an account after the first. */
   readonly #extraEnv: Readonly<Record<string, string>> | undefined;
@@ -97,7 +101,10 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
     child.stdin.on("error", (error) => this.#fail(error, child));
     child.stdout.on("data", (chunk: Buffer) => {
       try {
-        for (const message of this.#decoder.push(chunk)) this.#handleMessage(message);
+        for (const message of this.#decoder.push(chunk)) {
+          this.#received += 1;
+          this.#handleMessage(message);
+        }
       } catch (error) {
         // Not wrapped: the screen translates this text only when no prefix is in front of it.
         this.#fail(
@@ -266,6 +273,8 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
     timeoutMs = this.#requestTimeoutMs,
   ) {
     const id = this.#nextId++;
+    const child = this.#process;
+    const received = this.#received;
     return yield* Effect.callback<T, ProviderClientOperationError>((resume) => {
       this.#pending.set(id, {
         resolve: (value) =>
@@ -291,7 +300,11 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
       Effect.timeoutOrElse({
         duration: timeoutMs,
         orElse: () =>
-          Effect.fail(new ProviderClientOperationError({ cause: new RequestTimeoutError("Codex", method) })),
+          Effect.sync(() => this.#checkAnswering(child, received)).pipe(
+            Effect.andThen(
+              Effect.fail(new ProviderClientOperationError({ cause: new RequestTimeoutError("Codex", method) })),
+            ),
+          ),
       }),
       Effect.ensuring(Effect.sync(() => this.#pending.delete(id))),
     );
@@ -384,6 +397,37 @@ export class CodexAppServerClient extends EventEmitter<ClientEvents> {
       this.#toolRequests.delete(id);
       request.controller.abort();
     }
+  }
+
+  /**
+   * Ends a process that stopped answering, so the runtime starts a new one as it does after an exit.
+   * Without this a hung app server stays the shared client, and the requests of every agent time out
+   * until the user kills it.
+   *
+   * A request that timed out while the process sent nothing is not enough: `model/list` and
+   * `account/rateLimits/read` wait on the network. So one `config/read` probes the process. That
+   * request is local, and every thread start needs it. A process that does not answer it, and sends
+   * no other message in that time, is ended. A busy process still sends the events of its live turns.
+   */
+  #checkAnswering(child: ChildProcessWithoutNullStreams | null, received: number): void {
+    if (this.#probing || !child || this.#process !== child || this.#received !== received) return;
+    this.#probing = true;
+    const probed = this.#received;
+    Effect.runFork(
+      this.request("config/read", { includeLayers: false }, decodeRecordResponse).pipe(
+        Effect.catch(() =>
+          Effect.sync(() => {
+            if (this.#process !== child || this.#received !== probed) return;
+            this.#fail(new Error(sourceText("error.provider.codexUnresponsive")), child);
+          }),
+        ),
+        Effect.ensuring(
+          Effect.sync(() => {
+            this.#probing = false;
+          }),
+        ),
+      ),
+    );
   }
 
   #fail(error: Error, child: ChildProcessWithoutNullStreams): void {
