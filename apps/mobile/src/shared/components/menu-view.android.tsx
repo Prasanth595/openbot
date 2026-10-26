@@ -152,9 +152,8 @@ function MenuItem({ action, colors, onPressAction }: ItemProps) {
       onPress={() => onPressAction?.({ nativeEvent: { event: actionId(action) } })}
     >
       {icon}
-      <Menu.ItemTitle numberOfLines={1} style={{ color: titleColor ?? color }}>
-        {title}
-      </Menu.ItemTitle>
+      {/* A long title wraps, as in the iOS menu, so a model name shows in full. */}
+      <Menu.ItemTitle style={{ color: titleColor ?? color }}>{title}</Menu.ItemTitle>
       {state ? <Menu.ItemIndicator iconProps={{ color: colors.text }} /> : null}
     </Menu.Item>
   );
