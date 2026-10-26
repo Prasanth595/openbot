@@ -774,8 +774,10 @@ Network traffic can also occur when:
   files. `html_preview` draws the page in a hidden window that has its own
   session in memory. The web client gets the page through the host connection and runs it in a
   sandboxed `srcdoc` frame with an opaque origin, so the page cannot read the web client's storage
-  or its host keys; the browser sends no referrer for its requests. The mobile app does not run the
-  page: it shows the page as its file;
+  or its host keys; the browser sends no referrer for its requests. On iPhone and iPad, the app
+  runs the page in a web view that keeps cookies and storage in memory only, so the server gets the
+  network address of the phone. The page cannot call the app or read its files. The Android app does
+  not run the page: it shows the page with no scripts;
 - a user opens an explicitly labeled external support or setup link;
 - a Slack workspace is connected. See [Slack connections](#slack-connections);
 - a Discord server is connected. See [Discord connections](#discord-connections);
