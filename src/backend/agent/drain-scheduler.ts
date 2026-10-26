@@ -60,8 +60,13 @@ export interface DrainHooks {
    * generic redaction: it does not know which values this machine's MCP servers were given.
    */
   redactMcp(text: string): string;
-  /** Gives a channel task back to its channel after a spent plan refused it; false when it cannot go back. */
-  requeueChannelDelivery(deliveryId: string): Effect.Effect<boolean>;
+  /**
+   * Gives a channel task back to its channel after a spent plan refused it; false when it cannot go
+   * back. `continueWork` keeps the assignment for a ready backup instead.
+   */
+  requeueChannelDelivery(deliveryId: string, continueWork?: boolean): Effect.Effect<boolean>;
+  /** Whether a ready automatic backup can take this agent's work after a usage limit. */
+  mayFailOver(agentId: string): boolean;
   /**
    * Starts the move of this agent to another model for a usage limit, if one is due: back to its own
    * model, or to a backup model during a hold. True when a move started; the move schedules the drain
@@ -889,6 +894,17 @@ export class DrainScheduler {
             }
             // Before the requeue, so the channel does not assign the task to this agent again at once.
             yield* this.#usageLimits.reached(delivery.recipientAgentId, null, requestedModel);
+            // A ready backup continues earlier work in the same assignment, so the work is not lost.
+            if (
+              context.resumeAfterUsageLimit &&
+              this.#hooks.mayFailOver(delivery.recipientAgentId) &&
+              (yield* this.#hooks.requeueChannelDelivery(delivery.id, true))
+            ) {
+              yield* this.#mailbox.restoreQueued(delivery.id).pipe(toDeliveryStartFailed);
+              this.#mailboxSync.emitQueue(delivery.recipientAgentId);
+              this.#requeuedAtLimit.add(delivery.recipientAgentId);
+              return;
+            }
             if (yield* this.#hooks.requeueChannelDelivery(delivery.id)) {
               yield* this.#mailbox.markTerminal(delivery.id, "interrupted", null).pipe(toDeliveryStartFailed);
               this.#mailboxSync.emitQueue(delivery.recipientAgentId);

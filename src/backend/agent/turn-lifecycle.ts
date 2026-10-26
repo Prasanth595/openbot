@@ -898,8 +898,12 @@ export class TurnLifecycle {
       }
       const channelTurn = !taskTurn && this.#conversation.isExecutionThread(snapshot.threadId);
       // After work started, only a ready automatic backup continues it. A turn refused before
-      // work still waits for the reset when no backup is ready.
-      let continuing = limited && running?.acted === true && deliveries.length > 0 && this.#hooks.mayFailOver(agentId);
+      // work still waits for the reset when no backup is ready. A continuation that a backup refused
+      // before work keeps the earlier provider's work.
+      const carriesWork =
+        running !== undefined &&
+        (running.acted || deliveries.some((context) => context.resumeAfterUsageLimit !== undefined));
+      let continuing = limited && carriesWork && deliveries.length > 0 && this.#hooks.mayFailOver(agentId);
       if (continuing) {
         for (const { delivery, channelId } of deliveries) {
           if (channelId && !(yield* this.#hooks.requeueChannelDelivery(delivery.id, true))) {

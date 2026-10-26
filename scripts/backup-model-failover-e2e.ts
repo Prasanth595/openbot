@@ -839,64 +839,81 @@ try {
     return { status: mailbox.getDelivery(deliveryId)?.delivery.status };
   });
 
-  await check("a channel keeps its task and completed work through fallback", async () => {
-    await restart();
-    const agent = await createCodex("Channel fallback", automaticBackups);
-    const channelId = randomUUID();
-    const actor = { id: "local", name: "Alex" };
-    await runCauseEffect(
-      service.channels.command(
-        {
-          type: "save",
-          operationId: randomUUID(),
-          channelId,
-          draft: {
-            name: "Continuation",
-            title: "",
-            instructions: "Finish the assigned work.",
-            members: [{ agentId: agent.id }],
-            leadAgentId: agent.id,
-          },
-        },
-        actor,
-      ),
+  // In the chain, the first backup's plan refuses the continuation before any work.
+  for (const { mode, caseId, models } of [
+    { mode: "tool-only", caseId: "channel", models: [PRIMARY] },
+    { mode: "chain-empty", caseId: "channel-chain", models: [PRIMARY, BACKUP] },
+  ]) {
+    await check(
+      mode === "tool-only"
+        ? "a channel keeps its task and completed work through fallback"
+        : "a channel keeps its completed work when a backup refuses before work",
+      async () => {
+        await restart();
+        const agent = await createCodex(`Channel ${mode}`, automaticBackups);
+        const channelId = randomUUID();
+        const actor = { id: "local", name: "Alex" };
+        await runCauseEffect(
+          service.channels.command(
+            {
+              type: "save",
+              operationId: randomUUID(),
+              channelId,
+              draft: {
+                name: "Continuation",
+                title: "",
+                instructions: "Finish the assigned work.",
+                members: [{ agentId: agent.id }],
+                leadAgentId: agent.id,
+              },
+            },
+            actor,
+          ),
+        );
+        const before = turns().length;
+        await runCauseEffect(
+          service.channels.command(
+            {
+              type: "send",
+              operationId: randomUUID(),
+              channelId,
+              text: `usage-${mode} case:${caseId}`,
+              recipientAgentId: agent.id,
+              replyToMessageId: null,
+              attachmentDraftIds: [],
+            },
+            actor,
+          ),
+        );
+        const task = await waitFor("the channel task to end", () =>
+          service.channels.store
+            .tasks(channelId)
+            .find((task) => ["completed", "failed", "paused"].includes(task.state)),
+        );
+        assert.equal(
+          task.state,
+          "completed",
+          JSON.stringify({
+            task,
+            assignments: service.channels.store.assignments(channelId),
+            deliveries: service.channels.store
+              .assignments(channelId)
+              .map((assignment) => (assignment.deliveryId ? mailbox.getDelivery(assignment.deliveryId) : null)),
+          }),
+        );
+        assert.equal(service.channels.store.tasks(channelId).length, 1, "Fallback keeps one task.");
+        const backups = turns().slice(before);
+        assert.deepEqual(
+          backups.map((turn) => turn.model),
+          models,
+        );
+        const last = backups.at(-1)?.input ?? "";
+        assert.ok(last.includes(`checkpoint-result=${caseId}`), "The channel backup receives the tool result.");
+        assert.ok(last.includes("Continue the unfinished task"));
+        return { taskId: task.id, state: task.state };
+      },
     );
-    const before = turns().length;
-    await runCauseEffect(
-      service.channels.command(
-        {
-          type: "send",
-          operationId: randomUUID(),
-          channelId,
-          text: "usage-tool-only case:channel",
-          recipientAgentId: agent.id,
-          replyToMessageId: null,
-          attachmentDraftIds: [],
-        },
-        actor,
-      ),
-    );
-    const task = await waitFor("the channel task to end", () =>
-      service.channels.store.tasks(channelId).find((task) => ["completed", "failed", "paused"].includes(task.state)),
-    );
-    assert.equal(
-      task.state,
-      "completed",
-      JSON.stringify({
-        task,
-        assignments: service.channels.store.assignments(channelId),
-        deliveries: service.channels.store
-          .assignments(channelId)
-          .map((assignment) => (assignment.deliveryId ? mailbox.getDelivery(assignment.deliveryId) : null)),
-      }),
-    );
-    assert.equal(service.channels.store.tasks(channelId).length, 1, "Fallback keeps one task.");
-    const backups = turns().slice(before);
-    assert.equal(backups.length, 1);
-    assert.ok(backups[0]?.input.includes("checkpoint-result=channel"), "The channel backup receives the tool result.");
-    assert.ok(backups[0]?.input.includes("Continue the unfinished task"));
-    return { taskId: task.id, state: task.state };
-  });
+  }
 
   await check("a turn refused before work still runs on its backup", async () => {
     await restart();
