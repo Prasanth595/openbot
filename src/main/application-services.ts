@@ -173,6 +173,7 @@ import { CUSTOM_AGENTS_FILE, CustomAgentStore } from "./custom-agent-store";
 import { type CustomProviderChanges, createCustomProviderChanges } from "./custom-provider-changes";
 import { CustomProviderStore } from "./custom-provider-store";
 import { MCP_OAUTH_REDIRECT_URL } from "./deep-link-router";
+import { createDelegationTierStore, type DelegationTierStore } from "./delegation-tier-store";
 import { desktopShowsAgentEvent } from "./desktop-notifications";
 import {
   applyDevelopmentRemoteAccount,
@@ -342,6 +343,7 @@ const AGENT_DEFAULTS_PREFERENCE_FILE = "openbot-agent-defaults-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
 const PROMPT_CACHE_TTL_PREFERENCE_FILE = "openbot-prompt-cache-ttl-v1.json";
+const DELEGATION_TIERS_FILE = "openbot-delegation-tiers-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
 const EXTERNAL_LINK_PREFERENCE_FILE = "openbot-external-link-preference-v1.json";
 const REMOTE_NETWORK_ROUTE_PREFERENCE_FILE = "openbot-remote-network-route-v1.json";
@@ -578,6 +580,7 @@ export interface ApplicationServices {
   acpRegistry: AcpRegistry;
   providerDetection: ProviderDetection;
   providerDetectionSettings: ProviderDetectionSettingsStore;
+  delegationTiers: DelegationTierStore;
   marketplaceAgents: AgentMarketplaceService;
   agentTemplates: AgentTemplateService;
   agentImport: AgentImportService;
@@ -1147,6 +1150,8 @@ export async function createApplicationServices({
     join(app.getPath("userData"), PROMPT_CACHE_TTL_PREFERENCE_FILE),
   );
   await runCauseEffect(promptCacheTtl.load());
+  const delegationTiers = createDelegationTierStore(join(app.getPath("userData"), DELEGATION_TIERS_FILE));
+  await runCauseEffect(delegationTiers.load());
   const remoteSessionReuse = createRemoteSessionReusePreferenceStore(
     join(app.getPath("userData"), REMOTE_SESSION_REUSE_PREFERENCE_FILE),
   );
@@ -1593,6 +1598,7 @@ export async function createApplicationServices({
     store,
     mailbox,
     browser,
+    delegationTiers: () => delegationTiers.get(),
     visualPreview: new ChatVisualPreviewer(),
     prepareMcpTest: (config) =>
       prepareToolRuntimeForTest(config, {
@@ -3013,6 +3019,7 @@ export async function createApplicationServices({
     acpRegistry,
     providerDetection,
     providerDetectionSettings,
+    delegationTiers,
     marketplaceAgents,
     agentTemplates,
     agentImport,
