@@ -1,0 +1,222 @@
+/*
+ * The generated agent avatar (see `AgentAvatar.tsx`). The drawing is a static SVG; everything that
+ * moves here is a CSS keyframe loop, so no script runs per frame. A resting avatar does not loop at
+ * all: it only plays the rare one-shot classes that `avatar-resting-life.ts` adds. The box size and
+ * the `.agent-avatar > svg` scale live with the other avatar rules in the app shell.
+ */
+
+.agent-avatar-body,
+.agent-avatar-eyes,
+.agent-avatar-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Eyes that follow the pointer. `avatar-pointer-gaze.ts` sets the two offsets, in drawing units. */
+.agent-avatar-gaze {
+  translate: var(--agent-avatar-gaze-x, 0px) var(--agent-avatar-gaze-y, 0px);
+  transition: translate var(--openbot-duration-normal) ease-out;
+}
+
+.agent-avatar-ring {
+  animation: agent-avatar-spin 2.8s linear var(--agent-avatar-phase, 0s) infinite;
+}
+
+.agent-avatar-body[data-motion="breathe"] {
+  animation: agent-avatar-breathe 1.8s ease-in-out var(--agent-avatar-phase, 0s) infinite;
+}
+
+.agent-avatar-body[data-motion="bob"] {
+  animation: agent-avatar-bob 2.4s ease-in-out var(--agent-avatar-phase, 0s) infinite;
+}
+
+.agent-avatar-body[data-motion="hop"] {
+  transform-origin: 50% 100%;
+  animation: agent-avatar-mood-hop 1.6s cubic-bezier(0.3, 0.7, 0.4, 1) var(--agent-avatar-phase, 0s) infinite;
+}
+
+.agent-avatar-body[data-motion="droop"] {
+  animation: agent-avatar-droop 3s ease-in-out var(--agent-avatar-phase, 0s) infinite;
+}
+
+.agent-avatar-body[data-motion="sleep"] {
+  animation: agent-avatar-sleep 3.6s ease-in-out var(--agent-avatar-phase, 0s) infinite;
+}
+
+.agent-avatar-snooze {
+  animation: agent-avatar-snooze 2.4s ease-out var(--agent-avatar-phase, 0s) infinite;
+}
+
+/* A featured avatar (`motion="always"`) blinks on its own loop. A list row does not: it waits for
+   the shared beat, which blinks one visible avatar at a time. */
+.agent-avatar[data-blink="loop"] .agent-avatar-eyes-blink {
+  animation: agent-avatar-blink-loop 5.2s ease-in-out var(--agent-avatar-phase, 0s) infinite;
+}
+
+.agent-avatar-life-blink .agent-avatar-eyes-blink {
+  animation: agent-avatar-blink 190ms ease-in-out;
+}
+
+.agent-avatar-life-look .agent-avatar-eyes {
+  animation: agent-avatar-look 1s cubic-bezier(0.45, 0, 0.25, 1);
+}
+
+/* A photo cannot change its face, so a busy photo shows the ring around it. */
+.agent-avatar > .agent-avatar-ring-layer {
+  position: absolute;
+  inset: -17.5%;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  translate: none;
+  pointer-events: none;
+}
+
+@keyframes agent-avatar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes agent-avatar-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.035, 0.975);
+  }
+}
+
+@keyframes agent-avatar-bob {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  30% {
+    transform: rotate(-5deg);
+  }
+
+  60% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes agent-avatar-mood-hop {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  12% {
+    transform: translateY(1px) scale(1.06, 0.92);
+  }
+
+  30% {
+    transform: translateY(-9px) scale(0.96, 1.05);
+  }
+
+  48% {
+    transform: translateY(0) scale(1.04, 0.96);
+  }
+}
+
+@keyframes agent-avatar-droop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(2px) scale(1.01, 0.98);
+  }
+}
+
+@keyframes agent-avatar-sleep {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02, 0.98);
+  }
+}
+
+@keyframes agent-avatar-snooze {
+  0% {
+    opacity: 0;
+    transform: translate(0, 4px);
+  }
+
+  30% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(6px, -10px);
+  }
+}
+
+@keyframes agent-avatar-blink-loop {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  95.5% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes agent-avatar-blink {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  50% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes agent-avatar-look {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  25%,
+  45% {
+    translate: -3px 0;
+  }
+
+  65%,
+  80% {
+    translate: 3px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-avatar-ring,
+  .agent-avatar-body,
+  .agent-avatar-snooze,
+  .agent-avatar-eyes,
+  .agent-avatar-eyes-blink {
+    animation: none;
+  }
+
+  .agent-avatar-gaze {
+    translate: none;
+  }
+
+  /* Without its float the "z" would sit still, which reads as a stray mark; it shows faintly. */
+  .agent-avatar-snooze {
+    opacity: 0.6;
+  }
+}

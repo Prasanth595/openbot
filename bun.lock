@@ -14,7 +14,6 @@
         "@modelcontextprotocol/sdk": "1.31.0",
         "@muse-code/sdk": "1.4.2",
         "@noble/hashes": "catalog:",
-        "@norbert_bodziony/bloub": "catalog:",
         "@openbot/brand": "workspace:*",
         "@openbot/contracts": "workspace:*",
         "@openbot/i18n": "workspace:*",
@@ -238,7 +237,6 @@
       "name": "@openbot/brand",
       "version": "0.0.0",
       "dependencies": {
-        "@norbert_bodziony/bloub": "catalog:",
         "@openbot/contracts": "workspace:*",
       },
       "devDependencies": {
@@ -315,7 +313,6 @@
       "version": "0.0.0",
       "dependencies": {
         "@kobalte/core": "catalog:",
-        "@norbert_bodziony/bloub": "catalog:",
         "@openbot/brand": "workspace:*",
         "@openbot/contracts": "workspace:*",
         "@openbot/i18n": "workspace:*",

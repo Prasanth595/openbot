@@ -1,14 +1,15 @@
 // Small signs of life on resting avatars: now and then one visible avatar blinks or makes a small move.
 //
-// A resting avatar is a frozen Bloub frame (see `AgentAvatar`), because running every Bloub clock on
-// screen cost a style recalculation per avatar per frame. This keeps that: nothing runs per frame. One
-// timer for all avatars picks a single visible resting one per beat and adds a class whose animation
-// plays once - a blink scales its eyes for a fraction of a second, a move shifts the whole box - and
-// the class goes when the animation ends. A list of agents then reads as alive at the cost of one
-// short animation every couple of seconds.
+// A resting avatar is a static SVG (see `AgentAvatar`) with no animation of its own, because a loop
+// on every avatar in a long list costs a style recalculation per avatar per frame. This keeps that:
+// nothing runs per frame. One timer for all avatars picks a single visible resting one per beat and
+// adds a class whose animation plays once - a blink scales its eyes for a fraction of a second, a
+// move shifts the whole box - and the class goes when the animation ends. A list of agents then
+// reads as alive at the cost of one short animation every couple of seconds. The timer stops while
+// the window is hidden and under reduced motion.
 
 /** The small move each agent makes, picked from its seed so the same agent always moves the same way. */
-export const RESTING_MOVES = ["hop", "sway", "stretch", "look"] as const;
+const RESTING_MOVES = ["hop", "sway", "stretch", "look"] as const;
 export type RestingMove = (typeof RESTING_MOVES)[number];
 
 // Time between beats, in milliseconds. A random point in the range, so the beats do not tick.
@@ -61,7 +62,7 @@ function stop(): void {
 
 function beat(): void {
   timer = undefined;
-  // Only an avatar that rests right now: one that is hovered or busy is playing its Bloub clock.
+  // Only an avatar that rests right now: a busy one already plays its mood loop.
   const candidates = [...visible].filter((element) => element.dataset.life === "rest" && element.isConnected);
   const element = candidates[Math.floor(Math.random() * candidates.length)];
   if (element) play(element);
@@ -114,7 +115,7 @@ function end(): void {
 
 /**
  * Lets one avatar take part in the beats while it is on screen. The element carries
- * `data-life="rest"` while it shows a frozen frame and `data-life-move` with its move.
+ * `data-life="rest"` while it has no loop of its own and `data-life-move` with its move.
  * Returns the release.
  */
 export function attachRestingLife(element: HTMLElement): () => void {

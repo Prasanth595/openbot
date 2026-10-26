@@ -9,9 +9,8 @@ import { LandingFooter } from "../landing/LandingFooter";
 import { SiteHeader } from "../landing/SiteHeader";
 import { PluginOpenButtons } from "../plugins/PluginOpenButtons";
 
-// The Bloub library, which draws the avatar and owns its colours, uses browser-only APIs as soon as
-// its module loads, so the Worker must never import it. The page loads both parts in the browser
-// after hydration.
+// The avatar and its colours load in the browser after hydration, so the Worker bundle stays small
+// and renders only an empty box of the avatar's size.
 const AgentAvatar = lazy(() =>
   import("@openbot/ui/features/agents/AgentAvatar").then((module) => ({ default: module.AgentAvatar })),
 );
@@ -46,7 +45,7 @@ export function AgentTemplatePage(props: AgentTemplatePageProps) {
   let description: HTMLParagraphElement | undefined;
   onSettled(() => {
     setMounted(true);
-    void import("@openbot/brand/bloub-avatar").then(({ avatarHeadColor }) =>
+    void import("@openbot/brand/agent-avatar").then(({ avatarHeadColor }) =>
       setAccent(avatarHeadColor(props.template.avatarSeed, props.template.avatarHue)),
     );
     if (description) setClamped(description.scrollHeight > description.clientHeight + 1);

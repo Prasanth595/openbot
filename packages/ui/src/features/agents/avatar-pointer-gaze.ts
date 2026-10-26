@@ -1,119 +1,78 @@
-import type { GazeScript } from "@norbert_bodziony/bloub";
+// Eyes that look at the pointer, for the few avatars that ask for it (`followPointer`).
+//
+// One pointer listener serves every following avatar. A pointer move asks for one animation frame,
+// and that frame writes two custom properties on each follower; the eyes group reads them as a
+// `translate` with a CSS transition. Nothing runs while the pointer is still.
 
-// The head turn toward the pointer, in degrees. More than the bloub follow (16 and 13), so that the
-// turn reads on a small avatar; at much more, the outer eye goes behind the edge of the ball.
-const YAW_MAX = 24;
-const PITCH_MAX = 16;
-// The pitch with the pointer level with the avatar: a little up, so the agent looks awake.
-const PITCH_LEVEL = 10;
-// How far the pointer can go from an avatar before the head turn stops. A distance in pixels, not
+// The furthest the eyes move, in drawing units (the body radius is about 37).
+const GAZE_X = 3.2;
+const GAZE_Y = 2.6;
+// How far the pointer can go from an avatar before the eyes stop turning. A distance in pixels, not
 // a part of the window, so that agents next to each other look at the pointer from their own place.
 const REACH = 320;
-// How fast the eyes come to the pointer, per second. The engine applies each look at once.
-const FOLLOW_RATE = 9;
-// A press makes the agent nod twice. A roll of the eyes around the ball would read better, but on
-// a shape that is not a circle the eyes cross its edge.
-const NOD_TIME = 0.55;
-const NOD_PITCH = 14;
 
+const followers = new Set<HTMLElement>();
 let pointer: { x: number; y: number } | null = null;
-let watchers = 0;
-
-function trackPointer(event: PointerEvent) {
-  if (event.pointerType !== "touch") pointer = { x: event.clientX, y: event.clientY };
-}
-
-function forgetPointer(event: PointerEvent) {
-  // Leaving the window is the only `pointerout` without a next target.
-  if (event.relatedTarget === null) pointer = null;
-}
-
-/** Shares one pointer listener between all following avatars. Returns the release. */
-function watchPointer(): () => void {
-  if (watchers === 0) {
-    window.addEventListener("pointermove", trackPointer, { passive: true });
-    document.addEventListener("pointerout", forgetPointer, { passive: true });
-  }
-  watchers += 1;
-  return () => {
-    watchers -= 1;
-    if (watchers > 0) return;
-    window.removeEventListener("pointermove", trackPointer);
-    document.removeEventListener("pointerout", forgetPointer);
-    pointer = null;
-  };
-}
+let frame = 0;
+let reducedMotion: MediaQueryList | undefined;
 
 function clampUnit(value: number): number {
   return Math.min(1, Math.max(-1, value));
 }
 
-export interface PointerGaze {
-  /** The bloub look for each frame. */
-  script: GazeScript;
-  /** Starts the pointer listener and the press nod on the avatar. Returns the release. */
-  attach(element: Element): () => void;
+function update(): void {
+  frame = 0;
+  const still = reducedMotion?.matches === true;
+  for (const element of followers) {
+    const box = pointer && !still ? element.getBoundingClientRect() : undefined;
+    if (!pointer || !box || box.width === 0) {
+      element.style.removeProperty("--agent-avatar-gaze-x");
+      element.style.removeProperty("--agent-avatar-gaze-y");
+      continue;
+    }
+    const x = clampUnit((pointer.x - (box.left + box.width / 2)) / REACH);
+    const y = clampUnit((pointer.y - (box.top + box.height / 2)) / REACH);
+    element.style.setProperty("--agent-avatar-gaze-x", `${(x * GAZE_X).toFixed(2)}px`);
+    element.style.setProperty("--agent-avatar-gaze-y", `${(y * GAZE_Y).toFixed(2)}px`);
+  }
 }
 
-/**
- * The eyes of one avatar follow the pointer. Without a known pointer (touch, or the pointer out of
- * the window) the look fades back to the face of the state, which drifts by itself. A press on the
- * avatar makes it nod.
- */
-export function createPointerGaze(): PointerGaze {
-  let element: Element | undefined;
-  let last = 0;
-  let yaw = 0;
-  let pitch = PITCH_LEVEL;
-  let mix = 0;
-  let nodPending = false;
-  let nodStart: number | null = null;
+function schedule(): void {
+  if (frame === 0 && !document.hidden) frame = requestAnimationFrame(update);
+}
 
-  const script: GazeScript = (time) => {
-    const step = Math.min(Math.max(time - last, 0), 0.1);
-    last = time;
-    const ease = 1 - Math.exp(-step * FOLLOW_RATE);
-    const at = pointer;
-    // Measure only when there is a pointer to look at. Each avatar draws after the one before it
-    // changed its SVG, so a measure here forces a layout per avatar on every frame.
-    const box = at === null ? undefined : element?.getBoundingClientRect();
-    const known = at !== null && box !== undefined && box.width > 0;
-    if (known) {
-      const x = clampUnit((at.x - (box.left + box.width / 2)) / REACH);
-      const y = clampUnit((at.y - (box.top + box.height / 2)) / REACH);
-      yaw += (x * YAW_MAX - yaw) * ease;
-      pitch += (PITCH_LEVEL - y * PITCH_MAX - pitch) * ease;
-    }
-    mix += ((known ? 1 : 0) - mix) * ease;
+function trackPointer(event: PointerEvent): void {
+  if (event.pointerType === "touch") return;
+  pointer = { x: event.clientX, y: event.clientY };
+  schedule();
+}
 
-    if (nodPending) {
-      nodPending = false;
-      nodStart = time;
-    }
-    let nod = 0;
-    if (nodStart !== null) {
-      const progress = Math.min(1, (time - nodStart) / NOD_TIME);
-      nod = -NOD_PITCH * Math.sin(progress * 4 * Math.PI) * (1 - progress);
-      if (progress >= 1) nodStart = null;
-    }
-    // The nod is part of the look, so a touch press, with no pointer to follow, does not nod.
-    return { yaw, pitch: pitch + nod, mix, spin: 0, wander: 1 - mix };
-  };
+function forgetPointer(event: PointerEvent): void {
+  // Leaving the window is the only `pointerout` without a next target.
+  if (event.relatedTarget !== null) return;
+  pointer = null;
+  schedule();
+}
 
-  return {
-    script,
-    attach(target) {
-      element = target;
-      const nod = () => {
-        if (nodStart === null) nodPending = true;
-      };
-      const release = watchPointer();
-      target.addEventListener("pointerdown", nod);
-      return () => {
-        release();
-        target.removeEventListener("pointerdown", nod);
-        element = undefined;
-      };
-    },
+/** Makes the eyes of one avatar follow the pointer. Returns the release. */
+export function followPointer(element: HTMLElement): () => void {
+  if (followers.size === 0) {
+    reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    window.addEventListener("pointermove", trackPointer, { passive: true });
+    document.addEventListener("pointerout", forgetPointer, { passive: true });
+  }
+  followers.add(element);
+  schedule();
+  return () => {
+    followers.delete(element);
+    element.style.removeProperty("--agent-avatar-gaze-x");
+    element.style.removeProperty("--agent-avatar-gaze-y");
+    if (followers.size > 0) return;
+    window.removeEventListener("pointermove", trackPointer);
+    document.removeEventListener("pointerout", forgetPointer);
+    if (frame !== 0) cancelAnimationFrame(frame);
+    frame = 0;
+    pointer = null;
+    reducedMotion = undefined;
   };
 }

@@ -14,7 +14,7 @@ import type {
 import type { AppTextKey, AppTranslate } from "@openbot/i18n";
 import { Button, Field, Input, Textarea } from "@openbot/ui";
 import { createSignal, For, onSettled, Show } from "solid-js";
-import { AVATAR_HUE_CHOICES, avatarCandidateSeeds, avatarHeadColor, avatarHueSwatch } from "../../bloub-avatar";
+import { AVATAR_HUE_CHOICES, avatarCandidateSeeds, avatarHeadColor, avatarHueSwatch } from "../../agent-avatar";
 import { ProviderModelPicker } from "../../components/ProviderModelPicker";
 import { currentText, useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";

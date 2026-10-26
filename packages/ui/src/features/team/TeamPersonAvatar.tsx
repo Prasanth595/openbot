@@ -1,5 +1,5 @@
 import type { TeamPresenceMember } from "@openbot/contracts/ipc";
-import type { AvatarMotion } from "../../bloub-avatar";
+import type { AvatarMotion } from "../../agent-avatar";
 import { AgentAvatar } from "../agents/AgentAvatar";
 
 // A person is never "working", so the caller only picks between resting and moving. The

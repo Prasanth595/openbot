@@ -1,8 +1,9 @@
 import { BotEngine } from "@norbert_bodziony/bloub";
-import { type AvatarMood, avatarMoodPresentation } from "@openbot/brand/bloub-avatar-motion";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import { ImageFormat, Skia } from "@shopify/react-native-skia";
 import { bloubActivityGeometry, getBloubAvatarColor } from "@/features/agents/model/bloub-activity";
+import { bloubMoodPresentation } from "@/features/agents/model/bloub-profile";
 
 const AVATAR_PAPER = "#f9f9f9";
 /** The bloub view box is 316 units wide, centered on the origin. */
@@ -16,7 +17,7 @@ export function renderBloubAvatar(seed: string, hue: AvatarHue | null, mood: Ava
   const surface = Skia.Surface.Make(size, size);
   if (!surface) return null;
   const geometry = bloubActivityGeometry(seed, mood);
-  const frame = new BotEngine(100, avatarMoodPresentation(mood).state, geometry.radii, geometry.expression).sample(0);
+  const frame = new BotEngine(100, bloubMoodPresentation(mood).state, geometry.radii, geometry.expression).sample(0);
   const color = getBloubAvatarColor(seed, hue);
   const canvas = surface.getCanvas();
   canvas.scale(size / VIEW_BOX, size / VIEW_BOX);

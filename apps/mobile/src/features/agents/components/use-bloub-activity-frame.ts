@@ -1,4 +1,4 @@
-import { type AvatarMood, avatarMoodIsBusy } from "@openbot/brand/bloub-avatar-motion";
+import { type AvatarMood, avatarMoodIsBusy } from "@openbot/brand/agent-avatar-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useDerivedValue, useFrameCallback, useSharedValue } from "react-native-reanimated";

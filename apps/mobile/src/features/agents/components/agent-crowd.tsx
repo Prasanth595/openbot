@@ -1,4 +1,4 @@
-import type { AvatarMood } from "@openbot/brand/bloub-avatar-motion";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import { useIsFocused } from "expo-router";
 import { useThemeColor } from "heroui-native/hooks";

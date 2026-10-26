@@ -88,10 +88,10 @@
   background: var(--openbot-hover);
 }
 /* The avatar sets the floor of a one-line row, the same size the create dialog uses. A menu row
-   is the same row before it is a member, so it takes the same avatar: at its own 32px the bloub
+   is the same row before it is a member, so it takes the same avatar: at its own 32px the avatar
    fills the whole menu item and paints past it, because it is drawn at 128% of its box.
    That same 128% is why the lift is needed: the drawn shape lands 14% of the avatar below the
-   middle of its box, so without it the bloub reads low beside the name. Every 24px avatar in the
+   middle of its box, so without it the avatar reads low beside the name. Every 24px avatar in the
    channel surfaces takes this one value, and the New channel dialog reads it from here. */
 .channel-member .agent-avatar,
 .channel-member-menu .agent-avatar {
@@ -382,7 +382,7 @@
 }
 
 /* The header title is the agent chat's `.conversation-title`, so the member stack has to be the
-   avatar that title draws: 18px, and lifted by the same optical offset, because the bloub is drawn
+   avatar that title draws: 18px, and lifted by the same optical offset, because the avatar is drawn
    at 128% of its box and sits low in it without one. */
 .channel-title .channel-avatar {
   min-width: 18px;

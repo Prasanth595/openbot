@@ -8,7 +8,7 @@
 
 import { ArrowUp, Bubble, BubbleContent, Button, Check, Minimize2, Spinner } from "@openbot/ui";
 import { createEffect, createSignal, For, Show } from "solid-js";
-import type { AvatarMood } from "../../bloub-avatar";
+import type { AvatarMood } from "../../agent-avatar";
 import type { AgentProfile } from "../../data";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";

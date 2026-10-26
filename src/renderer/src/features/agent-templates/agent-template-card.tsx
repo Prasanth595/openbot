@@ -1,6 +1,6 @@
 import { AppLogo } from "@openbot/brand";
 import { AGENT_TEMPLATE_CARD, type AgentTemplatePreview } from "@openbot/contracts/ipc";
-import { avatarHeadColor, createStaticAvatarSvg } from "@openbot/ui/bloub-avatar";
+import { avatarHeadColor, createStaticAvatarSvg } from "@openbot/ui/agent-avatar";
 import { render } from "@solidjs/web";
 import { flush } from "solid-js";
 import { loadImage, loadSvg, withAlpha } from "../../avatar-canvas";
@@ -8,7 +8,7 @@ import { loadImage, loadSvg, withAlpha } from "../../avatar-canvas";
 /*
  * The share card: the image X and other sites show for an `openbot.run/agents/<id>` link.
  *
- * It is drawn here, at publish time, because this is where the agent's avatar is: a generated Bloub
+ * It is drawn here, at publish time, because this is where the agent's avatar is: a generated avatar
  * or the photo the owner uploaded. The Worker only checks its size and stores it.
  *
  * Layout, on the app's dark canvas: a hero square on the left in the avatar's own colour with the
@@ -109,7 +109,7 @@ async function drawAvatar(context: CanvasRenderingContext2D, preview: AgentTempl
     context.restore();
     return;
   }
-  // The Bloub is drawn larger than its box, the way `.agent-avatar > svg` draws it in the app.
+  // The avatar is drawn larger than its box, the way `.agent-avatar > svg` draws it in the app.
   const size = AVATAR_SIZE * 1.28;
   const svg = createStaticAvatarSvg(preview.avatarSeed, preview.avatarHue);
   const image = await loadSvg(svg, size);

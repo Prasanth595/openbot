@@ -1,17 +1,17 @@
-import { type Block, BloubBot, type BloubBotRef, type StateId } from "@norbert_bodziony/bloub";
+import { type AvatarFaceId, type AvatarShapeId, avatarHueSwatch } from "@openbot/brand/agent-avatar";
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, For, onSettled, untrack } from "solid-js";
-import { bloubAvatarProfile } from "../../bloub-avatar";
 import { ErrorReference } from "../../error-reference";
 import { useText } from "../../text";
 import { prefersReducedMotion } from "../../utils";
+import { AvatarFigure } from "../agents/AgentAvatar";
 
 /*
  * One clock drives the whole screen, so each run shows the same frames. Each frame is a function of
- * the elapsed time: the faces and the status line. The bots are frozen and drawn with `renderAt`, so
- * they have no clock of their own that can drift. The CSS animations start at the same time as the
+ * the elapsed time: the faces and the status line. The avatars are static drawings whose face the
+ * clock picks, so they have no clock of their own that can drift. The CSS animations start at the same time as the
  * clock: `--app-loading-at` moves them back to the clock's time when the screen mounts.
  */
 const CREW_FPS = 30;
@@ -20,9 +20,6 @@ const HOP_STAGGER_S = 0.14;
 // Three waves: each hopper makes a face in its own wave.
 const LOOP_S = WAVE_S * 3;
 const STATUS_EVERY_S = LOOP_S / 2;
-// One cycle holds 2 blocks per loop and at most 200 blocks, so it lasts about 7 minutes before it
-// starts again.
-const LOOPS = 90;
 // When the app is ready before this time, the screen only fades. The crew does not jump out.
 const QUICK_EXIT_S = 0.6;
 // The longest exit is 760ms of jumps and the fade. If no `animationend` comes, the screen ends after
@@ -39,33 +36,28 @@ const STATUS_LINES = [
   "webClient.loadingLine.almost",
 ] as const satisfies readonly AppTextKey[];
 
-// Only states that keep the body. The others, such as `orbit`, `burst`, `sleep` and `alert`, replace
-// it with dots or a mark.
-const HOPPER_LOOKS: ReadonlyArray<{ seed: string; hue: AvatarHue; face: StateId }> = [
-  { seed: "crew-hopper-one", hue: 215, face: "wink" },
-  { seed: "crew-hopper-two", hue: 320, face: "wide" },
-  { seed: "crew-hopper-three", hue: 55, face: "wink" },
+// Each hopper rests on one face and makes another while it is in the air in its own wave.
+const HOPPER_LOOKS: ReadonlyArray<{ shape: AvatarShapeId; hue: AvatarHue; rest: AvatarFaceId; face: AvatarFaceId }> = [
+  { shape: "squircle", hue: 215, rest: "neutral", face: "wink" },
+  { shape: "onigiri", hue: 320, rest: "attentive", face: "excited" },
+  { shape: "cloud", hue: 55, rest: "happy", face: "wink" },
 ];
-
-/** Idle, and one face while this hopper is in the air in its own wave. */
-function hopperCycle(index: number, face: StateId): Block[] {
-  const lead = index * (WAVE_S + HOP_STAGGER_S);
-  const blocks: Block[] = lead > 0 ? [{ state: "idle", duration: lead }] : [];
-  for (let loop = 0; loop < LOOPS; loop += 1) {
-    blocks.push({ state: face, duration: WAVE_S }, { state: "idle", duration: LOOP_S - WAVE_S });
-  }
-  return blocks;
-}
 
 const HOPPERS = HOPPER_LOOKS.map((look, index) => ({
   index,
-  profile: bloubAvatarProfile(look.seed, look.hue),
-  cycle: hopperCycle(index, look.face),
+  ...look,
+  color: avatarHueSwatch(look.hue),
+  lead: index * (WAVE_S + HOP_STAGGER_S),
 }));
-const SLEEPER = bloubAvatarProfile("crew-sleeper", 185);
+const SLEEPER = { shape: "egg", color: avatarHueSwatch(185) } as const satisfies {
+  shape: AvatarShapeId;
+  color: string;
+};
 
-function cycleLength(blocks: readonly Block[]): number {
-  return blocks.reduce((total, block) => total + block.duration, 0);
+/** Whether a hopper is in the air at this time: one wave of each loop, after its lead. */
+function hopperInAir(lead: number, seconds: number): boolean {
+  if (seconds < lead) return false;
+  return (seconds - lead) % LOOP_S < WAVE_S;
 }
 
 // Three small scribbled "z" marks that float up from the sleeper's head, one after the other.
@@ -123,7 +115,6 @@ export function AppLoadingScreen(props: AppLoadingScreenProps) {
   const mountedAt = scrub ? 0 : snapToFrame(clockTime(performance.now()));
   const [clock, setClock] = createSignal(mountedAt);
   const reducedMotion = prefersReducedMotion();
-  const bots: Array<{ ref: BloubBotRef; length: number }> = [];
   const seconds = () => props.at ?? clock();
   const status = () => STATUS_LINES[Math.floor(seconds() / STATUS_EVERY_S) % STATUS_LINES.length] ?? STATUS_LINES[0];
   // The clock stops when the app is ready, so the exit that it selects cannot change.
@@ -148,15 +139,6 @@ export function AppLoadingScreen(props: AppLoadingScreenProps) {
     stopped = true;
     cancelAnimationFrame(frameRequest);
   }
-
-  function addBot(cycle: readonly Block[]) {
-    return (ref: BloubBotRef) => bots.push({ ref, length: cycleLength(cycle) });
-  }
-
-  createEffect(seconds, (time) => {
-    if (reducedMotion) return;
-    for (const bot of bots) bot.ref.renderAt(time % bot.length);
-  });
 
   createEffect(
     () => props.ready,
@@ -215,15 +197,10 @@ export function AppLoadingScreen(props: AppLoadingScreenProps) {
             {(hopper) => (
               <div class="app-loading-agent" style={{ "--app-loading-index": hopper.index }}>
                 <div class="app-loading-body">
-                  <BloubBot
-                    size={100}
-                    shape={hopper.profile.shape}
-                    color={hopper.profile.color}
-                    expression={hopper.profile.expression}
-                    cycle={hopper.cycle}
-                    frozenAt={0}
-                    ref={addBot(hopper.cycle)}
-                    ariaLabel=""
+                  <AvatarFigure
+                    shape={hopper.shape}
+                    face={!reducedMotion && hopperInAir(hopper.lead, seconds()) ? hopper.face : hopper.rest}
+                    color={hopper.color}
                     class="app-loading-bot"
                   />
                 </div>
@@ -242,18 +219,10 @@ export function AppLoadingScreen(props: AppLoadingScreenProps) {
                 )}
               </For>
             </div>
-            {/* The clock does not draw the sleeper: `idle` blinks, and a blink on a sleepy face looks
-                like a twitch. It keeps its first pose, and only its CSS breath moves it. */}
+            {/* The clock does not draw the sleeper. It keeps its sleepy face, and only its CSS breath
+                moves it. */}
             <div class="app-loading-body">
-              <BloubBot
-                size={100}
-                shape={SLEEPER.shape}
-                color={SLEEPER.color}
-                expression="somnolent"
-                frozenAt={0}
-                ariaLabel=""
-                class="app-loading-bot"
-              />
+              <AvatarFigure shape={SLEEPER.shape} face="sleepy" color={SLEEPER.color} class="app-loading-bot" />
             </div>
           </div>
         </div>

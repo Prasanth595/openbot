@@ -1,4 +1,4 @@
-import type { AvatarMood } from "@openbot/brand/bloub-avatar-motion";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import type { AgentTask } from "@openbot/contracts/ipc";
 import type { AppTextKey } from "@openbot/i18n";
 import { taskTone } from "@openbot/team-client/agent-tasks";

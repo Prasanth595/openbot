@@ -1,4 +1,4 @@
-import type { AvatarMood } from "@openbot/brand/bloub-avatar-motion";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { View, type ViewInstance } from "react-native";

@@ -1,4 +1,4 @@
-import type { AvatarMood } from "@openbot/brand/bloub-avatar-motion";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import type { AgentEvent, TeamRealtimeEvent } from "@openbot/contracts/ipc";
 
 /** What a waiting agent needs from the user, as the desktop sidebar names it. */

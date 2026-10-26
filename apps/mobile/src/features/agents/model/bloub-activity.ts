@@ -1,21 +1,15 @@
-import {
-  BotEngine,
-  type BotFrame,
-  blendExpression,
-  COLOR_BY_ID,
-  EXPRESSION_BY_ID,
-  SHAPE_BY_ID,
-} from "@norbert_bodziony/bloub";
-import { bloubAvatarProfile } from "@openbot/brand/bloub-avatar";
-import { type AvatarMood, avatarMoodPresentation } from "@openbot/brand/bloub-avatar-motion";
+import { BotEngine, type BotFrame, blendExpression, EXPRESSION_BY_ID, SHAPE_BY_ID } from "@norbert_bodziony/bloub";
+import { avatarHeadColor } from "@openbot/brand/agent-avatar";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import type { AvatarHue } from "@openbot/contracts/ipc";
+import { bloubAvatarProfile, bloubMoodPresentation } from "./bloub-profile";
 
 /**
  * The pose the working cycle holds. It is shape-safe by type, so the cycle can never hand back a
  * different creature than the one the agent is recognised by. The working face arrives with the
  * geometry instead: `bloubActivityGeometry` reads it from the same mood table the desktop uses.
  */
-const WORKING_STATE = avatarMoodPresentation("working").state;
+const WORKING_STATE = bloubMoodPresentation("working").state;
 
 export const FPS = 60;
 const LEAD = 1.2;
@@ -81,9 +75,9 @@ export function bloubRestEngineFrame(geometry: Geometry): BotFrame {
   return restFrame(geometry).engine;
 }
 
+/** The body colour, the same one the desktop draws. */
 export function getBloubAvatarColor(seed: string, hue: AvatarHue | null): string {
-  const profile = bloubAvatarProfile(seed, hue);
-  return COLOR_BY_ID.get(profile.color)?.hex ?? "#8b5cf6";
+  return avatarHeadColor(seed, hue);
 }
 
 /**
@@ -95,8 +89,8 @@ export function getBloubAvatarColor(seed: string, hue: AvatarHue | null): string
  * the player above, which already glides between two geometries over `BotEngine.SHAPE_MORPH`.
  */
 export function bloubActivityGeometry(seed: string, mood: AvatarMood = "idle") {
-  const profile = bloubAvatarProfile(seed, null);
-  const expressionId = avatarMoodPresentation(mood).expression ?? profile.expression;
+  const profile = bloubAvatarProfile(seed);
+  const expressionId = bloubMoodPresentation(mood).expression ?? profile.expression;
   const silhouette = SHAPE_BY_ID.get(profile.shape);
   const expression = EXPRESSION_BY_ID.get(expressionId);
   if (!silhouette || !expression) throw new Error("Bloub avatar profile is invalid.");

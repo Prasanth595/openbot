@@ -62,8 +62,8 @@ import {
   Text,
   Textarea,
 } from "@openbot/ui";
+import { AVATAR_HUE_OPTIONS, avatarCandidateSeeds, avatarHueSwatch } from "@openbot/ui/agent-avatar";
 import { normalizeAvatarFile } from "@openbot/ui/avatar-image";
-import { AVATAR_HUE_OPTIONS, avatarCandidateSeeds, avatarHueSwatch } from "@openbot/ui/bloub-avatar";
 import { ProviderModelPicker, reasoningLabel } from "@openbot/ui/components/ProviderModelPicker";
 import {
   SettingsField,

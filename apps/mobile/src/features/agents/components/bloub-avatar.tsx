@@ -1,4 +1,4 @@
-import { type AvatarMood, avatarMoodPresentation } from "@openbot/brand/bloub-avatar-motion";
+import { type AvatarMood, avatarMoodPresentation } from "@openbot/brand/agent-avatar-motion";
 import type { AvatarHue } from "@openbot/contracts/ipc";
 import { memo, useMemo } from "react";
 import Animated, {
@@ -114,7 +114,7 @@ export const BloubAvatarPreview = memo(function BloubAvatarPreview(
   if (!props.rings) return avatar;
   // The ring wrapper stays mounted when work starts and stops, so the face keeps its glide.
   return (
-    <AgentOrbitRings active={!props.disconnected && avatarMoodPresentation(props.mood ?? "idle").rings} size={size}>
+    <AgentOrbitRings active={!props.disconnected && avatarMoodPresentation(props.mood ?? "idle").ring} size={size}>
       {avatar}
     </AgentOrbitRings>
   );

@@ -12,7 +12,7 @@ import {
 } from "@openbot/ui";
 import type { JSX } from "@solidjs/web";
 import { createMemo, For, Show } from "solid-js";
-import { avatarHeadColor } from "../../bloub-avatar";
+import { avatarHeadColor } from "../../agent-avatar";
 import type { AgentMessage, AgentProfile } from "../../data";
 import { useText } from "../../text";
 import { AgentAvatar } from "../agents/AgentAvatar";

@@ -1771,18 +1771,12 @@ function IslandAvatar(props: { agent: DynamicIslandAgentIdentity; working?: bool
   return (
     <AgentAvatar
       agent={props.agent}
-      // `"idle"` here meant a morph that never stops. bloub's `autoPause` cannot
-      // help an overlay pinned over the notch - Chromium always calls it visible -
-      // and every drawn frame rewrites 64 bezier segments per path, which costs a
-      // style recalculation and a layout, not just a paint. Measured on one of the
-      // two notch windows: 4.1% of a core and 115 layouts per five seconds with the
-      // avatar, 0.5% and one layout without, all day, whatever application the user
-      // is actually in. `"hover"` holds the resting pose and brings the agent back the
-      // moment a pointer reaches the island, so the motion is there when someone is
-      // looking at it. Work still animates on its own.
+      // The island is pinned over the notch all day, and Chromium always calls it visible, so it
+      // keeps the resting drawing: no loop runs until the agent works. A previous avatar that
+      // redrew its paths every frame cost 4.1% of a core and 115 layouts per five seconds here.
       motion="hover"
       mood={props.working ? "working" : "idle"}
-      shape="cercle"
+      shape="circle"
       class="dynamic-island-surface-avatar"
     />
   );

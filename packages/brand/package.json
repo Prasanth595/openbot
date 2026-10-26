@@ -5,8 +5,6 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./bloub-avatar": "./src/bloub-avatar.ts",
-    "./bloub-avatar-motion": "./src/bloub-avatar-motion.ts",
     "./agent-avatar": "./src/agent-avatar.ts",
     "./agent-avatar-motion": "./src/agent-avatar-motion.ts",
     "./logo.css": "./src/logo.css",
@@ -23,7 +21,6 @@
     "typecheck": "bun ../../scripts/type-checker.ts --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@norbert_bodziony/bloub": "catalog:",
     "@openbot/contracts": "workspace:*"
   },
   "peerDependencies": {

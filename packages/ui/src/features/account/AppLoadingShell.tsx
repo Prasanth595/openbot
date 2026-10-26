@@ -1,8 +1,8 @@
 import { useText } from "../../text";
 
 /**
- * The background of the app loading screen, without the crew. The server sends it: the Bloub library
- * that draws the crew runs only in the browser, so the Worker must never import `AppLoadingScreen`.
+ * The background of the app loading screen, without the crew. The server sends it: the crew and its
+ * clock run only in the browser, so the Worker does not import `AppLoadingScreen`.
  */
 export function AppLoadingShell() {
   const { t } = useText();

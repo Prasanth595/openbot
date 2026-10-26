@@ -1,5 +1,5 @@
 import type { ChannelSummary, HiddenAgent, SidebarLayoutAction, SidebarLayoutSnapshot } from "@openbot/contracts/ipc";
-import type { AvatarMood } from "@openbot/ui/bloub-avatar";
+import type { AvatarMood } from "@openbot/ui/agent-avatar";
 import { Sidebar } from "@openbot/ui/features/sidebar/Sidebar";
 import { SidebarCommunityCard } from "@openbot/ui/features/sidebar/SidebarCommunityCard";
 import { SidebarMobileAppCard } from "@openbot/ui/features/sidebar/SidebarMobileAppCard";

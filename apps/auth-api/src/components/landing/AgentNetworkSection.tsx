@@ -342,7 +342,7 @@ export function AgentNetworkSection() {
       })
       .catch(() => {});
     // The avatar engine is too large for the first load of the home page, as in the features section.
-    void import("@openbot/ui/bloub-avatar")
+    void import("@openbot/ui/agent-avatar")
       .then(({ AVATAR_HUE_CHOICES, avatarHeadColor, createStaticAvatarSvg }) => {
         if (disposed) return;
         const seeds = [

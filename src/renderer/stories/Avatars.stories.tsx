@@ -1,7 +1,6 @@
-import { BloubBot, POSES } from "@norbert_bodziony/bloub";
-import { type AvatarMood, avatarMoodPresentation } from "@openbot/brand/bloub-avatar-motion";
+import { AVATAR_SHAPES, encodeAvatarSeed, RESTING_EXPRESSIONS } from "@openbot/brand/agent-avatar";
+import type { AvatarMood } from "@openbot/brand/agent-avatar-motion";
 import { Button } from "@openbot/ui";
-import { bloubAvatarProfile } from "@openbot/ui/bloub-avatar";
 import { AgentAvatar } from "@openbot/ui/features/agents/AgentAvatar";
 import { TeamPersonAvatar } from "@openbot/ui/features/team/TeamPersonAvatar";
 import { createStore, For, Show } from "solid-js";
@@ -104,50 +103,50 @@ const AVATAR_MOODS = [
 ] as const satisfies readonly AvatarMood[];
 
 /**
- * One seed across every mood and every size.
- *
- * This is the story that proves the point of the mood table: reading down a column, the silhouette
- * is the same in all seven rows and only the face changes. A row that draws a different body is a
- * state that should not be in `SHAPE_SAFE_STATES`.
+ * One seed across every mood and every size. Reading down a column, the shape and colour are the
+ * same in all seven rows and only the face and the motion change.
  */
 export const SizesAndMoods: AgentStory = {
-  render: () => {
-    const profile = bloubAvatarProfile("story-avatar", 215);
-    return (
-      <div
-        class="grid gap-6 p-8"
-        style={{ background: "var(--openbot-bg-canvas)", color: "var(--openbot-text-primary)" }}
-      >
-        {AVATAR_MOODS.map((mood) => {
-          const presentation = avatarMoodPresentation(mood);
-          return (
-            <section class="grid gap-3" aria-label={`${mood} avatar sizes`}>
-              <strong class="text-sm capitalize">{mood}</strong>
-              <div class="flex items-end gap-5">
-                {AVATAR_SIZES.map((size) => (
-                  <div class="grid justify-items-center gap-2">
-                    <span class="agent-avatar agent-avatar-bloub" style={{ width: `${size}px`, height: `${size}px` }}>
-                      <BloubBot
-                        size={100}
-                        shape={profile.shape}
-                        color={profile.color}
-                        expression={presentation.expression ?? profile.expression}
-                        state={presentation.state}
-                        frozenAt={POSES[presentation.state]}
-                        ariaLabel={`${mood} avatar at ${size} pixels`}
-                        class="bloub-avatar-svg"
-                      />
-                    </span>
-                    <small style={{ color: "var(--openbot-text-muted)" }}>{size}</small>
-                  </div>
-                ))}
+  render: () => (
+    <div
+      class="grid gap-6 p-8"
+      style={{ background: "var(--openbot-bg-canvas)", color: "var(--openbot-text-primary)" }}
+    >
+      {AVATAR_MOODS.map((mood) => (
+        <section class="grid gap-3" aria-label={`${mood} avatar sizes`}>
+          <strong class="text-sm capitalize">{mood}</strong>
+          <div class="flex items-end gap-5">
+            {AVATAR_SIZES.map((size) => (
+              <div class="grid justify-items-center gap-2">
+                <AgentAvatar
+                  seed="story-avatar"
+                  hue={215}
+                  mood={mood}
+                  style={{ width: `${size}px`, height: `${size}px` }}
+                />
+                <small style={{ color: "var(--openbot-text-muted)" }}>{size}</small>
               </div>
-            </section>
-          );
-        })}
-      </div>
-    );
-  },
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  ),
+};
+
+/** Every shape with every resting expression. */
+export const ShapesAndExpressions: AgentStory = {
+  render: () => (
+    <div class="grid gap-4 p-8" style={{ background: "var(--openbot-bg-canvas)" }}>
+      {AVATAR_SHAPES.map((shape) => (
+        <div class="flex gap-4">
+          {RESTING_EXPRESSIONS.map((expression) => (
+            <AgentAvatar seed={encodeAvatarSeed({ shape, expression })} hue={null} class="size-12" />
+          ))}
+        </div>
+      ))}
+    </div>
+  ),
 };
 
 /** The live moods, with their rings and breathing, as the app actually renders them. */
