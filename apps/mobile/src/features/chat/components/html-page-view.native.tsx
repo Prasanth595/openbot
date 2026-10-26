@@ -9,7 +9,7 @@ import type { HtmlPageProps } from "./html-page";
 /** The margin of a page on the preview screen, as the desktop file panel gives it. */
 const PAGE_MARGIN_Y = 12;
 const PAGE_MARGIN_X = 16;
-/** On Android, a web link opens only this long after a touch on the page. */
+/** A web link opens only this long after a touch on the page. */
 const TAP_WINDOW_MS = 1_000;
 /**
  * A form that the page does not handle in a script would load another address. Android does not
@@ -49,9 +49,9 @@ export function HtmlPageView({ source, title, mode, insets = { top: 0, bottom: 0
       head: `${FORM_POLICY}${screen ? `<style>:root{padding:${padding}}</style>` : ""}`,
     });
   }, [source, appearance, screen, insets.top, insets.bottom]);
-  // WebKit and Chromium block a window that the page opens without a tap. Android gives no cause for
-  // a load, so the touch time decides there, and a page script cannot open the browser by itself.
-  const tapped = () => screen && (!ANDROID || Date.now() - lastTouch.current < TAP_WINDOW_MS);
+  // Android gives no cause for a load, and WebKit calls a script `click()` on a link a click too. So
+  // the touch time decides, and a page script cannot open the browser by itself.
+  const tapped = () => screen && Date.now() - lastTouch.current < TAP_WINDOW_MS;
   return (
     <View
       style={{ flex: 1 }}

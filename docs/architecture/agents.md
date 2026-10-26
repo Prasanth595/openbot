@@ -511,9 +511,9 @@ height with no touches, and on the preview screen. It gets the base styles and t
 `form-action 'none'` policy. The view has no `onMessage` and injects no script, so
 react-native-webview adds no message handler or JavaScript interface, and the page cannot reach the
 app; never run a page in an Expo DOM component, which has a bridge to the app. A
-tapped web link opens in the browser, and the page goes to no other address. Android WebView asks
-the app only about main-frame GET loads and gives no cause, so there a link opens only within a
-second of a touch. iOS keeps the page storage in memory (`incognito`); Android turns off DOM storage
+tapped web link opens in the browser, and the page goes to no other address. A link opens only
+within a second of a touch: Android WebView asks the app only about main-frame GET loads and gives
+no cause, and WebKit calls a script `click()` on a link a click. iOS keeps the page storage in memory (`incognito`); Android turns off DOM storage
 and third-party cookies, because its `incognito` clears every web view of the app. An Android build
 without the native module shows the page with no scripts. `html_preview` lets the agent look at a page before it publishes it: the main
 process draws it in a hidden window with its own in-memory session (`ChatVisualPreviewer`)
