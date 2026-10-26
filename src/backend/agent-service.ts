@@ -63,6 +63,7 @@ import type {
   McpSignInAppState,
   McpSignInState,
   McpTestResult,
+  MemoryEntry,
   ProviderCodeLoginStart,
   ProviderUsageResets,
   QueuedMessageReceipt,
@@ -86,6 +87,7 @@ import type {
   SetAgentSessionSettingInput,
   SetMcpServerEnabledInput,
   SetMessageReactionInput,
+  SetUserMemoryInclusionInput,
   SharedTable,
   SidebarLayoutSnapshot,
   SidebarSection,
@@ -101,6 +103,7 @@ import type {
   UpdateChannelRoutineInput,
   UpdateQueuedMessageInput,
   UpdateRoutineInput,
+  UpdateUserMemoryInput,
 } from "@openbot/contracts/ipc";
 import {
   type AgentDefaults,
@@ -547,6 +550,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       emit: (event) => this.#emit(event),
       emitError: (code, error, agentId) => this.#emitError(code, error, agentId),
       ...(options.agentMemoryLimit ? { limit: options.agentMemoryLimit } : {}),
+      listAgentIds: () => this.listAgents().map((agent) => agent.id),
     });
     // One timer for every routine owner. The sources are read lazily because `channels` and its
     // scheduler are built further down, and because an owner's earliest routine changes constantly.
@@ -1602,6 +1606,36 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
 
   clearMemories(agentId: string): void {
     this.#memories.clear(agentId);
+  }
+
+  // The user memories, which every agent shares. Local only.
+
+  listUserMemories(): MemoryEntry[] {
+    return this.#memories.listUser().map(memoryEntry);
+  }
+
+  getUserMemorySelection(): AgentMemorySelectionState {
+    return this.#memories.userSelectionState();
+  }
+
+  setUserMemoryInclusion(input: SetUserMemoryInclusionInput): AgentMemorySelectionState {
+    return this.#memories.setUserInclusions(input.changes);
+  }
+
+  createUserMemory(text: string): MemoryEntry {
+    return memoryEntry(this.#memories.createUser(text));
+  }
+
+  updateUserMemory(input: UpdateUserMemoryInput): MemoryEntry {
+    return memoryEntry(this.#memories.updateUser(input.memoryId, input.text));
+  }
+
+  deleteUserMemory(memoryId: string): void {
+    this.#memories.deleteUser(memoryId);
+  }
+
+  clearUserMemories(): void {
+    this.#memories.clearUser();
   }
 
   listTables(): Effect.Effect<SharedTable[], AgentLifecycleFailed> {
@@ -4679,4 +4713,9 @@ function settleLifecycleTasks<A>(
       discard: true,
     },
   );
+}
+
+/** A user memory as the settings page reads it: without the owner, which is always the user. */
+function memoryEntry({ id, text, origin, sourceTurnId, createdAt, updatedAt }: AgentMemory): MemoryEntry {
+  return { id, text, origin, sourceTurnId, createdAt, updatedAt };
 }
