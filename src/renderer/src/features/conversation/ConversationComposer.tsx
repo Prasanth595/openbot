@@ -196,7 +196,12 @@ export function ConversationComposer() {
   const providerWaitNotice = createMemo(() => {
     const agent = props.agent;
     if (!agent) return null;
-    const provider = providerDisplayName(agent.provider);
+    // OpenCode serves a custom endpoint, so the user knows that turn by the endpoint's name (#3234).
+    const endpoint =
+      agent.provider === "opencode"
+        ? props.customProviders?.find((item) => agent.model.startsWith(`${item.id}/`))
+        : undefined;
+    const provider = endpoint?.name ?? providerDisplayName(agent.provider);
     if (providerOffline())
       return { title: t("composer.providerWait.offlineTitle"), body: t("composer.providerWait.offline", { provider }) };
     const minutes = providerSilentMinutes();
