@@ -565,11 +565,11 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     params: unknown,
     steer: boolean,
   ) {
-    if (thread.turn && !steer) return yield* providerFailure(new Error(sourceText("error.provider.piSessionBusy")));
-    if (!thread.turn) yield* this.#configure(thread, params);
+    if (steer) return yield* this.#steer(thread, params);
+    if (thread.turn) return yield* providerFailure(new Error(sourceText("error.provider.piSessionBusy")));
+    yield* this.#configure(thread, params);
     const prompt = yield* piPrompt(params);
-    const active = thread.turn;
-    const turn: PiTurn = active ?? {
+    const turn: PiTurn = {
       id: getString(params, "clientUserMessageId") ?? randomUUID(),
       startedAt: Date.now() / 1_000,
       messageIndex: 0,
@@ -578,38 +578,52 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
       failure: null,
       finishing: false,
     };
-    const userId = `${turn.id}:user:${randomUUID()}`;
-    turn.items.set(userId, {
-      id: userId,
-      type: "userMessage",
-      content: [{ type: "text", text: this.#redact(prompt.message) }],
-    });
-    if (!active) {
-      thread.turn = turn;
-      this.#notify("turn/started", thread, { turn: { id: turn.id, status: "inProgress" } });
-    }
+    this.#addUserMessage(turn, prompt.message);
+    thread.turn = turn;
+    this.#notify("turn/started", thread, { turn: { id: turn.id, status: "inProgress" } });
     // Subscribe before sending: a completed event can precede the prompt acknowledgement.
     yield* Effect.forkIn(
-      thread.rpc
-        .request(
-          { type: "prompt", ...prompt, ...(steer ? { streamingBehavior: "steer" } : {}) },
-          this.options.requestTimeoutMs,
-        )
-        .pipe(
-          Effect.flatMap((response) =>
-            response.disposition === "handled" && thread.turn === turn
-              ? this.#finish(thread, "completed")
-              : Effect.void,
-          ),
-          Effect.catch((failure) =>
-            thread.turn === turn ? this.#finish(thread, "failed", this.#redact(String(failure.cause))) : Effect.void,
-          ),
+      thread.rpc.request({ type: "prompt", ...prompt }, this.options.requestTimeoutMs).pipe(
+        Effect.flatMap((response) =>
+          response.disposition === "handled" && thread.turn === turn ? this.#finish(thread, "completed") : Effect.void,
         ),
+        Effect.catch((failure) =>
+          thread.turn === turn ? this.#finish(thread, "failed", this.#redact(String(failure.cause))) : Effect.void,
+        ),
+      ),
       this.#scope,
       { startImmediately: true },
     );
     return { turn: { id: turn.id, status: "inProgress" }, turnId: turn.id };
   });
+
+  readonly #steer = Effect.fn("PiAgentClient.steer")(function* (
+    this: PiAgentClient,
+    thread: PiThread,
+    params: unknown,
+  ) {
+    const turn = thread.turn;
+    // Pi starts a message for an ended turn as a run of its own, which OpenBot did not start.
+    // The message then waits in the queue.
+    if (!turn || turn.id !== getString(params, "expectedTurnId") || turn.stopped || turn.finishing)
+      return yield* providerFailure(new Error(sourceText("error.backend.steerTurnChanged")));
+    const prompt = yield* piPrompt(params);
+    // Pi's `steer` also queues the message while Pi compacts, which `prompt` refuses. A refusal
+    // fails only this steer, not the running turn, so the message waits in the queue (#3206).
+    yield* thread.rpc.request({ type: "steer", ...prompt }, this.options.requestTimeoutMs);
+    if (thread.turn !== turn || turn.finishing) {
+      // Pi had settled, so its next run would take the message. Remove it, as it stays queued here.
+      yield* thread.rpc.request({ type: "clear_queue" }).pipe(Effect.ignore);
+      return yield* providerFailure(new Error(sourceText("error.backend.steerTurnChanged")));
+    }
+    this.#addUserMessage(turn, prompt.message);
+    return { turn: { id: turn.id, status: "inProgress" }, turnId: turn.id };
+  });
+
+  #addUserMessage(turn: PiTurn, message: string): void {
+    const id = `${turn.id}:user:${randomUUID()}`;
+    turn.items.set(id, { id, type: "userMessage", content: [{ type: "text", text: this.#redact(message) }] });
+  }
 
   #notify(method: string, thread: PiThread, params: DynamicRecord): void {
     // Usage contains only validated numeric counters. Generic secret-name matching masks `*Tokens`.
