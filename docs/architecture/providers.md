@@ -230,6 +230,14 @@ that it is not supported instead of offering a download. An older managed instal
 metadata until the offered runtime passes the existing download and install checks. Runtime snapshots carry the previous version and an optional `availableVersion` through the
 preload decoder. Cancellation and failure preserve the previous installation and its update offer.
 
+After an app upgrade, main updates the managed CLIs with no offer (#3164).
+`openbot-provider-cli-app-version-v1.json` in `userData` keeps the app version that last started the
+update checks. A different or missing version calls `startUpdateChecks({ updateInstalled: true })`.
+Until the first check starts the downloads, `getStatus` offers nothing. That check then starts the
+download of each managed CLI that has a newer version, before it sends its status, so the renderer
+announces no offer. A CLI the user installed, an explicit path and an off provider keep the normal
+offer path. The renderer shows a notification for such an update only when it fails, with a Retry.
+
 `ProvidersProvider` starts the shared renderer runtime store for the active server. The store
 announces each provider that gains an offer as one notification, from an effect over both the
 runtime snapshot and the agent status, because the two arrive separately and either one can complete an offer. An explicit update opens

@@ -225,6 +225,8 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
   #checkRetentionMs = VERSION_RETENTION_MS;
   #revision = 0;
   #stopping = false;
+  /** Set by `startUpdateChecks` after an app upgrade; the first check spends it. */
+  #updateInstalled = false;
 
   constructor(options: ProviderRuntimeManagerOptions) {
     super();
@@ -274,7 +276,9 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
     // Split rather than widened: `providers` means "a provider CLI" to every renderer that draws a
     // card from it, and Bun must not become one.
     const { bun, ...providers } = structuredClone(this.#statuses);
-    if (this.#target) {
+    // After an app upgrade the first check updates the installed CLIs itself, so nothing is offered
+    // until it has started them.
+    if (this.#target && !this.#updateInstalled) {
       for (const provider of PROVIDERS) {
         const version = this.#targetSpec(provider, this.#target).version;
         // Agent status names a system fallback until the managed candidate is activated.
@@ -346,12 +350,18 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
       : VERSION_RETENTION_MS;
   }
 
-  /** Checks now and then every hour, until `stop`. The caller starts it once the app is up. */
-  startUpdateChecks(intervalMs = UPDATE_CHECK_INTERVAL_MS): void {
+  /**
+   * Checks now and then every hour, until `stop`. The caller starts it once the app is up.
+   *
+   * `updateInstalled` is for the first start after an app upgrade: the first check then updates
+   * each managed provider CLI that has a newer version, with no offer to the user (#3164).
+   */
+  startUpdateChecks(options: { intervalMs?: number; updateInstalled?: boolean } = {}): void {
     if (this.#checkTimer || !this.#target || this.#stopping) return;
-    this.#checkIntervalMs = intervalMs;
+    this.#checkIntervalMs = options.intervalMs ?? UPDATE_CHECK_INTERVAL_MS;
+    this.#updateInstalled = options.updateInstalled ?? false;
     const check = () => void runCauseEffect(this.checkForUpdates()).catch(() => undefined);
-    this.#checkTimer = setInterval(check, intervalMs);
+    this.#checkTimer = setInterval(check, this.#checkIntervalMs);
     this.#checkTimer.unref();
     check();
   }
@@ -378,6 +388,16 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
         { concurrency: "unbounded" },
       );
       if (Result.isSuccess(blocked)) this.#blocked = blocked.success;
+      if (this.#updateInstalled) {
+        // Before offers show again, so the renderer sees these updates already downloading and
+        // announces no offer for them. A download reports its own failure in its status.
+        yield* Effect.forEach(
+          this.#stopping ? [] : this.#installedUpdates(target),
+          (provider) => Effect.ignore(this.#startDownload(provider, target)),
+          { discard: true },
+        );
+        this.#updateInstalled = false;
+      }
       this.#revision += 1;
       this.emit("status", this.getStatus());
       const now = Date.now();
@@ -395,6 +415,25 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
         return yield* new ProviderRuntimeFailure({
           cause: new Error(sourceText("error.provider.releaseSourcesUnreachable")),
         });
+    });
+  }
+
+  /**
+   * The provider CLIs that OpenBot installed and that have a newer version. A CLI the user
+   * installed or pointed OpenBot at, and a provider that is off, are left alone.
+   */
+  #installedUpdates(target: RuntimeTarget): ManagedProviderId[] {
+    return PROVIDERS.filter((provider) => {
+      const { phase, version } = this.#statuses[provider];
+      // A copy older than this build's pin reads as not downloaded, with its version.
+      return (
+        (phase === "ready" || phase === "not-downloaded") &&
+        version !== null &&
+        olderVersion(version, this.#targetSpec(provider, target).version) &&
+        !this.#systemVersions.has(provider) &&
+        !configuredCliPath(provider) &&
+        this.#isProviderOn(provider)
+      );
     });
   }
 
@@ -499,7 +538,21 @@ export class ProviderRuntimeManager extends EventEmitter<ProviderRuntimeManagerE
           return yield* new ProviderRuntimeFailure({ cause: new Error(sourceText("error.provider.closing")) });
         if (this.#tasks.has(runtime)) return this.getStatus();
       }
-      const spec = this.#targetSpec(runtime, this.#target);
+      return yield* this.#startDownload(runtime, this.#target);
+    });
+  }
+
+  /**
+   * Starts the download that `download` asks for, after its checks. The update check calls it
+   * directly: `download` would wait for that same check to end.
+   */
+  #startDownload(
+    runtime: ManagedRuntimeId,
+    target: RuntimeTarget,
+  ): Effect.Effect<ProviderRuntimeSnapshot, ProviderRuntimeFailure> {
+    return Effect.gen({ self: this }, function* (): Effect.fn.Return<ProviderRuntimeSnapshot, ProviderRuntimeFailure> {
+      if (this.#tasks.has(runtime)) return this.getStatus();
+      const spec = this.#targetSpec(runtime, target);
       const current = this.#statuses[runtime];
       // A download goes only toward a newer version, never back to an older one. A failed update keeps
       // the version still installed, so its Retry follows the same rule: when the block list has taken
