@@ -12,6 +12,7 @@ import { ptMobile } from "./messages/pt/mobile";
 import { ruMobile } from "./messages/ru/mobile";
 import { trMobile } from "./messages/tr/mobile";
 import { zhMobile } from "./messages/zh/mobile";
+import { zhTWMobile } from "./messages/zh-TW/mobile";
 
 /**
  * The mobile entry. It carries the shared keys, the source text and the mobile areas only, so the
@@ -36,6 +37,7 @@ const catalogs = {
   ru: ruMobile,
   tr: trMobile,
   zh: zhMobile,
+  "zh-TW": zhTWMobile,
 } as const;
 
 export type MobileTranslate = Translate<AppMobileMessages>;
