@@ -65,7 +65,7 @@ import {
 import { decodeCapturedSteps, readCapturedSteps } from "./handoff-tool-steps";
 import { isProviderTimeout } from "./provider-status";
 import { sessionSettingsIdentity } from "./session-settings";
-import { isArchivedThreadError, isMissingProviderSessionError } from "./thread-items";
+import { isArchivedThreadError, isMissingProviderSessionError, providerLabel } from "./thread-items";
 import { VISIBLE_DYNAMIC_TOOLS } from "./tool-catalog";
 import { codexSandboxConfig, codexSandboxMode, workspaceWritableRoots } from "./workspace-sandbox";
 
@@ -760,8 +760,9 @@ export class ThreadLifecycle {
    *
    * Each MCP server needs a saved registration for persistent tool approvals. A registration failure
    * stops the thread with recovery guidance. Without MCP servers, retain the existing empty
-   * result on a failed config read. An app server that timed out or is gone keeps its own error:
-   * the guidance about `config.toml` would send the user to a file that is fine.
+   * result on a failed config read. An app server that timed out or is gone gets the timeout
+   * message: the guidance about `config.toml` would send the user to a file that is fine. The client
+   * ends a process that stopped answering, and the runtime starts it again.
    */
   private readonly codexOwnServersEffect = Effect.fn("ThreadLifecycle.codexOwnServers")(function* (
     this: ThreadLifecycle,
@@ -777,7 +778,11 @@ export class ThreadLifecycle {
       Effect.catch((failure) => {
         if (Object.keys(servers({})).length === 0) return Effect.succeed(NO_CODEX_OWN_SERVERS);
         if (isProviderTimeout(failure.cause) || !client.running) {
-          return Effect.fail(new ThreadOperationFailed({ cause: failure.cause }));
+          return Effect.fail(
+            new ThreadOperationFailed({
+              cause: new Error(sourceText("error.provider.cliTimedOut", { provider: providerLabel(client.provider) })),
+            }),
+          );
         }
         logger.warn("Codex did not register the MCP servers.", {
           message: failure.cause instanceof Error ? failure.cause.message : String(failure.cause),

@@ -4,8 +4,8 @@
 // 1. Control: a process that does not answer `model/list`, as on a slow network, but answers the
 //    `config/read` probe, keeps running.
 // 2. A process that answers nothing is ended, with the error that says why.
-// 3. With an MCP server configured, a delivery that meets a hung process fails with the timeout,
-//    not with the `config.toml` guidance. The runtime starts a new process, and the next turn runs.
+// 3. With an MCP server configured, a delivery that meets a hung process fails with the timeout
+//    message, not with the `config.toml` guidance. The runtime starts a new process, and the next turn runs.
 // `bun run test:codex-hung-app-server`. Writes .openbot-build/codex-hung-app-server-e2e/report.json.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -40,6 +40,7 @@ const { runCauseEffect } = await import("../src/backend/effect-boundary");
 const { MailboxStore } = await import("../src/backend/mailbox-store");
 const { OpenBotDatabase } = await import("../src/backend/openbot-database");
 const { decodeRecordResponse } = await import("../src/backend/protocol");
+const { providerLabel } = await import("../src/backend/agent/thread-items");
 
 // A Codex app-server whose behaviour the check sets for each process id in the modes file:
 // `slow` leaves `model/list` unanswered, and `hung` leaves every request unanswered. The process
@@ -300,7 +301,8 @@ try {
     report.slowProcess.answeredAfter &&
     report.hungProcess.exitMessage === sourceText("error.provider.codexUnresponsive") &&
     !report.hungProcess.alive &&
-    report.service.failedDeliveryError !== sourceText("error.provider.mcpConfig") &&
+    report.service.failedDeliveryError ===
+      sourceText("error.provider.cliTimedOut", { provider: providerLabel("codex") }) &&
     report.service.nextTurnPid === restarted.pid;
 } catch (error) {
   report.error = error instanceof Error ? (error.stack ?? error.message) : String(error);
