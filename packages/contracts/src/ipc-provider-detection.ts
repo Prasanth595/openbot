@@ -3,7 +3,7 @@
 // does not let the page call a local address, and a stored key must not travel back to the page to
 // make one.
 //
-// A scan never sends a key. A model list for a saved endpoint may use the stored key and headers,
+// A scan never sends a stored key; it sends only the public Magpie app key to Magpie. A model list for a saved endpoint may use the stored key and headers,
 // but only while the address has the same origin as the saved one.
 
 import { INPUT_LIMITS } from "./input-limits";
@@ -25,9 +25,49 @@ export const PROVIDER_DETECTION_LIMITS = {
 export const DEFAULT_MODEL_SERVERS = {
   ollama: { name: "Ollama", baseUrl: "http://127.0.0.1:11434/v1" },
   lmstudio: { name: "LM Studio", baseUrl: "http://127.0.0.1:1234/v1" },
+  magpie: { name: "Magpie", baseUrl: "http://127.0.0.1:3425/v1" },
 } as const;
 
+/**
+ * Magpie, a local LLM gateway. Its port can change in its own settings file, so main reads the port
+ * before each probe; `DEFAULT_MODEL_SERVERS.magpie` holds the default address only.
+ */
+export const MAGPIE_DEFAULT_PORT = 3425;
+
+/**
+ * The key that names OpenBot to a Magpie gateway (`magpie-<app>`). It is a public app name, not a
+ * secret: Magpie uses it to tell its client apps apart.
+ */
+export const MAGPIE_API_KEY = "magpie-openbot";
+
+/** The longest Magpie model id that OpenBot reads. */
+const MAGPIE_MODEL_ID_LIMIT = 200;
+
 export type DefaultModelServerId = keyof typeof DEFAULT_MODEL_SERVERS;
+
+/** The Magpie gateway on this computer, as Settings shows it. */
+export interface MagpieGatewaySettings {
+  /** OpenBot starts `magpie serve` when it starts and no gateway answers. */
+  autoStart: boolean;
+  running: boolean;
+  /** The gateway's root address, from Magpie's settings file. */
+  origin: string;
+  /** OpenBot started the gateway that runs, so it stops it on quit. */
+  startedByOpenBot: boolean;
+  /** The default model that Magpie set for OpenBot on its Agents page, or null. */
+  linkedModel: string | null;
+}
+
+export function isMagpieGatewaySettings(value: unknown): value is MagpieGatewaySettings {
+  return (
+    isDynamicRecord(value) &&
+    isBoolean(value.autoStart) &&
+    isBoolean(value.running) &&
+    isBoundedString(value.origin, CUSTOM_PROVIDER_LIMITS.baseUrl) &&
+    isBoolean(value.startedByOpenBot) &&
+    (value.linkedModel === null || isBoundedString(value.linkedModel, MAGPIE_MODEL_ID_LIMIT))
+  );
+}
 
 /** Where the host looks, besides the default addresses and PATH, and the rows the user hid. */
 export interface ProviderDetectionSettings {

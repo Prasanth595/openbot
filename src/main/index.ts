@@ -569,6 +569,8 @@ function registerIpcHandlers({
   acpRegistry,
   providerDetection,
   providerDetectionSettings,
+  magpieGateway,
+  magpiePreference,
   marketplaceAgents,
   agentTemplates,
   agentImport,
@@ -659,7 +661,11 @@ function registerIpcHandlers({
     ...customProviderIpcHandlers(customProviderChanges),
     ...customAgentIpcHandlers(customAgentChanges),
     ...acpRegistryIpcHandlers(acpRegistry, remoteServers),
-    ...providerDetectionIpcHandlers({ detection: providerDetection, settings: providerDetectionSettings }),
+    ...providerDetectionIpcHandlers({
+      detection: providerDetection,
+      settings: providerDetectionSettings,
+      magpie: { gateway: magpieGateway, preference: magpiePreference },
+    }),
     ...marketplaceAgentIpcHandlers({ marketplaceAgents }),
     ...agentTemplateIpcHandlers({
       agentTemplates,

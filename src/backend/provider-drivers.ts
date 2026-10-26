@@ -46,6 +46,8 @@ import { clineFreeModels } from "./cline-free-models";
 import { readCursorUsage } from "./cursor-usage";
 import { CustomAcpAgentsClient, type CustomAgentConfig, type CustomAgentSource } from "./custom-acp-agents-client";
 import { GrokAgentClient } from "./grok-client";
+import { magpieGatewayOrigin } from "./magpie";
+import type { MagpieLink } from "./magpie-link";
 import type { McpOAuthAuthority } from "./mcp-oauth-provider";
 import type { McpOAuthProxySettingsStore } from "./mcp-oauth-proxy";
 import type { McpDropReporter, McpEndpointSource, McpServerSource, McpToolRuntimeSource } from "./mcp-provider-shapes";
@@ -376,6 +378,11 @@ export interface ProviderClientContext {
    * same reason as `reportMcpDrops`: without it the CLI uses its own cache time.
    */
   readonly promptCacheTtl?: () => PromptCacheTtl;
+  /**
+   * What Magpie set for OpenBot on its Agents page (`magpie-link.ts`), read at each use. Optional
+   * for the same reason as `reportMcpDrops`: without it the Magpie provider finds the gateway itself.
+   */
+  readonly magpieLink?: () => MagpieLink;
 }
 
 /** The agent environment with the account's home folder after it, so the account folder wins. */
@@ -412,6 +419,40 @@ function claudeFallbackApiKey(context: ProviderClientContext): (() => string | n
   return context.accountEnvironment ? undefined : () => context.apiKey("claude");
 }
 
+/**
+ * The Claude client for Magpie. It has a Claude Code folder of its own, so it never reads the user's
+ * Claude account, and none of the Claude provider's key, account folder or cache choice.
+ */
+function magpieClaudeClient(cli: AgentCliInfo, requestTimeoutMs: number, context: ProviderClientContext): AgentClient {
+  const configDirectory = join(context.providerStateDirectory ?? tmpdir(), "magpie-claude");
+  mkdirSync(configDirectory, { recursive: true, mode: 0o700 });
+  return new ClaudeAgentClient(
+    cli,
+    undefined,
+    undefined,
+    requestTimeoutMs,
+    context.mcpServers,
+    context.reportMcpDrops,
+    context.mcpToolRuntimes,
+    context.mcpEndpoint,
+    context.providerStateDirectory,
+    // The history reader takes the folder from here. The query environment sets it again.
+    (inherited) => ({ ...context.agentEnvironment?.(inherited), CLAUDE_CONFIG_DIR: configDirectory }),
+    undefined,
+    undefined,
+    {
+      // Magpie's own address for OpenBot wins over the port in Magpie's settings file.
+      origin: () => {
+        const baseUrl = context.magpieLink?.().baseUrl;
+        return baseUrl ? Effect.succeed(baseUrl) : magpieGatewayOrigin();
+      },
+      apiKey: () => context.magpieLink?.().apiKey ?? null,
+      linkedModel: () => context.magpieLink?.().model ?? null,
+      configDirectory,
+    },
+  );
+}
+
 /** Nothing stored and no endpoint, for tests and for call sites that predate the credential store. */
 export const NO_PROVIDER_CREDENTIALS: ProviderClientContext = {
   apiKey: () => null,
@@ -441,6 +482,8 @@ interface ProviderModelCatalog {
    * failed list keeps the previous models, and an empty list is a real answer.
    */
   fallback?(previous: AgentModelOption[]): AgentModelOption[];
+  /** The model to put first after the sort, when the list has it: the provider's default for new agents. */
+  firstModel?(context: ProviderClientContext): string | null;
 }
 
 /**
@@ -564,6 +607,19 @@ export const BUILT_IN_PROVIDER_DRIVERS: readonly BuiltInProviderDriver[] = [
     createClient: (cli, timeout, context, confinement) => piClient("deepseek", cli, timeout, context, confinement),
     createProfileClient: (cli, timeout, context) => piProfileClient("deepseek", cli, timeout, context),
     authState: (account) => ({ kind: "deepseek", email: account?.email ?? null }),
+    validateAccount: () => undefined,
+  },
+  {
+    id: "magpie",
+    // No key: the provider is ready while the user's Magpie gateway answers. Connect checks again.
+    // It runs Claude Code against the gateway's Anthropic-compatible API (`magpie-claude.ts`).
+    signIn: { kind: "external" },
+    cliProvider: "claude",
+    resolveCli: resolveClaudeCli,
+    // The model that Magpie set for OpenBot on its Agents page is where new Magpie agents start.
+    catalog: { firstModel: (context) => context.magpieLink?.().model ?? null },
+    createClient: (cli, requestTimeoutMs, context) => magpieClaudeClient(cli, requestTimeoutMs, context),
+    authState: (account) => ({ kind: "magpie", email: account?.email ?? null }),
     validateAccount: () => undefined,
   },
   {

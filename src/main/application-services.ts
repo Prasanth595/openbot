@@ -209,6 +209,8 @@ import { localRoutineFeedDocument } from "./local-routine-calendar";
 import { createLoginItem } from "./login-item";
 import { LogoColorService } from "./logo-color-service";
 import type { MacHapticFeedback } from "./mac-haptic-feedback";
+import { createMagpiePreferenceStore, MagpieGateway, type MagpiePreferenceStore } from "./magpie-gateway";
+import { MagpieLinkWatcher } from "./magpie-link-watcher";
 import {
   computerUseCoveringWindowIds,
   computerUseDesktopPoint,
@@ -342,6 +344,7 @@ const AGENT_DEFAULTS_PREFERENCE_FILE = "openbot-agent-defaults-v1.json";
 const AGENT_MEMORY_LIMIT_PREFERENCE_FILE = "openbot-agent-memory-limit-v1.json";
 const SERVER_TIMEZONE_PREFERENCE_FILE = "openbot-server-timezone-v1.json";
 const PROMPT_CACHE_TTL_PREFERENCE_FILE = "openbot-prompt-cache-ttl-v1.json";
+const MAGPIE_PREFERENCE_FILE = "openbot-magpie-v1.json";
 const REMOTE_SESSION_REUSE_PREFERENCE_FILE = "openbot-remote-session-reuse-preference-v1.json";
 const EXTERNAL_LINK_PREFERENCE_FILE = "openbot-external-link-preference-v1.json";
 const REMOTE_NETWORK_ROUTE_PREFERENCE_FILE = "openbot-remote-network-route-v1.json";
@@ -415,6 +418,9 @@ const TEARDOWN_ORDER = {
   browserView: 45,
   providerDetection: 48,
   providerRuntimes: 50,
+  // After the provider runtimes, so no Pi process loses its gateway while it stops.
+  magpieGateway: 51,
+  magpieLink: 51.5,
   cuaDriver: 55,
   remoteServers: 60,
   voice: 70,
@@ -578,6 +584,8 @@ export interface ApplicationServices {
   acpRegistry: AcpRegistry;
   providerDetection: ProviderDetection;
   providerDetectionSettings: ProviderDetectionSettingsStore;
+  magpieGateway: MagpieGateway;
+  magpiePreference: MagpiePreferenceStore;
   marketplaceAgents: AgentMarketplaceService;
   agentTemplates: AgentTemplateService;
   agentImport: AgentImportService;
@@ -1259,11 +1267,28 @@ export async function createApplicationServices({
   );
   performance.mark("openbot:services.preferences");
   await runCauseEffect(providerDetectionSettings.load());
+  const magpiePreference = createMagpiePreferenceStore(join(app.getPath("userData"), MAGPIE_PREFERENCE_FILE));
+  await runCauseEffect(magpiePreference.load());
+  // Magpie can connect OpenBot from its own Agents page: it writes its model, address and key into a
+  // file that OpenBot watches. A change lists the models again, so new Magpie agents start on it.
+  let onMagpieLinkChange = () => {};
+  const magpieLink = new MagpieLinkWatcher({ onChange: () => onMagpieLinkChange() });
+  await Effect.runPromise(magpieLink.start());
+  teardown.push(TEARDOWN_ORDER.magpieLink, "the watch on the file that Magpie writes", () =>
+    Effect.runPromise(magpieLink.close()),
+  );
+  const magpieGateway = new MagpieGateway({ preference: magpiePreference, link: () => magpieLink.get() });
+  teardown.push(TEARDOWN_ORDER.magpieGateway, "the Magpie gateway that OpenBot started", () =>
+    Effect.runPromise(magpieGateway.stop()),
+  );
+  // In the background: a gateway that is slow to start must not hold the app's start.
+  if (magpiePreference.get().autoStart) void Effect.runPromise(magpieGateway.ensureStarted());
   const providerDetection = await Effect.runPromise(
     createProviderDetection({
       settings: providerDetectionSettings,
       customProviders,
       customAgents,
+      magpieBaseUrl: () => magpieGateway.baseUrl(),
     }),
   );
   teardown.push(TEARDOWN_ORDER.providerDetection, "model server discovery", () =>
@@ -1646,6 +1671,8 @@ export async function createApplicationServices({
       apiKey: (provider) => providerCredentials.get(provider),
       // Read at each Claude spawn, so a change from Server settings applies to the next process.
       promptCacheTtl: () => promptCacheTtl.get().ttl,
+      // Read at each Magpie spawn and model list: Magpie can change it at any time.
+      magpieLink: () => magpieLink.get(),
       // `configs()`, not `list()`: this is the one path the API keys travel, and it ends at the
       // spawned provider process. The IPC handlers are given `list()`.
       customProviders: () => customProviders.configs(),
@@ -1717,6 +1744,7 @@ export async function createApplicationServices({
     tables,
   });
   teardown.push(TEARDOWN_ORDER.service, "the agent service", () => runCauseEffect(service.stop()));
+  onMagpieLinkChange = () => void Effect.runPromise(service.refreshModels());
   const agentMemoryLimitSetting = reloadingAgentMemoryLimit(agentMemoryLimit, service);
   /** The answer an agent gave in one turn, for routine flows, routine results and local scripts. */
   const turnAnswer = (agentId: string, turnId: string): string | null => {
@@ -3013,6 +3041,8 @@ export async function createApplicationServices({
     acpRegistry,
     providerDetection,
     providerDetectionSettings,
+    magpieGateway,
+    magpiePreference,
     marketplaceAgents,
     agentTemplates,
     agentImport,
