@@ -33,7 +33,13 @@ import { Deferred, Effect, Exit, Result, Schema, Scope, Semaphore } from "effect
 import { startAcpAuthentication } from "./../acp-sign-in";
 import { type AgentClient, AgentProcessExitError, type AgentProvider } from "./../agent-client";
 import { CodexAppServerClient } from "./../app-server-client";
-import { type AgentCliInfo, type BundledProviderExecutables, CodexCliError, cliPathEnvironment } from "./../cli";
+import {
+  type AgentCliInfo,
+  type BundledProviderExecutables,
+  CodexCliError,
+  cliPathEnvironment,
+  cliSpawnTarget,
+} from "./../cli";
 import { readCursorUsage } from "./../cursor-usage";
 import { causeHelpers } from "../effect-boundary";
 import { McpHandoffLog } from "./../mcp-handoff-log";
@@ -1378,15 +1384,17 @@ export class ProviderRuntime implements ProviderPort {
           .start(provider, (cli) =>
             Effect.gen(function* () {
               const browser = onHost ? yield* captureBrowser(openExternal) : {};
+              const target = cliSpawnTarget(cli.executable, signIn.command.argv);
               const child = yield* Effect.acquireRelease(
                 Effect.try({
                   try: () =>
-                    spawn(cli.executable, [...signIn.command.argv], {
+                    spawn(target.command, target.args, {
                       cwd: process.cwd(),
                       env: { ...process.env, ...signIn.command.env(cli), ...browser },
                       stdio: "ignore",
                       shell: false,
                       windowsHide: process.platform === "win32",
+                      windowsVerbatimArguments: target.windowsVerbatimArguments,
                     }),
                   catch: (cause) => new CliLoginFailed({ cause }),
                 }),

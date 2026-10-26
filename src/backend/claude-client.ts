@@ -1,6 +1,8 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { randomUUID, type UUID } from "node:crypto";
 import { EventEmitter } from "node:events";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import {
   type CanUseTool,
@@ -11,6 +13,8 @@ import {
   query,
   type SDKUserMessage,
   type SessionMessage,
+  type SpawnedProcess,
+  type SpawnOptions,
   tool,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -282,6 +286,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   #queryRestarts = 0;
   readonly provider: AgentProvider = "claude";
   readonly #cli: ClaudeCliInfo;
+  readonly #sdkLaunch: ClaudeSdkLaunch;
   readonly #createQuery: QueryFactory;
   readonly #readSessionMessages: SessionHistoryReader | undefined;
   readonly #requestTimeoutMs: number;
@@ -351,6 +356,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   ) {
     super();
     this.#cli = cli;
+    this.#sdkLaunch = claudeSdkLaunch(cli.executable);
     this.#createQuery = createQuery;
     this.#readSessionMessages = readSessionMessages;
     this.#requestTimeoutMs = requestTimeoutMs;
@@ -545,7 +551,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   #probeOptions(): Options {
     return {
       cwd: process.cwd(),
-      pathToClaudeCodeExecutable: this.#cli.executable,
+      ...this.#sdkLaunch,
       settingSources: ["user", "project", "local"],
       mcpServers: {},
       strictMcpConfig: true,
@@ -829,7 +835,7 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
         prompt: input,
         options: {
           cwd: config.cwd,
-          pathToClaudeCodeExecutable: this.#cli.executable,
+          ...this.#sdkLaunch,
           ...(config.model ? { model: this.#sdkModel(config.model) } : {}),
           ...(appliedEffort ? { effort: appliedEffort } : {}),
           ...(resume ? { resume: threadId } : { sessionId: threadId }),
@@ -1894,6 +1900,72 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
   #sdkModel(model: string): string {
     return this.#modelSdkValues.get(model) ?? normalizeClaudeModel(model);
   }
+}
+
+type ClaudeSdkLaunch = Pick<Options, "pathToClaudeCodeExecutable" | "spawnClaudeCodeProcess">;
+
+/**
+ * The npm wrapper for Claude Code ends with the real program, `"%dp0%\node_modules\…\claude.exe" %*`,
+ * or with `cli.js` after `"%_prog%"`.
+ */
+const NPM_WRAPPER_TARGET = /"%dp0%\\([^"%]+\.(?:exe|js))"\s+%\*/i;
+
+/**
+ * The SDK starts every CLI path that does not end in `.js` as a native program, with no shell. Node
+ * refuses to start a `.cmd` or `.bat` that way (`spawn EINVAL`), and an npm install of Claude Code on
+ * Windows puts `claude.cmd` on `PATH`. The SDK gets the program that an npm wrapper starts, so no
+ * `cmd.exe` limits the length or the quoting of the arguments. Another wrapper starts through
+ * `cmd.exe`, as `cliSpawnTarget` says.
+ */
+function claudeSdkLaunch(executable: string): ClaudeSdkLaunch {
+  if (!cliSpawnTarget(executable, []).windowsVerbatimArguments) return { pathToClaudeCodeExecutable: executable };
+  const target = NPM_WRAPPER_TARGET.exec(readWrapper(executable))?.[1];
+  const program = target ? join(dirname(executable), target) : null;
+  if (program && existsSync(program)) return { pathToClaudeCodeExecutable: program };
+  return { pathToClaudeCodeExecutable: executable, spawnClaudeCodeProcess: spawnClaudeWrapper };
+}
+
+function readWrapper(executable: string): string {
+  try {
+    return readFileSync(executable, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * A kill of `cmd.exe` leaves `claude.exe` running, so a kill stops the whole tree. The SDK reads no
+ * stderr from a process it did not start, and a full stderr pipe would block the CLI.
+ */
+function spawnClaudeWrapper({ command, args, cwd, env, signal }: SpawnOptions): SpawnedProcess {
+  const target = cliSpawnTarget(command, args);
+  const child = spawn(target.command, target.args, {
+    cwd,
+    env,
+    stdio: ["pipe", "pipe", "ignore"],
+    windowsHide: true,
+    windowsVerbatimArguments: target.windowsVerbatimArguments,
+  });
+  const killWrapper = child.kill.bind(child);
+  const running = () => child.pid !== undefined && child.exitCode === null && child.signalCode === null;
+  let stopping = false;
+  // `taskkill /T` finds the children only while `cmd.exe` runs, so the wrapper goes last.
+  child.kill = (killSignal) => {
+    if (!running()) return false;
+    if (stopping) return true;
+    stopping = true;
+    execFile("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true }, () => {
+      if (running()) killWrapper(killSignal);
+    });
+    return true;
+  };
+  const abort = () => child.kill();
+  const release = () => signal.removeEventListener("abort", abort);
+  signal.addEventListener("abort", abort, { once: true });
+  child.once("exit", release);
+  child.once("error", release);
+  if (signal.aborted) abort();
+  return child;
 }
 
 function claudeEnvironment(cli: ClaudeCliInfo): NodeJS.ProcessEnv {
