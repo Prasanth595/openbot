@@ -72,7 +72,7 @@ const AAVE: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: true,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/aave",
 };
 
@@ -113,7 +113,7 @@ const CANVA: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: true,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/canva",
 };
 
@@ -154,7 +154,7 @@ const LINEAR: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/linear",
 };
 
@@ -195,7 +195,7 @@ const NOTION: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: true,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/notion",
 };
 
@@ -235,7 +235,7 @@ const COBRAIN: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/cobrain",
 };
 
@@ -290,7 +290,7 @@ const FIGMA: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: true,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/figma",
 };
 
@@ -326,7 +326,7 @@ const PAPER: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/paper",
 };
 
@@ -366,7 +366,7 @@ const SENTRY: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/sentry",
 };
 
@@ -407,7 +407,7 @@ const VERCEL: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/vercel",
 };
 
@@ -482,7 +482,7 @@ const CONTEXT7: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/context7",
 };
 
@@ -522,7 +522,7 @@ const STRIPE: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/stripe",
 };
 
@@ -580,7 +580,7 @@ const POSTHOG: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/posthog",
 };
 
@@ -630,7 +630,7 @@ const AIRTABLE: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/airtable",
 };
 
@@ -688,7 +688,7 @@ const FIRECRAWL: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/firecrawl",
 };
 
@@ -740,7 +740,7 @@ const BRAVE_SEARCH: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/brave-search",
 };
 
@@ -792,7 +792,7 @@ const RESEND: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/resend",
 };
 
@@ -856,8 +856,66 @@ const COMPOSIO: MarketplacePluginDetail = {
   skills: [],
   installs: 0,
   featured: false,
-  updatedAt: "2026-09-30T00:00:00.000Z",
+  updatedAt: "2026-10-13T00:00:00.000Z",
   shareUrl: "https://openbot.run/plugins/composio",
+};
+
+const CAFECITO_BEANS: MarketplacePluginDetail = {
+  id: "plugin-cafecito-beans",
+  slug: "cafecito-beans",
+  name: "Cafecito Beans",
+  tagline: "Publisher research and coverage",
+  description:
+    "Cafecito Beans lets agents search news, reports, research, and official statements, track trends, and compare coverage across publishers. It provides read-only access through a hosted MCP server. Each user connects with a Cafecito API key.",
+  category: "research",
+  creatorName: "cafecito.tech",
+  iconUrl: "https://cafecito.tech/images/beans.png",
+  version: "1.0.0",
+  prompts: [
+    { id: "prompt-trends", text: "What news about GPU supply shortages is trending this week?" },
+    { id: "prompt-legal", text: "Find lawsuits and official statements about Nvidia since the start of this month." },
+    { id: "prompt-story", text: "Compare publishers’ coverage of semiconductor export restrictions this week." },
+  ],
+  apps: [
+    {
+      id: "app-cafecito-beans-mcp",
+      name: "Cafecito Beans",
+      description:
+        "Read-only article search, stories, trends, source details, related coverage, and mentions, through the hosted Beans MCP server with a Cafecito API key.",
+      iconUrl: "https://cafecito.tech/images/beans.png",
+      server: {
+        name: "cafecito-beans",
+        transport: "http",
+        url: "https://api.cafecito.tech/beans/mcp",
+        auth: [
+          {
+            id: "cafecito-api-key",
+            kind: "key",
+            label: "Cafecito API key",
+            fields: [
+              {
+                id: "token",
+                label: "Cafecito API key",
+                header: "Authorization",
+                prefix: "Bearer ",
+                hint: "Enter only the key from Cafecito API Keys. Do not include Bearer.",
+              },
+            ],
+            docsUrl: "https://developer.cafecito.tech/settings/api-keys",
+            docsLabel: "Get a Cafecito API key",
+          },
+        ],
+      },
+    },
+  ],
+  websiteUrl: "https://developer.cafecito.tech/products/beans",
+  privacyPolicyUrl: "https://cafecito.tech/docs/privacy-policy/",
+  termsUrl: "https://cafecito.tech/docs/terms-of-use/",
+  skills: [],
+  installs: 0,
+  featured: false,
+  updatedAt: "2026-10-13T00:00:00.000Z",
+  shareUrl: "https://openbot.run/plugins/cafecito-beans",
 };
 
 export const MARKETPLACE_PLUGINS: MarketplacePluginDetail[] = [
@@ -879,4 +937,5 @@ export const MARKETPLACE_PLUGINS: MarketplacePluginDetail[] = [
   BRAVE_SEARCH,
   RESEND,
   COMPOSIO,
+  CAFECITO_BEANS,
 ];
