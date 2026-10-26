@@ -13,7 +13,7 @@ export interface AppLogoProps {
    * on it, and a click on it counts as a click on the logo. The logo stays the one control for the
    * keyboard and for screen readers.
    */
-  pointerArea?: HTMLElement;
+  pointerArea?: HTMLElement | undefined;
   class?: string;
 }
 
