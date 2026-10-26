@@ -15,6 +15,7 @@
     "./file-reference": "./src/file-reference.ts",
     "./app-logo-shape": "./src/app-logo-shape.ts",
     "./provider-logo-shape": "./src/provider-logo-shape.ts",
+    "./model-brand-mark": "./src/model-brand-mark.ts",
     "./connector-mark-shape": "./src/connector-mark-shape.ts"
   },
   "scripts": {
