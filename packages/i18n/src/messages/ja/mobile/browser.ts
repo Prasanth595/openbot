@@ -16,6 +16,7 @@ export const messages = {
   "mobile.browser.tabs.new": "新規タブ",
   "mobile.browser.tabs.close": "タブを閉じる",
   "mobile.browser.tabs.untitled": "無題",
+  "mobile.browser.tabs.openedInBackground": "新しいタブが開きました",
   "mobile.browser.menu.openLink": "リンクを新規タブで開く",
   "mobile.browser.menu.copyLink": "リンクをコピー",
   "mobile.browser.menu.copyImageAddress": "画像のアドレスをコピー",

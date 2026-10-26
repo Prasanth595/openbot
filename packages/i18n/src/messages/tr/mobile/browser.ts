@@ -16,6 +16,7 @@ export const messages = {
   "mobile.browser.tabs.new": "Yeni sekme",
   "mobile.browser.tabs.close": "Sekmeyi kapat",
   "mobile.browser.tabs.untitled": "Adsız",
+  "mobile.browser.tabs.openedInBackground": "Yeni sekme açıldı",
   "mobile.browser.menu.openLink": "Bağlantıyı yeni sekmede aç",
   "mobile.browser.menu.copyLink": "Bağlantıyı kopyala",
   "mobile.browser.menu.copyImageAddress": "Görsel adresini kopyala",

@@ -21,6 +21,7 @@ export const messages = {
   "mobile.browser.tabs.new": "Nowa karta",
   "mobile.browser.tabs.close": "Zamknij kartę",
   "mobile.browser.tabs.untitled": "Bez tytułu",
+  "mobile.browser.tabs.openedInBackground": "Otwarto nową kartę",
   "mobile.browser.menu.openLink": "Otwórz link w nowej karcie",
   "mobile.browser.menu.copyLink": "Kopiuj link",
   "mobile.browser.menu.copyImageAddress": "Kopiuj adres obrazu",

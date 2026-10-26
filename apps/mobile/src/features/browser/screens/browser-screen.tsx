@@ -32,6 +32,7 @@ import {
   useAgentBrowserTab,
   useAgentBrowserTabs,
   useBrowserRequests,
+  useBrowserTabsLoaded,
 } from "@/features/workspace/components/use-live-workspace";
 import { useMobileWorkspace } from "@/features/workspace/context/mobile-workspace-context";
 import type { MobileAgent, MobileBrowserViewSupport } from "@/features/workspace/model/workspace-types";
@@ -45,6 +46,7 @@ import { useLiquidGlass } from "@/shared/lib/use-liquid-glass";
 import { BrowserLiveStage, type BrowserLiveStageHandle } from "../components/browser-live-stage";
 import { useBrowserFeature } from "../components/use-browser-feature";
 import { useBrowserLiveView } from "../components/use-browser-live-view";
+import { useUnseenBrowserTabs } from "../components/use-unseen-browser-tabs";
 import { namedKeyInputs, pasteInput, selectAllInputs, textChangeInputs, typedTextInputs } from "../model/browser-keys";
 import type { MobileBrowserTab } from "../model/browser-tabs";
 import type { LiveViewMode } from "../model/live-view-gestures";
@@ -136,7 +138,7 @@ function BrowserView({
   const insets = useSafeAreaInsets();
   const liquidGlass = useLiquidGlass();
   const reducedMotion = useReducedMotion();
-  const [foreground, fieldBackground] = useThemeColor(["foreground", "default"]);
+  const [foreground, fieldBackground, accent] = useThemeColor(["foreground", "default", "accent"]);
   const { theme } = useUniwind();
   const appearance = theme === "dark" ? "dark" : "light";
   const iconColor = String(foreground);
@@ -167,6 +169,9 @@ function BrowserView({
   const [keyboardShown, setKeyboardShown] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [openingTab, setOpeningTab] = useState(false);
+  // A tab that opened behind this one, such as from a link, puts a dot on the tab button.
+  const tabsLoaded = useBrowserTabsLoaded(agent.serverId);
+  const unseenTabs = useUnseenBrowserTabs(tabs, tab?.id ?? null, tabsLoaded, openingTab);
   // Android shows the page's menu as a dropdown that opens from code, at the pointer.
   const [pageMenu, setPageMenu] = useState<{
     actions: MenuAction[];
@@ -413,6 +418,11 @@ function BrowserView({
                 id: `tab:${candidate.id}`,
                 title: tabTitle(candidate, t("mobile.browser.tabs.untitled")),
                 state: candidate.id === tab?.id ? "on" : "off",
+                // Each tab has an icon, so all titles align. The same dot as on the tab button marks
+                // each tab that opened behind this one.
+                ...(unseenTabs.has(candidate.id)
+                  ? ({ image: "circlebadge.fill", imageColor: accent } satisfies Partial<MenuAction>)
+                  : ({ image: "globe" } satisfies Partial<MenuAction>)),
               }),
             ),
           } satisfies MenuAction,
@@ -598,6 +608,9 @@ function BrowserView({
                       accessible
                       accessibilityRole="button"
                       accessibilityLabel={t("mobile.browser.tabs.button", { count: tabs.length })}
+                      accessibilityValue={
+                        unseenTabs.size > 0 ? { text: t("mobile.browser.tabs.openedInBackground") } : undefined
+                      }
                       className="flex-1 items-center justify-center"
                     >
                       <View
@@ -611,6 +624,12 @@ function BrowserView({
                     </View>
                   </GlassCircle>
                 </MenuView>
+                {showControls && unseenTabs.size > 0 ? (
+                  <View
+                    pointerEvents="none"
+                    className="absolute top-0 right-0 size-3 rounded-full border-2 border-background bg-accent"
+                  />
+                ) : null}
               </HideableMenu>
             </View>
             <View pointerEvents="box-none" className="absolute inset-0 items-center justify-center">

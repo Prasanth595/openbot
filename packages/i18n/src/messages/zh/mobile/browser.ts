@@ -16,6 +16,7 @@ export const messages = {
   "mobile.browser.tabs.new": "新建标签页",
   "mobile.browser.tabs.close": "关闭标签页",
   "mobile.browser.tabs.untitled": "无标题",
+  "mobile.browser.tabs.openedInBackground": "已打开新标签页",
   "mobile.browser.menu.openLink": "在新标签页中打开链接",
   "mobile.browser.menu.copyLink": "复制链接",
   "mobile.browser.menu.copyImageAddress": "复制图片地址",

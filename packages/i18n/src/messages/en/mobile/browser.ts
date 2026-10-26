@@ -15,6 +15,7 @@ export const messages = defineMessages("mobile.browser", {
   "mobile.browser.tabs.new": "New tab",
   "mobile.browser.tabs.close": "Close tab",
   "mobile.browser.tabs.untitled": "Untitled",
+  "mobile.browser.tabs.openedInBackground": "New tab opened",
   "mobile.browser.menu.openLink": "Open Link in New Tab",
   "mobile.browser.menu.copyLink": "Copy Link",
   "mobile.browser.menu.copyImageAddress": "Copy Image Address",

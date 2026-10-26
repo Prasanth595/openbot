@@ -16,6 +16,7 @@ export const messages = {
   "mobile.browser.tabs.new": "Nova aba",
   "mobile.browser.tabs.close": "Fechar aba",
   "mobile.browser.tabs.untitled": "Sem título",
+  "mobile.browser.tabs.openedInBackground": "Nova aba aberta",
   "mobile.browser.menu.openLink": "Abrir link em nova aba",
   "mobile.browser.menu.copyLink": "Copiar link",
   "mobile.browser.menu.copyImageAddress": "Copiar endereço da imagem",

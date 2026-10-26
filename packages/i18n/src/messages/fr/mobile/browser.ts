@@ -16,6 +16,7 @@ export const messages = {
   "mobile.browser.tabs.new": "Nouvel onglet",
   "mobile.browser.tabs.close": "Fermer l’onglet",
   "mobile.browser.tabs.untitled": "Sans titre",
+  "mobile.browser.tabs.openedInBackground": "Nouvel onglet ouvert",
   "mobile.browser.menu.openLink": "Ouvrir le lien dans un nouvel onglet",
   "mobile.browser.menu.copyLink": "Copier le lien",
   "mobile.browser.menu.copyImageAddress": "Copier l’adresse de l’image",

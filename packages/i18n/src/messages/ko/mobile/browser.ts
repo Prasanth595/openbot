@@ -16,6 +16,7 @@ export const messages = {
   "mobile.browser.tabs.new": "새 탭",
   "mobile.browser.tabs.close": "탭 닫기",
   "mobile.browser.tabs.untitled": "제목 없음",
+  "mobile.browser.tabs.openedInBackground": "새 탭이 열림",
   "mobile.browser.menu.openLink": "새 탭에서 링크 열기",
   "mobile.browser.menu.copyLink": "링크 복사",
   "mobile.browser.menu.copyImageAddress": "이미지 주소 복사",

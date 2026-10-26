@@ -21,6 +21,7 @@ export const messages = {
   "mobile.browser.tabs.new": "Новая вкладка",
   "mobile.browser.tabs.close": "Закрыть вкладку",
   "mobile.browser.tabs.untitled": "Без названия",
+  "mobile.browser.tabs.openedInBackground": "Открыта новая вкладка",
   "mobile.browser.menu.openLink": "Открыть ссылку в новой вкладке",
   "mobile.browser.menu.copyLink": "Копировать ссылку",
   "mobile.browser.menu.copyImageAddress": "Копировать адрес изображения",
