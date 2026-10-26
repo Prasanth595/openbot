@@ -158,3 +158,13 @@ export function isAgentMemorySelectionState(value: unknown, budgetBytes = 8192):
     value.usedBytes <= value.budgetBytes
   );
 }
+
+/** A user memory: what every agent knows about the user. The settings page edits them on this computer. */
+export interface UpdateUserMemoryInput {
+  memoryId: string;
+  text: string;
+}
+
+export interface SetUserMemoryInclusionInput {
+  changes: AgentMemorySelectionChange[];
+}

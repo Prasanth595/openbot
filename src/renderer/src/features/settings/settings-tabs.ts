@@ -3,6 +3,7 @@ import type { AppTextKey } from "@openbot/i18n";
 import {
   Bell,
   Bot,
+  Brain,
   CircleArrowDown,
   CreditCard,
   Mic,
@@ -17,6 +18,7 @@ import {
 export type SettingsTab =
   | "general"
   | "agents"
+  | "memory"
   | "notifications"
   | "voice"
   | "dynamic-island"
@@ -82,6 +84,13 @@ export const navItems: ReadonlyArray<SettingsNavItem> = [
       { titleKey: "agentSettings.quickAcknowledgement.title" },
       { titleKey: "settings.busyMessage.title", descriptionKey: "settings.busyMessage.description" },
     ],
+  },
+  {
+    value: "memory",
+    titleKey: "settings.tab.memory.title",
+    descriptionKey: "settings.tab.memory.description",
+    icon: Brain,
+    rows: [{ titleKey: "settings.memory.about.title", descriptionKey: "settings.memory.about.description" }],
   },
   {
     value: "profile",

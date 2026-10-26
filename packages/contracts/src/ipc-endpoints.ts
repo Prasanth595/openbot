@@ -67,8 +67,11 @@ import type {
   CreateAgentMemoryInput,
   DeleteAgentMemoryInput,
   HostAgentMemoryLimit,
+  MemoryEntry,
   SetAgentMemoryInclusionInput,
+  SetUserMemoryInclusionInput,
   UpdateAgentMemoryInput,
+  UpdateUserMemoryInput,
 } from "./ipc-agent-memories";
 import type {
   AgentProfileDraft,
@@ -1341,6 +1344,17 @@ export const IPC_ENDPOINTS = {
     deleteMemory: scopedRequest<DeleteAgentMemoryInput, void>()("agent:delete-memory"),
     clearMemories: scopedRequest<string, void>()("agent:clear-memories"),
   },
+  // What every agent knows about the user. Local only: these stay on this computer, and no Team API
+  // carries them. A change sends the `user-memories-changed` agent event.
+  userMemories: {
+    list: request<undefined, MemoryEntry[]>()("user-memories:list"),
+    getSelection: request<undefined, AgentMemorySelectionState>()("user-memories:get-selection"),
+    setInclusion: request<SetUserMemoryInclusionInput, AgentMemorySelectionState>()("user-memories:set-inclusion"),
+    create: request<string, MemoryEntry>()("user-memories:create"),
+    update: request<UpdateUserMemoryInput, MemoryEntry>()("user-memories:update"),
+    delete: request<string, void>()("user-memories:delete"),
+    clear: request<undefined, void>()("user-memories:clear"),
+  },
   sharedTables: {
     // Shared tables are not scoped to an agent: there is no `agentId` on either call. The list is
     // every table in the one shared database, and the user's delete is not owner-gated.
@@ -1763,6 +1777,7 @@ export const IPC_GROUP_PATHS = {
   notifications: "notifications",
   agent: "agent",
   agentMemories: "agent",
+  userMemories: "userMemories",
   sharedTables: "agent",
   agentRoutines: "agent",
   channelMemories: "agent",
