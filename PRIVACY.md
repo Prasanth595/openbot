@@ -435,8 +435,10 @@ does not record message text, files, request bodies or headers, and it masks tok
 addresses. The app never sends the log. **Settings → Support** shows it and lets you save the file or
 clear it.
 
-Mobile chat uses a local symbol beside links. It does not fetch website icons or Markdown images
-when displaying a conversation. Link destinations are contacted only when you choose to open them.
+Mobile chat, like desktop and web chat, shows the icon of the linked site beside a web link. To get
+it, the phone requests `/favicon.ico` from the site of the link when it shows the message. The request
+contains no conversation text. When the site has no icon, a local symbol shows. Mobile chat does not
+fetch Markdown images when displaying a conversation.
 
 Mobile chat can send selected files to the conversation's desktop host through the existing encrypted
 team connection. Text pasted into the input is processed only after the user pastes it. A text paste

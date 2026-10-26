@@ -455,7 +455,7 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
         >
           {tokenIs(token, "link") ? (
             <>
-              <ChatLinkIcon color={presentation.style.color} compact={presentation.type === "body-sm"} />
+              <ChatLinkIcon url={url} color={presentation.style.color} compact={presentation.type === "body-sm"} />
               {NO_BREAK_SPACE}
             </>
           ) : null}
@@ -590,7 +590,12 @@ function selectableInline(tokens: Token[], presentation: TextPresentation, segme
       if (url && tokenIs(token, "link")) {
         segments.push({ length: 1, text: "" }, { length: 1, text: NO_BREAK_SPACE });
         label.push(
-          <ChatLinkIcon key="icon" color={presentation.style.color} compact={presentation.type === "body-sm"} />,
+          <ChatLinkIcon
+            key="icon"
+            url={url}
+            color={presentation.style.color}
+            compact={presentation.type === "body-sm"}
+          />,
           NO_BREAK_SPACE,
         );
       }
