@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/solid-router";
-import { createSignal, createUniqueId, For, flush, onSettled } from "solid-js";
+import { createSignal, createUniqueId, For, flush, Match, onSettled, Switch } from "solid-js";
 import { SITE_NAVIGATION_LINKS, SITE_NAVIGATION_SECTIONS, type SiteNavigationSection } from "../../lib/site-navigation";
 import { LandingIcon } from "./LandingIcon";
 import { SiteNavigationPanel } from "./SiteNavigationPanel";
@@ -7,8 +7,9 @@ import { SiteNavigationPanel } from "./SiteNavigationPanel";
 // The header menu on a wide screen. A Solid port of the Kobra navigation menu
 // (https://kobra.systems/components/navigation-menu), which is React on Base UI.
 //
-// It is a disclosure, not an ARIA menu: every trigger is a link to its section's
-// index page, and a hover or ArrowDown shows its panel of ordinary links. Each
+// It is a disclosure, not an ARIA menu: a trigger is a link to its section's
+// index page, and a hover or ArrowDown shows its panel of ordinary links. Resources
+// has no index page, so its trigger is a button that opens the panel. Each
 // panel sits in the DOM right after its trigger, so Tab walks from a trigger into
 // its open panel and on to the next trigger. A closed panel is inert.
 //
@@ -48,7 +49,7 @@ export function SiteNavigationMenu() {
   let list: HTMLUListElement | undefined;
   let pill: HTMLSpanElement | undefined;
   let surface: HTMLDivElement | undefined;
-  const triggers = new Map<SectionId, HTMLAnchorElement>();
+  const triggers = new Map<SectionId, HTMLElement>();
   const panels = new Map<SectionId, HTMLDivElement>();
 
   // The open section as of this handler. `active()` catches up a microtask later.
@@ -190,6 +191,18 @@ export function SiteNavigationMenu() {
     openTimer = setTimeout(() => open(id), OPEN_DELAY_MS);
   }
 
+  /**
+   * A press opens the panel. Hover has usually opened it already, so only Enter or Space, which
+   * report no click count, closes it again.
+   */
+  function handleButtonTriggerClick(event: MouseEvent, id: SectionId): void {
+    if (event.detail === 0 && current === id) {
+      close();
+      return;
+    }
+    open(id);
+  }
+
   /** A plain link has no panel, so reaching it closes the one that is open. */
   function reachLink(link: HTMLElement): void {
     clearTimeout(openTimer);
@@ -281,18 +294,39 @@ export function SiteNavigationMenu() {
           <For each={SITE_NAVIGATION_SECTIONS}>
             {(section) => (
               <li class="site-nav-item">
-                <Link
-                  ref={(element: HTMLAnchorElement) => triggers.set(section.id, element)}
-                  class="site-nav-trigger"
-                  to={section.indexRoute}
-                  aria-expanded={active() === section.id ? "true" : "false"}
-                  aria-controls={panelId(section.id)}
-                  onPointerEnter={(event) => handleTriggerPointerEnter(event, section.id)}
-                  onPointerLeave={() => clearTimeout(openTimer)}
-                >
-                  {section.label}
-                  <LandingIcon name="chevron-down" class="site-nav-chevron" />
-                </Link>
+                <Switch>
+                  <Match when={section.kind !== "resources" && section}>
+                    {(linked) => (
+                      <Link
+                        ref={(element: HTMLAnchorElement) => triggers.set(section.id, element)}
+                        class="site-nav-trigger"
+                        to={linked().indexRoute}
+                        aria-expanded={active() === section.id ? "true" : "false"}
+                        aria-controls={panelId(section.id)}
+                        onPointerEnter={(event) => handleTriggerPointerEnter(event, section.id)}
+                        onPointerLeave={() => clearTimeout(openTimer)}
+                      >
+                        {section.label}
+                        <LandingIcon name="chevron-down" class="site-nav-chevron" />
+                      </Link>
+                    )}
+                  </Match>
+                  <Match when={section.kind === "resources"}>
+                    <button
+                      ref={(element) => triggers.set(section.id, element)}
+                      type="button"
+                      class="site-nav-trigger"
+                      aria-expanded={active() === section.id ? "true" : "false"}
+                      aria-controls={panelId(section.id)}
+                      onPointerEnter={(event) => handleTriggerPointerEnter(event, section.id)}
+                      onPointerLeave={() => clearTimeout(openTimer)}
+                      onClick={(event) => handleButtonTriggerClick(event, section.id)}
+                    >
+                      {section.label}
+                      <LandingIcon name="chevron-down" class="site-nav-chevron" />
+                    </button>
+                  </Match>
+                </Switch>
                 <div
                   ref={(element) => panels.set(section.id, element)}
                   id={panelId(section.id)}
