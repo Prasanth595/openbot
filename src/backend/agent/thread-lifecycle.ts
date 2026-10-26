@@ -19,6 +19,7 @@ import type { AgentClient, AgentProvider } from "../agent-client";
 import type { AgentStore } from "../agent-store";
 import type { ProviderSession } from "../database/provider-sessions";
 import { causeHelpers } from "../effect-boundary";
+import { type HomeSkill, listHomeSkills, skillFolderNames } from "../home-skills";
 import type { MailboxStore } from "../mailbox-store";
 import type { McpOperationError } from "../mcp-effects";
 import {
@@ -541,7 +542,13 @@ export class ThreadLifecycle {
       sandbox: codexSandboxMode(agent),
       ...this.#workspaceOnlyParam(agent, client),
       ...this.#computerUseParam(agent, client),
-      ...this.#instructions(agent, client, section, this.#computerUseInOwnChat(owner, publicThreadId)),
+      ...this.#instructions(
+        agent,
+        client,
+        section,
+        this.#computerUseInOwnChat(owner, publicThreadId),
+        yield* this.#homeSkills(agent, client),
+      ),
       serviceName: "openbot",
       dynamicTools: VISIBLE_DYNAMIC_TOOLS,
     };
@@ -946,6 +953,7 @@ export class ThreadLifecycle {
     client: AgentClient,
     section = this.#sectionTeammates(agent.id),
     computerUseInOwnChat = false,
+    homeSkills: readonly HomeSkill[] = [],
   ): DynamicRecord {
     const memories = this.#memories.essentialFor(agent.id);
     const options = {
@@ -958,6 +966,7 @@ export class ThreadLifecycle {
       memoriesInTurns: client.provider === "claude",
       teammatesInTurns: client.provider === "claude",
       sectionTeammates: section,
+      homeSkills,
     };
     const instructions = developerInstructions(
       agent,
@@ -975,6 +984,19 @@ export class ThreadLifecycle {
         }
       : { developerInstructions: instructions };
   }
+
+  /**
+   * The skills in `~/.agents/skills` that the instructions name, for a CLI that does not read that
+   * folder. A skill that the CLI reads from a workspace skill folder of the same name is left out.
+   */
+  readonly #homeSkills = Effect.fn("ThreadLifecycle.homeSkills")(function* (agent: AgentSummary, client: AgentClient) {
+    const descriptor = agentProviderDescriptor(client.provider);
+    if (descriptor.homeSkills !== "instructions") return [];
+    const read = new Set<string>();
+    for (const folder of descriptor.skillFolders)
+      for (const name of yield* skillFolderNames(join(agent.workspacePath, folder))) read.add(name);
+    return (yield* listHomeSkills()).filter((skill) => !read.has(skill.slug));
+  });
 
   /**
    * What an existing provider session is addressed with. Read by `resumeThread` and by boot
@@ -1003,7 +1025,13 @@ export class ThreadLifecycle {
       sandbox: codexSandboxMode(agent),
       ...this.#workspaceOnlyParam(agent, client),
       ...this.#computerUseParam(agent, client),
-      ...this.#instructions(agent, client, this.#sectionTeammates(agent.id), computerUseInOwnChat),
+      ...this.#instructions(
+        agent,
+        client,
+        this.#sectionTeammates(agent.id),
+        computerUseInOwnChat,
+        yield* this.#homeSkills(agent, client),
+      ),
       ...(client.provider === "codex" ? {} : { dynamicTools: VISIBLE_DYNAMIC_TOOLS }),
       ...(yield* this.codexConfigEffect(
         agent,

@@ -205,6 +205,18 @@ export function createProviderRuntimeStore(
       }
     }
     setProviderRuntimeSnapshot(snapshot);
+    // Main updates the managed CLIs on its own after an app upgrade, with no notification. Only
+    // its failure is shown, with a Retry. A first install has no version and shows its own failure.
+    // The crossing into the failure, not out of a download: an update that fails at once can fail
+    // before the window gets its first snapshot.
+    for (const provider of MANAGED_RUNTIME_PROVIDERS) {
+      if (updating.has(provider) || !isLocalServer()) continue;
+      const next = snapshot.providers[provider];
+      if (next.phase !== "download-error" || next.version === null) continue;
+      if (current.providers[provider].phase === "download-error") continue;
+      showProviderUpdateToast(providerUpdate(provider, snapshot), () => void downloadProviderRuntime(provider));
+      failed.add(provider);
+    }
     for (const provider of updating) {
       const update = providerUpdate(provider, snapshot);
       if (update.runtime.phase === "not-downloaded" || (update.runtime.phase === "ready" && update.availableVersion))

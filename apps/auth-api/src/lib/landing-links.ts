@@ -71,6 +71,7 @@ export type FooterLink =
         | "/compare"
         | "/providers"
         | "/teams"
+        | "/brand"
         | "/contact"
         | "/privacy-policy";
       readonly hash?: string;
@@ -98,6 +99,7 @@ export const FOOTER_COLUMNS: readonly FooterColumn[] = [
       { label: "Changelog", external: false, to: "/changelog" },
       { label: "Teams", external: false, to: "/teams" },
       { label: "Contact", external: false, to: "/contact" },
+      { label: "Brand", external: false, to: "/brand" },
       { label: "Source code", external: true, href: OPENBOT_LINKS.repository },
       { label: "License", external: true, href: OPENBOT_LINKS.license },
       { label: "Privacy policy", external: false, to: "/privacy-policy" },
