@@ -327,11 +327,12 @@ function homeSkillInstructions(skills: readonly HomeSkill[]): string[] {
   return [
     "The user's own skills are in ~/.agents/skills, and your CLI does not load them. When a task matches the description of one, or the user names it, read its SKILL.md first and follow it:",
     ...skills.slice(0, MAX_HOME_SKILLS_IN_INSTRUCTIONS).map((skill) => {
-      const description = skill.description.replace(/\s+/gu, " ");
+      // Code points, so a cut never splits a surrogate pair.
+      const description = Array.from(redactText(skill.description).replace(/\s+/gu, " "));
       const short =
         description.length > MAX_HOME_SKILL_DESCRIPTION
-          ? `${description.slice(0, MAX_HOME_SKILL_DESCRIPTION - 1)}…`
-          : description;
+          ? `${description.slice(0, MAX_HOME_SKILL_DESCRIPTION - 1).join("")}…`
+          : description.join("");
       return `- ${skill.slug}: ${short} (${skill.file})`;
     }),
   ];

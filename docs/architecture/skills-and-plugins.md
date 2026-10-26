@@ -60,8 +60,9 @@ descriptor says how each CLI gets these skills:
 
 The `$` list (`listInstalledForChatTags`) adds these skills after the others, with the id
 `home:<slug>` and the existing `workspace` origin, so older clients decode them. A slug that the list
-already has is left out. A remote client that reads the same route for its read-only skill list shows
-them there too. The provider text of a `home:<slug>` tag names the skill's `SKILL.md`
+already has is left out. The desktop read-only Skills view reads the same route and leaves out the
+`home:` ids (`isHomeSkillId`), and so does the analytics skill count. The phone shows them in agent
+info with their `~/.agents/skills/<slug>` location. The provider text of a `home:<slug>` tag names the skill's `SKILL.md`
 (`displayMessageReferences`); a person, and the released Team API adapters, see the name alone.
 
 MCP servers do not use folders. `projection_mcp_servers` in SQLite is the source of truth for the

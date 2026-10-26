@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { HOME_SKILL_ID_PREFIX } from "@openbot/contracts/ipc";
 import { Effect, Option, Schema } from "effect";
 import { readSkillFrontmatter } from "./skill-frontmatter";
 
@@ -8,8 +9,6 @@ import { readSkillFrontmatter } from "./skill-frontmatter";
 export const HOME_SKILL_FOLDER = ".agents/skills";
 const MAX_HOME_SKILLS = 200;
 const MAX_SKILL_FILE_BYTES = 256 * 1024;
-/** The chat tag id of a home skill: `home:<slug>`. */
-const HOME_SKILL_TAG_PREFIX = "home:";
 
 /** A skill in `~/.agents/skills` whose `SKILL.md` follows the Agent Skills specification. */
 export interface HomeSkill {
@@ -37,18 +36,18 @@ export function homeSkillRoot(home = homedir()): string {
  * One folder name with no path in it. A chat tag id comes from message text, so its slug is checked
  * before it names a path.
  */
-export function isHomeSkillSlug(slug: string): boolean {
+function isHomeSkillSlug(slug: string): boolean {
   return slug !== "" && slug !== "." && slug !== ".." && !/[/\\\0]/u.test(slug);
 }
 
 export function homeSkillTagId(slug: string): string {
-  return `${HOME_SKILL_TAG_PREFIX}${slug}`;
+  return `${HOME_SKILL_ID_PREFIX}${slug}`;
 }
 
 /** The slug of a `home:<slug>` tag id, or null for any other id or an unsafe slug. */
 export function homeSkillTagSlug(id: string): string | null {
-  if (!id.startsWith(HOME_SKILL_TAG_PREFIX)) return null;
-  const slug = id.slice(HOME_SKILL_TAG_PREFIX.length);
+  if (!id.startsWith(HOME_SKILL_ID_PREFIX)) return null;
+  const slug = id.slice(HOME_SKILL_ID_PREFIX.length);
   return isHomeSkillSlug(slug) ? slug : null;
 }
 

@@ -833,6 +833,14 @@ export class ClaudeAgentClient extends EventEmitter<ClientEvents> {
             stateDirectory,
             this.#agentEnvironment?.().CLAUDE_CONFIG_DIR ?? process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude"),
             config.cwd,
+          ).pipe(
+            // The home skills are an addition: a state folder that cannot hold the links must not stop the session.
+            Effect.catch((error) =>
+              Effect.sync(() => {
+                queryLogger.warn("Claude starts without the skills in ~/.agents/skills.", { error: error.cause });
+                return null;
+              }),
+            ),
           )
         : null;
     const plugins = [skillPlugin, homeSkillPlugin].filter((plugin) => plugin !== null);
