@@ -614,9 +614,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
       // Pi can still queue a steer that timed out, and the queue would then send the message again.
       // A refusal queues nothing, so other steers of the turn stay in Pi's queue.
       Effect.tapError((failure) =>
-        failure.cause instanceof RequestTimeoutError
-          ? thread.rpc.request({ type: "clear_queue" }).pipe(Effect.ignore)
-          : Effect.void,
+        failure.cause instanceof RequestTimeoutError ? this.#dropSteer(thread, prompt.message) : Effect.void,
       ),
     );
     if (thread.turn !== turn || turn.finishing || turn.stopped) {
@@ -628,6 +626,18 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
     this.#addUserMessage(turn, prompt.message);
     return { turn: { id: turn.id, status: "inProgress" }, turnId: turn.id };
   });
+
+  /** Removes one queued steer. Pi clears its whole queue, so the other steers go back in, as text only. */
+  readonly #dropSteer = Effect.fn("PiAgentClient.dropSteer")(
+    function* (this: PiAgentClient, thread: PiThread, message: string) {
+      const cleared = yield* thread.rpc.request({ type: "clear_queue" });
+      const steering = getArray(cleared, "steering").filter(isString);
+      const index = steering.indexOf(message);
+      if (index >= 0) steering.splice(index, 1);
+      for (const text of steering) yield* thread.rpc.request({ type: "steer", message: text });
+    },
+    (effect) => Effect.ignore(effect),
+  );
 
   #addUserMessage(turn: PiTurn, message: string): void {
     const id = `${turn.id}:user:${randomUUID()}`;

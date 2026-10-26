@@ -23,6 +23,8 @@ interface LogEntry {
   text?: string;
   streamingBehavior?: string;
   images?: number;
+  /** The queued steers that `clear_queue` removed, joined by ", ". */
+  steering?: string;
 }
 
 interface Report {
@@ -174,18 +176,25 @@ try {
     reply: secondFinished.reply,
   };
 
-  // Pi does not answer a steer in time. Pi could still queue it, so the client clears Pi's queue, as
-  // the message also waits in OpenBot's queue. The turn goes on.
+  // Pi does not answer a steer in time, but queues it. The client removes it from Pi's queue, as the
+  // message also waits in OpenBot's queue. An earlier steer that Pi holds stays. The turn goes on.
   const slow = await startWork(client, thread, log);
   const cleared = await count(log, "clear_queue");
   assert.equal(cleared, 0, "A refused steer queues nothing, so it must not clear Pi's queue.");
+  assert.equal(await steer(client, thread, slow.id, "hold this"), slow.id);
+  const steersBefore = await count(log, "steer");
   const timedOut = await refusal(steer(client, thread, slow.id, "slow steer"));
   await waitForCount(log, "clear_queue", cleared + 1);
+  // The client sends the held steer again after the clear.
+  await waitForCount(log, "steer", steersBefore + 2);
+  const entries2 = await readJsonl<LogEntry>(log);
+  assert.equal(entries2.find((entry) => entry.event === "clear_queue")?.steering, "hold this, slow steer");
+  assert.equal(entries2.filter((entry) => entry.event === "steer").at(-1)?.text, "hold this");
   assert.equal(slow.completed(), false, "A timed-out steer must not end the running turn.");
   assert.equal(await steer(client, thread, slow.id, "after the timeout"), slow.id);
   const slowFinished = await slow.done;
   assert.equal(slowFinished.status, "completed");
-  assert.match(slowFinished.reply, /steered: after the timeout/u);
+  assert.match(slowFinished.reply, /steered: hold this, after the timeout/u);
   report.timedOut = { refused: timedOut, queueCleared: true, status: slowFinished.status, reply: slowFinished.reply };
 
   // A steer for a turn that is not the running one is refused before it reaches Pi.
