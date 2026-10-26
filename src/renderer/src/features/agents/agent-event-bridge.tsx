@@ -13,6 +13,7 @@ import { usePlatform } from "../../platform";
 import { useProviders } from "../../providers";
 import { queueAfterTurnCompleted } from "../../queue-reconciliation";
 import { useTurns } from "../../turns";
+import { useUiErrors } from "../../ui-errors";
 import { useAuth } from "../account/account-context";
 import { useAgentTasks } from "../agent-tasks/agent-tasks-context";
 import { useBrowserTabs } from "../browser/browser-context";
@@ -54,6 +55,7 @@ export function AgentEventBridge() {
   const { agentList, setModelOptions, explicitlyOpenedAgentChatId, applyStoredAgents, applyUserHiddenAgents } =
     useAgents();
   const { setConversationErrors, setConversationErrorRuns } = useConversationController();
+  const { setUiErrors } = useUiErrors();
   const agentTasks = useAgentTasks();
   const {
     applyRuntimeMessages,
@@ -223,6 +225,14 @@ export function AgentEventBridge() {
             : withoutAgent(current, event.agentId),
         );
         setActiveTurns((current) => ({ ...current, [event.agentId]: null }));
+        // A steer refusal is about the turn that ended. Kept, it shows below the turn's last reply (#3206).
+        setUiErrors((current) => {
+          const key = agentConversationKey(activeServerId(), event.agentId);
+          const steerStatus = currentText().t("app.errorStatus.steer");
+          const errors = current[key];
+          if (!errors?.some((error) => error.status === steerStatus)) return current;
+          return { ...current, [key]: errors.filter((error) => error.status !== steerStatus) };
+        });
         setQueues((current) => {
           const snapshot = current[event.agentId];
           if (!snapshot) return current;
