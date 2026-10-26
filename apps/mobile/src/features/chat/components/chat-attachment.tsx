@@ -25,6 +25,7 @@ import { isViewableImage, useChatImageSource } from "./chat-image-viewer";
 import { HtmlPage } from "./html-page";
 import { UPLOAD_BLUR_RADIUS, UPLOAD_SETTLE_MS, UploadProgressCircle, useUploadRevealStyle } from "./upload-progress";
 import { useAttachmentPreview } from "./use-attachment-preview";
+import { useHistoryShown } from "./use-history-shown";
 import { useListSettled } from "./use-list-settled";
 import { useMediaFile } from "./use-media-file";
 
@@ -89,6 +90,8 @@ function ChatVisualAttachment(props: ChatAttachmentProps) {
   const { t } = useText();
   const { width } = useWindowDimensions();
   const settled = useListSettled();
+  // A web view starts only once the chat shows its history, so it does not slow the chat that opens.
+  const historyShown = useHistoryShown();
   const pageHeight = chatVisualFrameHeight(undefined, props.visual?.height);
   const file = useMediaFile(serverId, attachment, true);
   const [page, setPage] = useState<{ uri: string; source: string } | null>(null);
@@ -135,7 +138,7 @@ function ChatVisualAttachment(props: ChatAttachmentProps) {
       >
         {/* The page takes no touches, so the chat scrolls over it and a tap opens it. */}
         <View pointerEvents="none" style={FILL}>
-          {settled ? <HtmlPage source={page.source} title={attachment.name} mode="chat" /> : null}
+          {settled && historyShown ? <HtmlPage source={page.source} title={attachment.name} mode="chat" /> : null}
         </View>
       </Pressable>
     );
