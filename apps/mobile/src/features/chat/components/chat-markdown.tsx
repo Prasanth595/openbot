@@ -445,21 +445,18 @@ function inline(tokens: Token[], parentPresentation: TextPresentation): ReactNod
         ? token.text || presentation.t("mobile.chat.markdown.image")
         : inline(token.tokens, { ...presentation, agents: [] });
       if (!url) return <Fragment key={offset}>{label}</Fragment>;
+      const open = () => openMessageLink(url);
       return (
-        <Text
-          key={offset}
-          style={{ ...presentation.style, textDecorationLine: "underline" }}
-          accessibilityRole="link"
-          accessibilityHint={url}
-          onPress={() => openMessageLink(url)}
-        >
+        <Text key={offset} style={presentation.style} accessibilityRole="link" accessibilityHint={url} onPress={open}>
           {tokenIs(token, "link") ? (
             <>
               <ChatLinkIcon url={url} color={presentation.style.color} compact={presentation.type === "body-sm"} />
               {NO_BREAK_SPACE}
             </>
           ) : null}
-          {label}
+          <Text style={{ ...presentation.style, textDecorationLine: "underline" }} onPress={open}>
+            {label}
+          </Text>
         </Text>
       );
     }
@@ -586,10 +583,11 @@ function selectableInline(tokens: Token[], presentation: TextPresentation, segme
       );
     } else if (tokenIs(token, "link") || tokenIs(token, "image")) {
       const url = webLink(token.href);
+      const icon: ReactNode[] = [];
       const label: ReactNode[] = [];
       if (url && tokenIs(token, "link")) {
         segments.push({ length: 1, text: "" }, { length: 1, text: NO_BREAK_SPACE });
-        label.push(
+        icon.push(
           <ChatLinkIcon
             key="icon"
             url={url}
@@ -609,13 +607,13 @@ function selectableInline(tokens: Token[], presentation: TextPresentation, segme
       if (!url) {
         nodes.push(...label);
       } else {
+        const open = () => openMessageLink(url);
         nodes.push(
-          <UITextView
-            key={offset}
-            style={{ ...presentation.style, textDecorationLine: "underline" }}
-            onPress={() => openMessageLink(url)}
-          >
-            {label}
+          <UITextView key={offset} style={presentation.style} onPress={open}>
+            {icon}
+            <UITextView key="label" style={{ ...presentation.style, textDecorationLine: "underline" }} onPress={open}>
+              {label}
+            </UITextView>
           </UITextView>,
         );
       }
