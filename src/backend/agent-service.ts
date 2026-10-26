@@ -1315,6 +1315,10 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
             for (const threadId of threadIds) yield* this.#forgetExecutionThread(threadId);
             yield* lifecycleStep("delete agent tasks", () => this.#tasks.deleteForAgent(agentId));
           }).pipe(Effect.mapError((failure) => new AgentRemovalFailed({ cause: failure.cause }))),
+        stopAgentProcess: (agentId) =>
+          this.#providers
+            .stopAgentProcess(agentId)
+            .pipe(Effect.mapError((failure) => new AgentRemovalFailed({ cause: failure.cause }))),
       },
     });
     this.#tools = new OpenBotToolRouter({

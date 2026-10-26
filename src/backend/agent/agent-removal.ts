@@ -23,6 +23,8 @@ export interface AgentRemovalHooks {
   listAgents(): AgentSummary[];
   /** Removes the agent's tasks, with their threads and provider session files. */
   deleteTasks(agentId: string): Effect.Effect<void, AgentRemovalFailed>;
+  /** Stops the agent's own provider process, which runs in its workspace. */
+  stopAgentProcess(agentId: string): Effect.Effect<void, AgentRemovalFailed>;
 }
 
 export interface AgentRemovalOptions {
@@ -167,8 +169,10 @@ export class AgentRemoval {
     );
     // Keep provider session records until their private files have been removed.
     yield* this.#threads.releaseAgentSessions(agent.id);
-    let stage = "provider-files";
+    let stage = "provider-process";
     yield* Effect.gen({ self: this }, function* () {
+      yield* this.#hooks.stopAgentProcess(agent.id);
+      stage = "provider-files";
       for (const session of providerSessions)
         yield* this.#threads
           .deleteProviderSessionFiles(session.externalSessionId, session.id)

@@ -2081,6 +2081,22 @@ export class ProviderRuntime implements ProviderPort {
   }
 
   /**
+   * Stops the agent's own process, after a start that is still running. The process runs in the
+   * agent's workspace, and Windows refuses to remove a folder that a live process uses (`EBUSY`).
+   */
+  readonly stopAgentProcess = Effect.fn("ProviderRuntime.stopAgentProcess")(function* (
+    this: ProviderRuntime,
+    agentId: string,
+  ) {
+    for (let pending = this.#confinedStarts.get(agentId); pending; pending = this.#confinedStarts.get(agentId)) {
+      const currentStart = pending;
+      yield* Deferred.await(currentStart).pipe(Effect.ignore);
+    }
+    const confined = this.#confined.get(agentId);
+    if (confined) yield* this.#stopConfined(agentId, confined);
+  }, Effect.uninterruptible).bind(this);
+
+  /**
    * Like `requireReadyClient`, for the process that runs this agent's turns. An agent's own process
    * does not need the shared one, so its turn can still be interrupted while the shared one restarts.
    */
